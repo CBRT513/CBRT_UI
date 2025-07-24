@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-// Firebase imports (ensure you have firebase installed in your project)
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+// Import our manual Firebase configuration
+import { db, auth } from './firebase'; 
+import { signInAnonymously } from 'firebase/auth';
+import { collection, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
 
 // --- Helper Components ---
 
-// Icon components for better UI. Using inline SVGs to keep it self-contained.
 const UserPlusIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="22" x2="22" y1="8" y2="14"/><line x1="19" x2="25" y1="11" y2="11"/></svg>
 );
@@ -24,40 +23,17 @@ const ToggleOffIcon = () => (
 
 export default function App() {
   // --- State Management ---
-  const [db, setDb] = useState(null);
   const [staffList, setStaffList] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentStaff, setCurrentStaff] = useState(null); // Used for editing
+  const [currentStaff, setCurrentStaff] = useState(null);
 
-  // --- Firebase Initialization ---
+  // --- Firebase Connection & Data Fetching ---
   useEffect(() => {
-    try {
-      // These global variables are provided by the environment.
-      const firebaseConfig = typeof __firebase_config !== 'undefined' 
-        ? JSON.parse(__firebase_config) 
-        : { apiKey: "DEMO", authDomain: "DEMO", projectId: "cbrt-app-ui-dev" }; // Fallback for local dev
-        
-      const app = initializeApp(firebaseConfig);
-      const firestore = getFirestore(app);
-      const auth = getAuth(app);
-      setDb(firestore);
+    // Authenticate anonymously to satisfy security rules for development
+    signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
 
-      // Authenticate anonymously to satisfy security rules for development
-      signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
-
-    } catch (e) {
-      console.error("Firebase initialization failed:", e);
-      setError("Failed to connect to the database. Please check the console.");
-    }
-  }, []);
-
-  // --- Data Fetching (Real-time) ---
-  useEffect(() => {
-    if (!db) return;
-
-    setIsLoading(true);
     const staffCollection = collection(db, 'staff');
     
     // onSnapshot provides real-time updates.
@@ -73,7 +49,7 @@ export default function App() {
 
     // Cleanup subscription on component unmount
     return () => unsubscribe();
-  }, [db]);
+  }, []);
 
   // --- UI Event Handlers ---
   const handleOpenModal = (staff = null) => {
@@ -108,7 +84,7 @@ export default function App() {
         {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg" role="alert">{error}</div>}
         
         {!isLoading && !error && (
-          <StaffTable staffList={staffList} onEdit={handleOpenModal} db={db} />
+          <StaffTable staffList={staffList} onEdit={handleOpenModal} />
         )}
       </div>
 
@@ -116,7 +92,6 @@ export default function App() {
         <StaffModal
           staff={currentStaff}
           onClose={handleCloseModal}
-          db={db}
         />
       )}
     </div>
@@ -125,10 +100,9 @@ export default function App() {
 
 // --- Child Components ---
 
-function StaffTable({ staffList, onEdit, db }) {
+function StaffTable({ staffList, onEdit }) {
   
   const handleStatusToggle = async (staff) => {
-    if (!db) return;
     const newStatus = staff.status === 'Active' ? 'Inactive' : 'Active';
     const staffDocRef = doc(db, 'staff', staff.id);
     try {
@@ -193,7 +167,7 @@ function StaffTable({ staffList, onEdit, db }) {
   );
 }
 
-function StaffModal({ staff, onClose, db }) {
+function StaffModal({ staff, onClose }) {
   const [formData, setFormData] = useState({
     displayName: staff?.displayName || '',
     role: staff?.role || 'warehouse',
