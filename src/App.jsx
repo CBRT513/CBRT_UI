@@ -90,6 +90,8 @@ export default function App() {
 
       {isModalOpen && (
         <StaffModal
+          // BUG FIX: Add a key to force component to re-mount with fresh state
+          key={currentStaff ? currentStaff.id : 'new'}
           staff={currentStaff}
           onClose={handleCloseModal}
         />
