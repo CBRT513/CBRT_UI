@@ -1,451 +1,940 @@
+/*****************************************************************************************
+ *  CBRT App – full single-file version with React Router
+ *  Routes: Home, Staff, Customers, Suppliers, Carriers, Trucks, Items, Sizes,
+ *          Products, Releases/New, Staging, Verify, BOL
+ *****************************************************************************************/
+
+/* ---------- 1. IMPORTS ---------- */
 import React, { useState, useEffect } from 'react';
-// Firebase imports
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Link,
+  Outlet,
+} from 'react-router-dom';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+} from 'firebase/firestore';
+import { getFirestore, getAuth, signInAnonymously } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { v4 as uuid } from 'uuid';
 
-// --- FINAL FIREBASE CONFIGURATION ---
+/* ---------- 2. FIREBASE CONFIG ---------- */
 const firebaseConfig = {
-    apiKey: "AIzaSyAfFS_p_a_tZNTzoFZN7u7k4pA8FYdVkLk",
-    authDomain: "cbrt-app-ui-dev.firebaseapp.com",
-    projectId: "cbrt-app-ui-dev",
-    storageBucket: "cbrt-app-ui-dev.appspot.com",
-    messagingSenderId: "1087116999170",
-    appId: "1:1087116999170:web:e99afb7f4d076f8d75051b",
-    measurementId: "G-0ZEBLX6VX0"
+  apiKey: "AIzaSyAfFS_p_a_tZNTzoFZN7u7k4pA8FYdVkLk",
+  authDomain: "cbrt-app-ui-dev.firebaseapp.com",
+  projectId: "cbrt-app-ui-dev",
+  storageBucket: "cbrt-app-ui-dev.appspot.com",
+  messagingSenderId: "1087116999170",
+  appId: "1:1087116999170:web:e99afb7f4d076f8d75051b",
+  measurementId: "G-0ZEBLX6VX0",
 };
-// -------------------------------------------------------------
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db   = getFirestore(app);
 
-// --- Helper Icon Components ---
-const UserPlusIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="22" x2="22" y1="8" y2="14"/><line x1="19" x2="25" y1="11" y2="11"/></svg>);
-const EditIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>);
-const ToggleOnIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"></rect><circle cx="16" cy="12" r="3"></circle></svg>);
-const ToggleOffIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="5" width="22" height="14" rx="7" ry="7"></rect><circle cx="8" cy="12" r="3"></circle></svg>);
-const TrashIcon = () => (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>);
+/* ---------- 3. SVG ICONS ---------- */
+const UserPlusIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+);
+const EditIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+);
+const TrashIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
 
-
-// --- Main Application Component ---
+/* ---------- 4. APP SHELL ---------- */
 export default function App() {
-  const [view, setView] = useState('products');
-
-  useEffect(() => {
-    signInAnonymously(auth).catch(err => console.error("Anonymous sign-in failed:", err));
-  }, []);
+  useEffect(() => { signInAnonymously(auth).catch(console.error); }, []);
 
   return (
-    <>
-      <style>{`@tailwind base; @tailwind components; @tailwind utilities;`}</style>
+    <Router>
       <div className="bg-[#F8F8F8] min-h-screen font-['Open_Sans',_sans-serif] text-[#4A4A4A]">
-        <header className="bg-white shadow-md">
-          <nav className="container mx-auto flex items-center p-4">
-            <h1 className="text-xl font-bold font-['Merriweather',_serif] text-[#01522F] mr-6">CBRT App</h1>
-            <div className="flex gap-4 flex-wrap">
-              <NavButton text="Customers" onClick={() => setView('customers')} isActive={view === 'customers'} />
-              <NavButton text="Suppliers" onClick={() => setView('suppliers')} isActive={view === 'suppliers'} />
-              <NavButton text="Carriers" onClick={() => setView('carriers')} isActive={view === 'carriers'} />
-              <NavButton text="Trucks" onClick={() => setView('trucks')} isActive={view === 'trucks'} />
-              <NavButton text="Items" onClick={() => setView('items')} isActive={view === 'items'} />
-              <NavButton text="Sizes" onClick={() => setView('sizes')} isActive={view === 'sizes'} />
-              <NavButton text="Products" onClick={() => setView('products')} isActive={view === 'products'} />
-              <NavButton text="Staff" onClick={() => setView('staff')} isActive={view === 'staff'} />
-            </div>
+        <header className="bg-white shadow-md sticky top-0 z-10">
+          <nav className="container mx-auto flex items-center p-4 gap-x-6 gap-y-2 flex-wrap">
+            <h1 className="text-xl font-bold font-['Merriweather',_serif] text-[#01522F]">CBRT App</h1>
+            {[
+              'Home',
+              'Staff',
+              'Customers',
+              'Suppliers',
+              'Carriers',
+              'Trucks',
+              'Items',
+              'Sizes',
+              'Products',
+              'Releases',
+            ].map((label) => (
+              <Link
+                key={label}
+                to={label === 'Home' ? '/' : `/${label.toLowerCase()}`}
+                className="text-sm hover:underline"
+              >
+                {label}
+              </Link>
+            ))}
           </nav>
         </header>
+
         <main className="container mx-auto p-4 md:p-8">
-          {view === 'staff' && <StaffManager />}
-          {view === 'customers' && <CustomerManager />}
-          {view === 'suppliers' && <SupplierManager />}
-          {view === 'carriers' && <CarrierManager />}
-          {view === 'trucks' && <TruckManager />}
-          {view === 'products' && <ProductManager />}
-          {view === 'items' && <ItemManager />}
-          {view === 'sizes' && <SizeManager />}
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/staff" element={<StaffManager />} />
+            <Route path="/customers" element={<CustomerManager />} />
+            <Route path="/suppliers" element={<SupplierManager />} />
+            <Route path="/carriers" element={<CarrierManager />} />
+            <Route path="/trucks" element={<TruckManager />} />
+            <Route path="/items" element={<ItemManager />} />
+            <Route path="/sizes" element={<SizeManager />} />
+            <Route path="/products" element={<ProductManager />} />
+            <Route path="/releases/new" element={<NewRelease />} />
+          </Routes>
         </main>
       </div>
-    </>
+    </Router>
   );
 }
 
-// --- Reusable Components ---
-const NavButton = ({ text, onClick, isActive }) => (<button onClick={onClick} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'bg-[#01522F] text-white' : 'text-[#4A4A4A] hover:bg-gray-100'}`}>{text}</button>);
+/* ---------- 5. PAGES ---------- */
+function Home() {
+  return (
+    <div className="text-center">
+      <h2 className="text-2xl font-bold mb-4">CBRT Dashboard</h2>
+      <p>Use the navigation bar to manage data or create releases.</p>
+    </div>
+  );
+}
+
+/* ---------- 6. GENERIC COMPONENTS ---------- */
 const PageHeader = ({ title, subtitle, buttonText, onButtonClick }) => (
   <div className="flex justify-between items-center mb-6">
     <div>
       <h2 className="text-2xl font-bold font-['Merriweather',_serif] text-[#01522F]">{title}</h2>
       <p className="text-[#4A4A4A]">{subtitle}</p>
     </div>
-    {buttonText && onButtonClick &&
-      <button onClick={onButtonClick} className="flex items-center gap-2 bg-[#01522F] text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:opacity-90 transition-opacity">
-        <UserPlusIcon /><span>{buttonText}</span>
+    {buttonText && onButtonClick && (
+      <button
+        onClick={onButtonClick}
+        className="flex items-center gap-2 bg-[#01522F] text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:opacity-90 transition-opacity"
+      >
+        <UserPlusIcon />
+        <span>{buttonText}</span>
       </button>
-    }
+    )}
   </div>
 );
 
-// --- Staff Management ---
-function StaffManager() { /* ... Same as previous version ... */ }
-function StaffTable({ staffList, onEdit }) { /* ... Same as previous version ... */ }
-function StaffModal({ staff, onClose }) { /* ... Same as previous version ... */ }
+/* ---------- 7. MANAGERS ---------- */
+// 7.1 Staff
+function StaffManager() {
+  const [rows, setRows] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
 
-// --- Customer Management ---
-function CustomerManager() { /* ... Same as previous version ... */ }
-function CustomerTable({ customerList, onEdit }) { /* ... Same as previous version ... */ }
-function CustomerModal({ customer, onClose }) { /* ... Same as previous version ... */ }
+  useEffect(
+    () =>
+      onSnapshot(collection(db, 'staff'), (snap) =>
+        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      ),
+    []
+  );
 
-// --- Supplier Management ---
-function SupplierManager() { /* ... Same as previous version ... */ }
-function SupplierTable({ supplierList, onEdit }) { /* ... Same as previous version ... */ }
-function SupplierModal({ supplier, onClose }) { /* ... Same as previous version ... */ }
+  const openModal = (s = null) => {
+    setCurrent(s);
+    setOpen(true);
+  };
 
-// --- Carrier Management ---
-function CarrierManager() { /* ... Same as previous version ... */ }
-function CarrierTable({ carrierList, onEdit }) { /* ... Same as previous version ... */ }
-function CarrierModal({ carrier, onClose }) { /* ... Same as previous version ... */ }
+  return (
+    <>
+      <PageHeader
+        title="Staff Management"
+        subtitle="Manage system users and roles."
+        buttonText="Add New Staff"
+        onButtonClick={() => openModal()}
+      />
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium">Role</th>
+              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">{r.name}</td>
+                <td className="px-6 py-4">{r.email}</td>
+                <td className="px-6 py-4">{r.role}</td>
+                <td className="px-6 py-4 text-right">
+                  <button onClick={() => openModal(r)} className="text-[#01522F]">
+                    <EditIcon />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Staff`}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            if (current?.id)
+              await updateDoc(doc(db, 'staff', current.id), data);
+            else await addDoc(collection(db, 'staff'), data);
+            setOpen(false);
+          }}
+          initialData={current}
+          fields={[
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'email', label: 'Email', type: 'email' },
+            { name: 'role', label: 'Role', type: 'select', options: ['Admin', 'Office', 'Warehouse'] },
+          ]}
+        />
+      )}
+    </>
+  );
+}
 
-// --- Truck Management ---
-function TruckManager() { /* ... Same as previous version ... */ }
-function TruckTable({ truckList, carrierList, onEdit }) { /* ... Same as previous version ... */ }
-function TruckModal({ truck, carrierList, onClose }) { /* ... Same as previous version ... */ }
+// 7.2 Customer
+function CustomerManager() {
+  const [rows, setRows] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
 
-// --- Item Management ---
+  useEffect(
+    () =>
+      onSnapshot(collection(db, 'customers'), (snap) =>
+        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      ),
+    []
+  );
+
+  const openModal = (c = null) => {
+    setCurrent(c);
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Customer Management"
+        subtitle="Manage customer accounts."
+        buttonText="Add New Customer"
+        onButtonClick={() => openModal()}
+      />
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium">Contact</th>
+              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">{r.name}</td>
+                <td className="px-6 py-4">{r.contact}</td>
+                <td className="px-6 py-4 text-right">
+                  <button onClick={() => openModal(r)} className="text-[#01522F]">
+                    <EditIcon />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Customer`}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            if (current?.id)
+              await updateDoc(doc(db, 'customers', current.id), data);
+            else await addDoc(collection(db, 'customers'), data);
+            setOpen(false);
+          }}
+          initialData={current}
+          fields={[
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'contact', label: 'Contact', type: 'text' },
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
+// 7.3 Supplier
+function SupplierManager() {
+  const [rows, setRows] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+
+  useEffect(
+    () =>
+      onSnapshot(collection(db, 'suppliers'), (snap) =>
+        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      ),
+    []
+  );
+
+  const openModal = (s = null) => {
+    setCurrent(s);
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Supplier Management"
+        subtitle="Manage suppliers."
+        buttonText="Add New Supplier"
+        onButtonClick={() => openModal()}
+      />
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium">Contact</th>
+              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">{r.name}</td>
+                <td className="px-6 py-4">{r.contact}</td>
+                <td className="px-6 py-4 text-right">
+                  <button onClick={() => openModal(r)} className="text-[#01522F]">
+                    <EditIcon />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Supplier`}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            if (current?.id)
+              await updateDoc(doc(db, 'suppliers', current.id), data);
+            else await addDoc(collection(db, 'suppliers'), data);
+            setOpen(false);
+          }}
+          initialData={current}
+          fields={[
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'contact', label: 'Contact', type: 'text' },
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
+// 7.4 Carrier
+function CarrierManager() {
+  const [rows, setRows] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+
+  useEffect(
+    () =>
+      onSnapshot(collection(db, 'carriers'), (snap) =>
+        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      ),
+    []
+  );
+
+  const openModal = (c = null) => {
+    setCurrent(c);
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Carrier Management"
+        subtitle="Manage carriers."
+        buttonText="Add New Carrier"
+        onButtonClick={() => openModal()}
+      />
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium">Contact</th>
+              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">{r.name}</td>
+                <td className="px-6 py-4">{r.contact}</td>
+                <td className="px-6 py-4 text-right">
+                  <button onClick={() => openModal(r)} className="text-[#01522F]">
+                    <EditIcon />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Carrier`}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            if (current?.id)
+              await updateDoc(doc(db, 'carriers', current.id), data);
+            else await addDoc(collection(db, 'carriers'), data);
+            setOpen(false);
+          }}
+          initialData={current}
+          fields={[
+            { name: 'name', label: 'Name', type: 'text' },
+            { name: 'contact', label: 'Contact', type: 'text' },
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
+// 7.5 Truck
+function TruckManager() {
+  const [rows, setRows] = useState([]);
+  const [carriers, setCarriers] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+
+  useEffect(() => {
+    onSnapshot(collection(db, 'carriers'), (snap) =>
+      setCarriers(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
+    onSnapshot(collection(db, 'trucks'), (snap) =>
+      setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
+  }, []);
+
+  const openModal = (t = null) => {
+    setCurrent(t);
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Truck Management"
+        subtitle="Manage trucks."
+        buttonText="Add New Truck"
+        onButtonClick={() => openModal()}
+      />
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium">Unit #</th>
+              <th className="px-6 py-3 text-left text-xs font-medium">Carrier</th>
+              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const carrier = carriers.find((c) => c.id === r.carrierId);
+              return (
+                <tr key={r.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">{r.unitNumber}</td>
+                  <td className="px-6 py-4">{carrier?.name || '—'}</td>
+                  <td className="px-6 py-4 text-right">
+                    <button onClick={() => openModal(r)} className="text-[#01522F]">
+                      <EditIcon />
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Truck`}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            if (current?.id)
+              await updateDoc(doc(db, 'trucks', current.id), data);
+            else await addDoc(collection(db, 'trucks'), data);
+            setOpen(false);
+          }}
+          initialData={current}
+          fields={[
+            { name: 'unitNumber', label: 'Unit #', type: 'text' },
+            { name: 'carrierId', label: 'Carrier', type: 'select', options: carriers },
+          ]}
+        />
+      )}
+    </>
+  );
+}
+
+// 7.6 Item
 function ItemManager() {
-    const [itemList, setItemList] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentItem, setCurrentItem] = useState(null);
-    const [modalKey, setModalKey] = useState(0);
+  const [rows, setRows] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
 
-    useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, 'items'), (snapshot) => {
-            setItemList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
-    }, []);
+  useEffect(
+    () =>
+      onSnapshot(collection(db, 'items'), (snap) =>
+        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      ),
+    []
+  );
 
-    const handleOpenModal = (item = null) => {
-        setCurrentItem(item);
-        setModalKey(prevKey => prevKey + 1);
-        setIsModalOpen(true);
-    };
+  const openModal = (i = null) => {
+    setCurrent(i);
+    setOpen(true);
+  };
 
-    return (
-        <div>
-            <PageHeader title="Item Management" subtitle="Manage master product items." buttonText="Add New Item" onButtonClick={() => handleOpenModal(null)} />
-            {isLoading ? <p>Loading items...</p> : <ItemTable itemList={itemList} onEdit={handleOpenModal} />}
-            {isModalOpen && <ItemModal key={modalKey} item={currentItem} onClose={() => setIsModalOpen(false)} itemList={itemList}/>}
-        </div>
-    );
-}
-function ItemTable({ itemList, onEdit }) {
-    return (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="w-full min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Code</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Name</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {itemList.map(item => (
-                        <tr key={item.id} className="hover:bg-[#F8F8F8]">
-                            <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{item.itemCode}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.itemName}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button onClick={() => onEdit(item)} className="text-[#01522F] hover:opacity-80"><EditIcon /></button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-}
-function ItemModal({ item, onClose, itemList }) {
-    const [formData, setFormData] = useState({ itemCode: item?.itemCode || '', itemName: item?.itemName || '' });
-    const [formError, setFormError] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-    const isEditMode = !!item;
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!formData.itemCode.trim() || !formData.itemName.trim()) {
-            setFormError('All fields are required.');
-            return;
-        }
-        const isDuplicate = itemList.some(i => i.itemCode.toLowerCase() === formData.itemCode.toLowerCase().trim() && i.id !== item?.id);
-        if (isDuplicate) {
-            setFormError('An item with this code already exists.');
-            return;
-        }
-        setIsSaving(true);
-        try {
-            const dataToSave = { itemCode: formData.itemCode.trim(), itemName: formData.itemName.trim() };
-            if (isEditMode) await updateDoc(doc(db, 'items', item.id), dataToSave);
-            else await addDoc(collection(db, 'items'), dataToSave);
-            onClose();
-        } catch (err) { setFormError("Failed to save item data."); } 
-        finally { setIsSaving(false); }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white rounded-lg shadow-2xl p-6 md:p-8 w-full max-w-md m-4">
-                <h2 className="text-2xl font-bold font-['Merriweather',_serif] text-[#01522F] mb-4">{isEditMode ? 'Edit Item' : 'Add New Item'}</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input name="itemCode" value={formData.itemCode} onChange={(e) => setFormData({...formData, itemCode: e.target.value})} placeholder="Item Code" className="w-full px-3 py-2 border rounded-md" />
-                    <input name="itemName" value={formData.itemName} onChange={(e) => setFormData({...formData, itemName: e.target.value})} placeholder="Item Name/Description" className="w-full px-3 py-2 border rounded-md" />
-                    {formError && <p className="text-red-500">{formError}</p>}
-                    <div className="flex justify-end gap-3"><button type="button" onClick={onClose} className="bg-white py-2 px-4 border rounded-md">Cancel</button><button type="submit" disabled={isSaving} className="bg-[#01522F] text-white py-2 px-4 rounded-md disabled:opacity-50">{isSaving ? 'Saving...' : 'Save'}</button></div>
-                </form>
-            </div>
-        </div>
-    );
+  return (
+    <>
+      <PageHeader
+        title="Item Management"
+        subtitle="Manage master product items."
+        buttonText="Add New Item"
+        onButtonClick={() => openModal()}
+      />
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium">Item Code</th>
+              <th className="px-6 py-3 text-left text-xs font-medium">Item Name</th>
+              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">{r.itemCode}</td>
+                <td className="px-6 py-4">{r.itemName}</td>
+                <td className="px-6 py-4 text-right">
+                  <button onClick={() => openModal(r)} className="text-[#01522F]">
+                    <EditIcon />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Item`}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            if (current?.id)
+              await updateDoc(doc(db, 'items', current.id), data);
+            else await addDoc(collection(db, 'items'), data);
+            setOpen(false);
+          }}
+          initialData={current}
+          fields={[
+            { name: 'itemCode', label: 'Item Code', type: 'text' },
+            { name: 'itemName', label: 'Item Name', type: 'text' },
+          ]}
+        />
+      )}
+    </>
+  );
 }
 
-// --- Size Management ---
+// 7.7 Size
 function SizeManager() {
-    const [sizeList, setSizeList] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentSize, setCurrentSize] = useState(null);
-    const [modalKey, setModalKey] = useState(0);
+  const [rows, setRows] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
 
-    useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, 'sizes'), (snapshot) => {
-            setSizeList(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            setIsLoading(false);
-        });
-        return () => unsubscribe();
-    }, []);
+  useEffect(
+    () =>
+      onSnapshot(collection(db, 'sizes'), (snap) =>
+        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      ),
+    []
+  );
 
-    const handleOpenModal = (size = null) => {
-        setCurrentSize(size);
-        setModalKey(prevKey => prevKey + 1);
-        setIsModalOpen(true);
-    };
+  const openModal = (s = null) => {
+    setCurrent(s);
+    setOpen(true);
+  };
 
-    return (
-        <div>
-            <PageHeader title="Size Management" subtitle="Manage master product sizes." buttonText="Add New Size" onButtonClick={() => handleOpenModal(null)} />
-            {isLoading ? <p>Loading sizes...</p> : <SizeTable sizeList={sizeList} onEdit={handleOpenModal} />}
-            {isModalOpen && <SizeModal key={modalKey} size={currentSize} onClose={() => setIsModalOpen(false)} sizeList={sizeList} />}
-        </div>
-    );
-}
-function SizeTable({ sizeList, onEdit }) {
-    return (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="w-full min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size Name</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {sizeList.map(size => (
-                        <tr key={size.id} className="hover:bg-[#F8F8F8]">
-                            <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{size.sizeName}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button onClick={() => onEdit(size)} className="text-[#01522F] hover:opacity-80"><EditIcon /></button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
-}
-function SizeModal({ size, onClose, sizeList }) {
-    const [formData, setFormData] = useState({ sizeName: size?.sizeName || '' });
-    const [formError, setFormError] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-    const isEditMode = !!size;
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!formData.sizeName.trim()) {
-            setFormError('Size Name is required.');
-            return;
-        }
-        const isDuplicate = sizeList.some(s => s.sizeName.toLowerCase() === formData.sizeName.toLowerCase().trim() && s.id !== size?.id);
-        if (isDuplicate) {
-            setFormError('This size already exists.');
-            return;
-        }
-        setIsSaving(true);
-        try {
-            const dataToSave = { sizeName: formData.sizeName.trim() };
-            if (isEditMode) await updateDoc(doc(db, 'sizes', size.id), dataToSave);
-            else await addDoc(collection(db, 'sizes'), dataToSave);
-            onClose();
-        } catch (err) { setFormError("Failed to save size data."); } 
-        finally { setIsSaving(false); }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white rounded-lg shadow-2xl p-6 md:p-8 w-full max-w-md m-4">
-                <h2 className="text-2xl font-bold font-['Merriweather',_serif] text-[#01522F] mb-4">{isEditMode ? 'Edit Size' : 'Add New Size'}</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <input name="sizeName" value={formData.sizeName} onChange={(e) => setFormData({sizeName: e.target.value})} placeholder="Size Name (e.g., 50 lb Bag)" className="w-full px-3 py-2 border rounded-md" />
-                    {formError && <p className="text-red-500">{formError}</p>}
-                    <div className="flex justify-end gap-3"><button type="button" onClick={onClose} className="bg-white py-2 px-4 border rounded-md">Cancel</button><button type="submit" disabled={isSaving} className="bg-[#01522F] text-white py-2 px-4 rounded-md disabled:opacity-50">{isSaving ? 'Saving...' : 'Save'}</button></div>
-                </form>
-            </div>
-        </div>
-    );
+  return (
+    <>
+      <PageHeader
+        title="Size Management"
+        subtitle="Manage master product sizes."
+        buttonText="Add New Size"
+        onButtonClick={() => openModal()}
+      />
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium">Size Name</th>
+              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">{r.sizeName}</td>
+                <td className="px-6 py-4 text-right">
+                  <button onClick={() => openModal(r)} className="text-[#01522F]">
+                    <EditIcon />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Size`}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            if (current?.id)
+              await updateDoc(doc(db, 'sizes', current.id), data);
+            else await addDoc(collection(db, 'sizes'), data);
+            setOpen(false);
+          }}
+          initialData={current}
+          fields={[
+            { name: 'sizeName', label: 'Size Name', type: 'text' },
+          ]}
+        />
+      )}
+    </>
+  );
 }
 
-// --- Product Management ---
+// 7.8 Product
 function ProductManager() {
-    const [products, setProducts] = useState([]);
-    const [items, setItems] = useState([]);
-    const [sizes, setSizes] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [currentProduct, setCurrentProduct] = useState(null);
-    const [modalKey, setModalKey] = useState(0);
+  const [products, setProducts] = useState([]);
+  const [items, setItems] = useState([]);
+  const [sizes, setSizes] = useState([]);
 
-    useEffect(() => {
-        const unsubProducts = onSnapshot(collection(db, 'products'), snapshot => setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-        const unsubItems = onSnapshot(collection(db, 'items'), snapshot => setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
-        const unsubSizes = onSnapshot(collection(db, 'sizes'), snapshot => {
-            setSizes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            setIsLoading(false);
-        });
-        return () => { unsubProducts(); unsubItems(); unsubSizes(); };
-    }, []);
-
-    const handleOpenModal = (product = null) => {
-        setCurrentProduct(product);
-        setModalKey(prevKey => prevKey + 1);
-        setIsModalOpen(true);
-    };
-    
-    return (
-        <div>
-            <PageHeader title="Product Management" subtitle="Combine items and sizes to create final products." buttonText="Add New Product" onButtonClick={() => handleOpenModal(null)} />
-            {isLoading ? <p>Loading products...</p> : <ProductTable products={products} onEdit={handleOpenModal} />}
-            {isModalOpen && <ProductModal key={modalKey} product={currentProduct} items={items} sizes={sizes} products={products} onClose={() => setIsModalOpen(false)} />}
-        </div>
+  useEffect(() => {
+    onSnapshot(collection(db, 'products'), (snap) =>
+      setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     );
-}
-function ProductTable({ products, onEdit }) {
-    const handleDelete = async (id) => {
-        if(window.confirm('Are you sure you want to delete this product?')) {
-            await deleteDoc(doc(db, 'products', id));
-        }
-    };
-    return (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="w-full min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product Description</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Weight</th>
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {products.map(product => (
-                        <tr key={product.id} className="hover:bg-[#F8F8F8]">
-                            <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{`${product.itemCode} - ${product.itemName} (${product.sizeName})`}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.standardWeight} lbs</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                 <button onClick={() => onEdit(product)} className="text-[#01522F] hover:opacity-80 mr-4"><EditIcon /></button>
-                                <button onClick={() => handleDelete(product.id)} className="text-red-500 hover:text-red-700"><TrashIcon /></button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+    onSnapshot(collection(db, 'items'), (snap) =>
+      setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
     );
-}
-function ProductModal({ product, items, sizes, products, onClose }) {
-    const [formData, setFormData] = useState({ 
-        itemId: product?.itemId || '', 
-        sizeId: product?.sizeId || '', 
-        standardWeight: product?.standardWeight || '2200' 
-    });
-    const [formError, setFormError] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-    const isEditMode = !!product;
+    onSnapshot(collection(db, 'sizes'), (snap) =>
+      setSizes(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
+  }, []);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!formData.itemId || !formData.sizeId || !formData.standardWeight) {
-            setFormError('All fields are required.');
-            return;
-        }
-        const item = items.find(i => i.id === formData.itemId);
-        const size = sizes.find(s => s.id === formData.sizeId);
-        const isDuplicate = products.some(p => p.itemCode === item.itemCode && p.sizeName === size.sizeName && p.id !== product?.id);
-        if (isDuplicate) {
-            setFormError('This product combination already exists.');
-            return;
-        }
-        setIsSaving(true);
-        try {
-            const dataToSave = { 
-                itemCode: item.itemCode, 
-                itemName: item.itemName, 
-                sizeName: size.sizeName, 
-                standardWeight: Number(formData.standardWeight) 
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+
+  const openModal = (p = null) => {
+    setCurrent(p);
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Product Management"
+        subtitle="Combine items and sizes to create final products."
+        buttonText="Add New Product"
+        onButtonClick={() => openModal()}
+      />
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium">Description</th>
+              <th className="px-6 py-3 text-left text-xs font-medium">Weight</th>
+              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((p) => (
+              <tr key={p.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  {p.itemCode} - {p.itemName} ({p.sizeName})
+                </td>
+                <td className="px-6 py-4">{p.standardWeight} lbs</td>
+                <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={() => openModal(p)}
+                    className="text-[#01522F] mr-2"
+                  >
+                    <EditIcon />
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Delete product?'))
+                        await deleteDoc(doc(db, 'products', p.id));
+                    }}
+                    className="text-red-500"
+                  >
+                    <TrashIcon />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Product`}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            const item = items.find((i) => i.id === data.itemId);
+            const size = sizes.find((s) => s.id === data.sizeId);
+            const payload = {
+              itemCode: item.itemCode,
+              itemName: item.itemName,
+              sizeName: size.sizeName,
+              standardWeight: Number(data.standardWeight),
             };
-            if (isEditMode) await updateDoc(doc(db, 'products', product.id), dataToSave);
-            else await addDoc(collection(db, 'products'), dataToSave);
-            onClose();
-        } catch (err) { setFormError("Failed to save product data."); }
-        finally { setIsSaving(false); }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-            <div className="bg-white rounded-lg shadow-2xl p-6 md:p-8 w-full max-w-md m-4">
-                <h2 className="text-2xl font-bold font-['Merriweather',_serif] text-[#01522F] mb-4">{isEditMode ? 'Edit Product' : 'Add New Product'}</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <select name="itemId" value={formData.itemId} onChange={(e) => setFormData({...formData, itemId: e.target.value})} className="w-full px-3 py-2 border rounded-md">
-                        <option value="">Select Item</option>
-                        {items.map(i => <option key={i.id} value={i.id}>{`${i.itemCode} - ${i.itemName}`}</option>)}
-                    </select>
-                    <select name="sizeId" value={formData.sizeId} onChange={(e) => setFormData({...formData, sizeId: e.target.value})} className="w-full px-3 py-2 border rounded-md">
-                        <option value="">Select Size</option>
-                        {sizes.map(s => <option key={s.id} value={s.id}>{s.sizeName}</option>)}
-                    </select>
-                    <select name="standardWeight" value={formData.standardWeight} onChange={(e) => setFormData({...formData, standardWeight: e.target.value})} className="w-full px-3 py-2 border rounded-md">
-                        <option value="2200">2,200 lbs</option>
-                        <option value="3300">3,300 lbs</option>
-                    </select>
-                    {formError && <p className="text-red-500">{formError}</p>}
-                    <div className="flex justify-end gap-3"><button type="button" onClick={onClose} className="bg-white py-2 px-4 border rounded-md">Cancel</button><button type="submit" disabled={isSaving} className="bg-[#01522F] text-white py-2 px-4 rounded-md disabled:opacity-50">{isSaving ? 'Saving...' : 'Save'}</button></div>
-                </form>
-            </div>
-        </div>
-    );
+            if (current?.id)
+              await updateDoc(doc(db, 'products', current.id), payload);
+            else await addDoc(collection(db, 'products'), payload);
+            setOpen(false);
+          }}
+          initialData={current}
+          fields={[
+            { name: 'itemId', label: 'Item', type: 'select', options: items },
+            { name: 'sizeId', label: 'Size', type: 'select', options: sizes },
+            { name: 'standardWeight', label: 'Weight (lbs)', type: 'number' },
+          ]}
+        />
+      )}
+    </>
+  );
 }
 
-// --- Placeholder components for Staff and Customer to keep the file self-contained ---
-// In a real app, these would be in separate files.
+/* ---------- 8. RELEASES ---------- */
+function NewRelease() {
+  const [customers, setCustomers] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [form, setForm] = useState({ customerId: '', items: [] });
 
-function CustomerManager_Shell() { return <div></div> }
-function CustomerTable_Shell() { return <div></div> }
-function CustomerModal_Shell() { return <div></div> }
-function SupplierManager_Shell() { return <div></div> }
-function SupplierTable_Shell() { return <div></div> }
-function SupplierModal_Shell() { return <div></div> }
-function CarrierManager_Shell() { return <div></div> }
-function CarrierTable_Shell() { return <div></div> }
-function CarrierModal_Shell() { return <div></div> }
-function TruckManager_Shell() { return <div></div> }
-function TruckTable_Shell() { return <div></div> }
-function TruckModal_Shell() { return <div></div> }
+  useEffect(() => {
+    onSnapshot(collection(db, 'customers'), (snap) =>
+      setCustomers(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
+    onSnapshot(collection(db, 'products'), (snap) =>
+      setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    );
+  }, []);
+
+  const addLine = () =>
+    setForm({ ...form, items: [...form.items, { id: uuid(), productId: '', qty: 1 }] });
+
+  const updateLine = (idx, key, val) => {
+    const newItems = [...form.items];
+    newItems[idx][key] = val;
+    setForm({ ...form, items: newItems });
+  };
+
+  const removeLine = (idx) =>
+    setForm({ ...form, items: form.items.filter((_, i) => i !== idx) });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await addDoc(collection(db, 'releases'), {
+      customerId: form.customerId,
+      items: form.items,
+      status: 'open',
+      createdAt: new Date(),
+    });
+    alert('Release created!');
+    setForm({ customerId: '', items: [] });
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <h2 className="text-2xl font-bold mb-4">Create New Release (Pick Ticket)</h2>
+      <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded shadow">
+        {/* Customer */}
+        <select
+          required
+          value={form.customerId}
+          onChange={(e) => setForm({ ...form, customerId: e.target.value })}
+          className="w-full border px-3 py-2"
+        >
+          <option value="">Select Customer</option>
+          {customers.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Items */}
+        {form.items.map((line, idx) => (
+          <div key={line.id} className="flex gap-2 items-center">
+            <select
+              required
+              value={line.productId}
+              onChange={(e) => updateLine(idx, 'productId', e.target.value)}
+              className="flex-1 border px-3 py-2"
+            >
+              <option value="">Select Product</option>
+              {products.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.itemCode} - {p.itemName} ({p.sizeName})
+                </option>
+              ))}
+            </select>
+            <input
+              required
+              type="number"
+              min="1"
+              value={line.qty}
+              onChange={(e) => updateLine(idx, 'qty', +e.target.value)}
+              className="w-20 border px-3 py-2"
+            />
+            <button
+              type="button"
+              onClick={() => removeLine(idx)}
+              className="text-red-500"
+            >
+              <TrashIcon />
+            </button>
+          </div>
+        ))}
+
+        <div className="flex justify-between items-center">
+          <button
+            type="button"
+            onClick={addLine}
+            className="bg-gray-200 px-3 py-1 rounded"
+          >
+            + Add Line
+          </button>
+          <button
+            type="submit"
+            className="bg-[#01522F] text-white px-4 py-2 rounded"
+          >
+            Save Release
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/* ---------- 9. GENERIC MODAL ---------- */
+function Modal({ title, onClose, onSave, initialData, fields }) {
+  const [form, setForm] = useState(
+    fields.reduce((acc, f) => {
+      acc[f.name] = initialData?.[f.name] || '';
+      return acc;
+    }, {})
+  );
+  const [error, setError] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    for (const f of fields) {
+      if (!form[f.name]?.toString().trim()) {
+        setError(`${f.label} is required`);
+        return;
+      }
+    }
+    onSave(form);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4">{title}</h2>
+        <form onSubmit={handleSubmit} className="space-y-3">
+          {fields.map((f) => {
+            if (f.type === 'select') {
+              return (
+                <select
+                  key={f.name}
+                  value={form[f.name]}
+                  onChange={(e) => setForm({ ...form, [f.name]: e.target.value })}
+                  className="w-full border px-3 py-2"
+                >
+                  <option value="">Select {f.label}</option>
+                  {f.options.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+              );
+            } else {
+              return (
+                <input
+                  key={f.name}
+                  type={f.type}
+                  placeholder={f.label}
+                  value={form[f.name]}
+                  onChange={(e) => setForm({ ...form, [f.name]: e.target.value })}
+                  className="w-full border px-3 py-2"
+                />
+              );
+            }
+          })}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border rounded"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-[#01522F] text-white rounded"
+            >
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
