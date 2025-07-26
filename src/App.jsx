@@ -1,7 +1,5 @@
 /*****************************************************************************************
- *  CBRT App – full single-file version with React Router
- *  Routes: Home, Staff, Customers, Suppliers, Carriers, Trucks, Items, Sizes,
- *          Products, Releases/New, Staging, Verify, BOL
+ *  CBRT App – complete single-file App.jsx (paste as-is)
  *****************************************************************************************/
 
 /* ---------- 1. IMPORTS ---------- */
@@ -11,7 +9,6 @@ import {
   Routes,
   Route,
   Link,
-  Outlet,
 } from 'react-router-dom';
 import {
   collection,
@@ -20,9 +17,10 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  getFirestore,
 } from 'firebase/firestore';
-import { getFirestore, getAuth, signInAnonymously } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import { v4 as uuid } from 'uuid';
 
 /* ---------- 2. FIREBASE CONFIG ---------- */
@@ -35,11 +33,12 @@ const firebaseConfig = {
   appId: "1:1087116999170:web:e99afb7f4d076f8d75051b",
   measurementId: "G-0ZEBLX6VX0",
 };
+
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
-/* ---------- 3. SVG ICONS ---------- */
+/* ---------- 3. ICONS ---------- */
 const UserPlusIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -56,7 +55,7 @@ const TrashIcon = () => (
   </svg>
 );
 
-/* ---------- 4. APP SHELL ---------- */
+/* ---------- 4. APP ---------- */
 export default function App() {
   useEffect(() => { signInAnonymously(auth).catch(console.error); }, []);
 
@@ -76,11 +75,11 @@ export default function App() {
               'Items',
               'Sizes',
               'Products',
-              'Releases',
+              'Releases/New',
             ].map((label) => (
               <Link
                 key={label}
-                to={label === 'Home' ? '/' : `/${label.toLowerCase()}`}
+                to={label === 'Home' ? '/' : '/' + label.replace(' ', '').toLowerCase()}
                 className="text-sm hover:underline"
               >
                 {label}
@@ -118,7 +117,7 @@ function Home() {
   );
 }
 
-/* ---------- 6. GENERIC COMPONENTS ---------- */
+/* ---------- 6. GENERIC ---------- */
 const PageHeader = ({ title, subtitle, buttonText, onButtonClick }) => (
   <div className="flex justify-between items-center mb-6">
     <div>
@@ -128,7 +127,7 @@ const PageHeader = ({ title, subtitle, buttonText, onButtonClick }) => (
     {buttonText && onButtonClick && (
       <button
         onClick={onButtonClick}
-        className="flex items-center gap-2 bg-[#01522F] text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:opacity-90 transition-opacity"
+        className="flex items-center gap-2 bg-[#01522F] text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:opacity-90"
       >
         <UserPlusIcon />
         <span>{buttonText}</span>
@@ -138,616 +137,14 @@ const PageHeader = ({ title, subtitle, buttonText, onButtonClick }) => (
 );
 
 /* ---------- 7. MANAGERS ---------- */
-// 7.1 Staff
-function StaffManager() {
-  const [rows, setRows] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-
-  useEffect(
-    () =>
-      onSnapshot(collection(db, 'staff'), (snap) =>
-        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      ),
-    []
-  );
-
-  const openModal = (s = null) => {
-    setCurrent(s);
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <PageHeader
-        title="Staff Management"
-        subtitle="Manage system users and roles."
-        buttonText="Add New Staff"
-        onButtonClick={() => openModal()}
-      />
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium">Role</th>
-              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">{r.name}</td>
-                <td className="px-6 py-4">{r.email}</td>
-                <td className="px-6 py-4">{r.role}</td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => openModal(r)} className="text-[#01522F]">
-                    <EditIcon />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Staff`}
-          onClose={() => setOpen(false)}
-          onSave={async (data) => {
-            if (current?.id)
-              await updateDoc(doc(db, 'staff', current.id), data);
-            else await addDoc(collection(db, 'staff'), data);
-            setOpen(false);
-          }}
-          initialData={current}
-          fields={[
-            { name: 'name', label: 'Name', type: 'text' },
-            { name: 'email', label: 'Email', type: 'email' },
-            { name: 'role', label: 'Role', type: 'select', options: ['Admin', 'Office', 'Warehouse'] },
-          ]}
-        />
-      )}
-    </>
-  );
-}
-
-// 7.2 Customer
-function CustomerManager() {
-  const [rows, setRows] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-
-  useEffect(
-    () =>
-      onSnapshot(collection(db, 'customers'), (snap) =>
-        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      ),
-    []
-  );
-
-  const openModal = (c = null) => {
-    setCurrent(c);
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <PageHeader
-        title="Customer Management"
-        subtitle="Manage customer accounts."
-        buttonText="Add New Customer"
-        onButtonClick={() => openModal()}
-      />
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium">Contact</th>
-              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">{r.name}</td>
-                <td className="px-6 py-4">{r.contact}</td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => openModal(r)} className="text-[#01522F]">
-                    <EditIcon />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Customer`}
-          onClose={() => setOpen(false)}
-          onSave={async (data) => {
-            if (current?.id)
-              await updateDoc(doc(db, 'customers', current.id), data);
-            else await addDoc(collection(db, 'customers'), data);
-            setOpen(false);
-          }}
-          initialData={current}
-          fields={[
-            { name: 'name', label: 'Name', type: 'text' },
-            { name: 'contact', label: 'Contact', type: 'text' },
-          ]}
-        />
-      )}
-    </>
-  );
-}
-
-// 7.3 Supplier
-function SupplierManager() {
-  const [rows, setRows] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-
-  useEffect(
-    () =>
-      onSnapshot(collection(db, 'suppliers'), (snap) =>
-        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      ),
-    []
-  );
-
-  const openModal = (s = null) => {
-    setCurrent(s);
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <PageHeader
-        title="Supplier Management"
-        subtitle="Manage suppliers."
-        buttonText="Add New Supplier"
-        onButtonClick={() => openModal()}
-      />
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium">Contact</th>
-              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">{r.name}</td>
-                <td className="px-6 py-4">{r.contact}</td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => openModal(r)} className="text-[#01522F]">
-                    <EditIcon />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Supplier`}
-          onClose={() => setOpen(false)}
-          onSave={async (data) => {
-            if (current?.id)
-              await updateDoc(doc(db, 'suppliers', current.id), data);
-            else await addDoc(collection(db, 'suppliers'), data);
-            setOpen(false);
-          }}
-          initialData={current}
-          fields={[
-            { name: 'name', label: 'Name', type: 'text' },
-            { name: 'contact', label: 'Contact', type: 'text' },
-          ]}
-        />
-      )}
-    </>
-  );
-}
-
-// 7.4 Carrier
-function CarrierManager() {
-  const [rows, setRows] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-
-  useEffect(
-    () =>
-      onSnapshot(collection(db, 'carriers'), (snap) =>
-        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      ),
-    []
-  );
-
-  const openModal = (c = null) => {
-    setCurrent(c);
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <PageHeader
-        title="Carrier Management"
-        subtitle="Manage carriers."
-        buttonText="Add New Carrier"
-        onButtonClick={() => openModal()}
-      />
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium">Contact</th>
-              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">{r.name}</td>
-                <td className="px-6 py-4">{r.contact}</td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => openModal(r)} className="text-[#01522F]">
-                    <EditIcon />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Carrier`}
-          onClose={() => setOpen(false)}
-          onSave={async (data) => {
-            if (current?.id)
-              await updateDoc(doc(db, 'carriers', current.id), data);
-            else await addDoc(collection(db, 'carriers'), data);
-            setOpen(false);
-          }}
-          initialData={current}
-          fields={[
-            { name: 'name', label: 'Name', type: 'text' },
-            { name: 'contact', label: 'Contact', type: 'text' },
-          ]}
-        />
-      )}
-    </>
-  );
-}
-
-// 7.5 Truck
-function TruckManager() {
-  const [rows, setRows] = useState([]);
-  const [carriers, setCarriers] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-
-  useEffect(() => {
-    onSnapshot(collection(db, 'carriers'), (snap) =>
-      setCarriers(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
-    onSnapshot(collection(db, 'trucks'), (snap) =>
-      setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
-  }, []);
-
-  const openModal = (t = null) => {
-    setCurrent(t);
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <PageHeader
-        title="Truck Management"
-        subtitle="Manage trucks."
-        buttonText="Add New Truck"
-        onButtonClick={() => openModal()}
-      />
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium">Unit #</th>
-              <th className="px-6 py-3 text-left text-xs font-medium">Carrier</th>
-              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => {
-              const carrier = carriers.find((c) => c.id === r.carrierId);
-              return (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">{r.unitNumber}</td>
-                  <td className="px-6 py-4">{carrier?.name || '—'}</td>
-                  <td className="px-6 py-4 text-right">
-                    <button onClick={() => openModal(r)} className="text-[#01522F]">
-                      <EditIcon />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Truck`}
-          onClose={() => setOpen(false)}
-          onSave={async (data) => {
-            if (current?.id)
-              await updateDoc(doc(db, 'trucks', current.id), data);
-            else await addDoc(collection(db, 'trucks'), data);
-            setOpen(false);
-          }}
-          initialData={current}
-          fields={[
-            { name: 'unitNumber', label: 'Unit #', type: 'text' },
-            { name: 'carrierId', label: 'Carrier', type: 'select', options: carriers },
-          ]}
-        />
-      )}
-    </>
-  );
-}
-
-// 7.6 Item
-function ItemManager() {
-  const [rows, setRows] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-
-  useEffect(
-    () =>
-      onSnapshot(collection(db, 'items'), (snap) =>
-        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      ),
-    []
-  );
-
-  const openModal = (i = null) => {
-    setCurrent(i);
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <PageHeader
-        title="Item Management"
-        subtitle="Manage master product items."
-        buttonText="Add New Item"
-        onButtonClick={() => openModal()}
-      />
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium">Item Code</th>
-              <th className="px-6 py-3 text-left text-xs font-medium">Item Name</th>
-              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">{r.itemCode}</td>
-                <td className="px-6 py-4">{r.itemName}</td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => openModal(r)} className="text-[#01522F]">
-                    <EditIcon />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Item`}
-          onClose={() => setOpen(false)}
-          onSave={async (data) => {
-            if (current?.id)
-              await updateDoc(doc(db, 'items', current.id), data);
-            else await addDoc(collection(db, 'items'), data);
-            setOpen(false);
-          }}
-          initialData={current}
-          fields={[
-            { name: 'itemCode', label: 'Item Code', type: 'text' },
-            { name: 'itemName', label: 'Item Name', type: 'text' },
-          ]}
-        />
-      )}
-    </>
-  );
-}
-
-// 7.7 Size
-function SizeManager() {
-  const [rows, setRows] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-
-  useEffect(
-    () =>
-      onSnapshot(collection(db, 'sizes'), (snap) =>
-        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      ),
-    []
-  );
-
-  const openModal = (s = null) => {
-    setCurrent(s);
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <PageHeader
-        title="Size Management"
-        subtitle="Manage master product sizes."
-        buttonText="Add New Size"
-        onButtonClick={() => openModal()}
-      />
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium">Size Name</th>
-              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">{r.sizeName}</td>
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => openModal(r)} className="text-[#01522F]">
-                    <EditIcon />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Size`}
-          onClose={() => setOpen(false)}
-          onSave={async (data) => {
-            if (current?.id)
-              await updateDoc(doc(db, 'sizes', current.id), data);
-            else await addDoc(collection(db, 'sizes'), data);
-            setOpen(false);
-          }}
-          initialData={current}
-          fields={[
-            { name: 'sizeName', label: 'Size Name', type: 'text' },
-          ]}
-        />
-      )}
-    </>
-  );
-}
-
-// 7.8 Product
-function ProductManager() {
-  const [products, setProducts] = useState([]);
-  const [items, setItems] = useState([]);
-  const [sizes, setSizes] = useState([]);
-
-  useEffect(() => {
-    onSnapshot(collection(db, 'products'), (snap) =>
-      setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
-    onSnapshot(collection(db, 'items'), (snap) =>
-      setItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
-    onSnapshot(collection(db, 'sizes'), (snap) =>
-      setSizes(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
-  }, []);
-
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-
-  const openModal = (p = null) => {
-    setCurrent(p);
-    setOpen(true);
-  };
-
-  return (
-    <>
-      <PageHeader
-        title="Product Management"
-        subtitle="Combine items and sizes to create final products."
-        buttonText="Add New Product"
-        onButtonClick={() => openModal()}
-      />
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium">Description</th>
-              <th className="px-6 py-3 text-left text-xs font-medium">Weight</th>
-              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((p) => (
-              <tr key={p.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  {p.itemCode} - {p.itemName} ({p.sizeName})
-                </td>
-                <td className="px-6 py-4">{p.standardWeight} lbs</td>
-                <td className="px-6 py-4 text-right">
-                  <button
-                    onClick={() => openModal(p)}
-                    className="text-[#01522F] mr-2"
-                  >
-                    <EditIcon />
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (window.confirm('Delete product?'))
-                        await deleteDoc(doc(db, 'products', p.id));
-                    }}
-                    className="text-red-500"
-                  >
-                    <TrashIcon />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Product`}
-          onClose={() => setOpen(false)}
-          onSave={async (data) => {
-            const item = items.find((i) => i.id === data.itemId);
-            const size = sizes.find((s) => s.id === data.sizeId);
-            const payload = {
-              itemCode: item.itemCode,
-              itemName: item.itemName,
-              sizeName: size.sizeName,
-              standardWeight: Number(data.standardWeight),
-            };
-            if (current?.id)
-              await updateDoc(doc(db, 'products', current.id), payload);
-            else await addDoc(collection(db, 'products'), payload);
-            setOpen(false);
-          }}
-          initialData={current}
-          fields={[
-            { name: 'itemId', label: 'Item', type: 'select', options: items },
-            { name: 'sizeId', label: 'Size', type: 'select', options: sizes },
-            { name: 'standardWeight', label: 'Weight (lbs)', type: 'number' },
-          ]}
-        />
-      )}
-    </>
-  );
-}
+function StaffManager()   { return <Manager collectionName="staff"   fields={['name','email','role']} />; }
+function CustomerManager(){ return <Manager collectionName="customers" fields={['name','contact']} />; }
+function SupplierManager(){ return <Manager collectionName="suppliers" fields={['name','contact']} />; }
+function CarrierManager() { return <Manager collectionName="carriers"  fields={['name','contact']} />; }
+function TruckManager()   { return <Manager collectionName="trucks"    fields={['unitNumber','carrierId']} />; }
+function ItemManager()    { return <Manager collectionName="items"     fields={['itemCode','itemName']} />; }
+function SizeManager()    { return <Manager collectionName="sizes"     fields={['sizeName']} />; }
+function ProductManager() { return <Manager collectionName="products"  fields={['itemCode','itemName','sizeName','standardWeight']} />; }
 
 /* ---------- 8. RELEASES ---------- */
 function NewRelease() {
@@ -792,7 +189,6 @@ function NewRelease() {
     <div className="max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold mb-4">Create New Release (Pick Ticket)</h2>
       <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded shadow">
-        {/* Customer */}
         <select
           required
           value={form.customerId}
@@ -807,7 +203,6 @@ function NewRelease() {
           ))}
         </select>
 
-        {/* Items */}
         {form.items.map((line, idx) => (
           <div key={line.id} className="flex gap-2 items-center">
             <select
@@ -861,7 +256,96 @@ function NewRelease() {
   );
 }
 
-/* ---------- 9. GENERIC MODAL ---------- */
+/* ---------- 9. GENERIC MANAGER ---------- */
+function Manager({ collectionName, fields }) {
+  const [rows, setRows] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+
+  useEffect(
+    () =>
+      onSnapshot(collection(db, collectionName), (snap) =>
+        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      ),
+    [collectionName]
+  );
+
+  const openModal = (r = null) => {
+    setCurrent(r);
+    setOpen(true);
+  };
+
+  return (
+    <>
+      <PageHeader
+        title={`${collectionName.charAt(0).toUpperCase()}${collectionName.slice(
+          1
+        )} Management`}
+        subtitle={`Manage ${collectionName}.`}
+        buttonText={`Add New ${collectionName.charAt(0).toUpperCase()}${collectionName.slice(
+          1
+        )}`}
+        onButtonClick={() => openModal()}
+      />
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              {fields.map((f) => (
+                <th
+                  key={f}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                >
+                  {f}
+                </th>
+              ))}
+              <th className="px-6 py-3 text-right text-xs font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                {fields.map((f) => (
+                  <td key={f} className="px-6 py-4">
+                    {r[f] || '—'}
+                  </td>
+                ))}
+                <td className="px-6 py-4 text-right">
+                  <button onClick={() => openModal(r)} className="text-[#01522F]">
+                    <EditIcon />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} ${collectionName
+            .charAt(0)
+            .toUpperCase()}${collectionName.slice(1)}`}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            if (current?.id)
+              await updateDoc(doc(db, collectionName, current.id), data);
+            else await addDoc(collection(db, collectionName), data);
+            setOpen(false);
+          }}
+          initialData={current}
+          fields={fields.map((f) => ({
+            name: f,
+            label: f,
+            type: f === 'role' ? 'select' : 'text',
+            ...(f === 'role' && { options: ['Admin', 'Office', 'Warehouse'] }),
+          }))}
+        />
+      )}
+    </>
+  );
+}
+
+/* ---------- 10. GENERIC MODAL ---------- */
 function Modal({ title, onClose, onSave, initialData, fields }) {
   const [form, setForm] = useState(
     fields.reduce((acc, f) => {
