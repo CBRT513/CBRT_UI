@@ -1,122 +1,179 @@
+// src/managers/ProductManager.jsx
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import PageHeader from '../components/PageHeader';
-import Modal from '../components/Modal';
-import { EditIcon, DeleteIcon } from '../components/Icons';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  query,
+  where,
+} from 'firebase/firestore';
 
 export default function ProductManager() {
-  const [items, setItems] = useState([]);
-  const [sizes, setSizes] = useState([]);
-  const [rows, setRows] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [form, setForm] = useState({
+    ItemCodeDisplay: '',
+    ItemNameDisplay: '',
+    SizeNameDisplay: '',
+    StandardWeight: '',
+    Status: 'Active',
+  });
+  const [editingId, setEditingId] = useState(null);
+
+  const fetchProducts = async () => {
+    console.log('🔁 Fetching products...');
+    const snap = await getDocs(collection(db, 'products'));
+    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const sorted = data.sort((a, b) => {
+      const aKey = `${a.ItemCodeDisplay}-${a.SizeNameDisplay}-${a.StandardWeight}`;
+      const bKey = `${b.ItemCodeDisplay}-${b.SizeNameDisplay}-${b.StandardWeight}`;
+      return aKey.localeCompare(bKey);
+    });
+    setProducts([...sorted]);
+  };
 
   useEffect(() => {
-    const unsub1 = onSnapshot(collection(db, 'items'), snap =>
-      setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    );
-    const unsub2 = onSnapshot(collection(db, 'sizes'), snap =>
-      setSizes(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    );
-    return () => { unsub1(); unsub2(); };
+    fetchProducts();
   }, []);
 
-  useEffect(() => {
-    if (!items.length || !sizes.length) return;
-    return onSnapshot(collection(db, 'products'), snap => {
-      const prods = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      setRows(prods.map(p => ({
-        ...p,
-        ItemCodeDisplay: items.find(i => i.id === p.ItemId)?.ItemCode || 'Unknown',
-        ItemNameDisplay: items.find(i => i.id === p.ItemId)?.ItemName || 'Unknown',
-        SizeNameDisplay: sizes.find(s => s.id === p.SizeId)?.SizeName || 'Unknown',
-      })));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const { ItemCodeDisplay, SizeNameDisplay, StandardWeight } = form;
+    if (!ItemCodeDisplay || !SizeNameDisplay || !StandardWeight) return;
+
+    const q = query(
+      collection(db, 'products'),
+      where('ItemCodeDisplay', '==', ItemCodeDisplay),
+      where('SizeNameDisplay', '==', SizeNameDisplay),
+      where('StandardWeight', '==', StandardWeight)
+    );
+    const existing = await getDocs(q);
+    if (!existing.empty && !editingId) {
+      alert('Product combination already exists.');
+      return;
+    }
+
+    if (editingId) {
+      await updateDoc(doc(db, 'products', editingId), form);
+    } else {
+      await addDoc(collection(db, 'products'), form);
+    }
+
+    setForm({
+      ItemCodeDisplay: '',
+      ItemNameDisplay: '',
+      SizeNameDisplay: '',
+      StandardWeight: '',
+      Status: 'Active',
     });
-  }, [items, sizes]);
+    setEditingId(null);
+    fetchProducts();
+  };
 
-  const fields = [
-    { name: 'ItemCodeDisplay', label: 'Item Code', type: 'display' },
-    { name: 'ItemNameDisplay', label: 'Item Name', type: 'display' },
-    { name: 'SizeNameDisplay', label: 'Size', type: 'display' },
-    { name: 'StandardWeight', label: 'Standard Weight (lbs)', type: 'number' },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] },
-  ];
+  const handleEdit = (product) => {
+    setForm({ ...product });
+    setEditingId(product.id);
+  };
 
-  if (!items.length || !sizes.length) {
-    return <div className="flex justify-center p-8">Loading products...</div>;
-  }
+  const handleDelete = async (id) => {
+    await deleteDoc(doc(db, 'products', id));
+    fetchProducts();
+  };
 
   return (
-    <>
-      <PageHeader
-        title="Products Management"
-        subtitle="Manage item + size + weight combinations"
-        buttonText="Add New Product"
-        onAdd={() => { setCurrent(null); setOpen(true); }}
-      />
-      <div className="bg-white shadow rounded overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-100 text-xs uppercase text-gray-600">
-            <tr>
-              {fields.map(f => (
-                <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
-              ))}
-              <th className="px-6 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                {fields.map(f => (
-                  <td key={f.name} className="px-6 py-4">{r[f.name] ?? '—'}</td>
-                ))}
-                <td className="px-6 py-4 text-right">
-                  <button
-                    onClick={() => { setCurrent(r); setOpen(true); }}
-                    className="text-green-800 hover:text-green-600"
-                    title="Edit"
-                  >
-                    <EditIcon />
-                  </button>
-                  <button
-                    onClick={async () => {
-                      if (window.confirm('Delete this product?')) {
-                        await deleteDoc(doc(db, 'products', r.id));
-                      }
-                    }}
-                    className="text-red-600 hover:text-red-800"
-                    title="Delete"
-                  >
-                    <DeleteIcon />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Product`}
-          fields={[
-            { name: 'ItemId', label: 'Item', type: 'select', options: items.map(i => ({ id: i.id, name: `${i.ItemCode} - ${i.ItemName}` })) },
-            { name: 'SizeId', label: 'Size', type: 'select', options: sizes.map(s => ({ id: s.id, name: s.SizeName })) },
-            { name: 'StandardWeight', label: 'Standard Weight (lbs)', type: 'number' },
-            { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] },
-          ]}
-          initialData={current}
-          onClose={() => setOpen(false)}
-          onSave={async data => {
-            if (current?.id) {
-              await updateDoc(doc(db, 'products', current.id), data);
-            } else {
-              await addDoc(collection(db, 'products'), data);
-            }
-            setOpen(false);
-          }}
+    <div className="p-6">
+      <h2 className="text-2xl font-bold text-green-600 mb-2">Products Management</h2>
+      <p className="text-gray-600 mb-6">Manage item + size + weight combinations</p>
+
+      <form onSubmit={handleSubmit} className="flex flex-wrap gap-4 mb-6 items-center">
+        <input
+          name="ItemCodeDisplay"
+          value={form.ItemCodeDisplay}
+          onChange={handleChange}
+          placeholder="Item Code"
+          className="border px-3 py-2 rounded w-40"
+          required
         />
-      )}
-    </>
+        <input
+          name="ItemNameDisplay"
+          value={form.ItemNameDisplay}
+          onChange={handleChange}
+          placeholder="Item Name"
+          className="border px-3 py-2 rounded w-48"
+        />
+        <input
+          name="SizeNameDisplay"
+          value={form.SizeNameDisplay}
+          onChange={handleChange}
+          placeholder="Size"
+          className="border px-3 py-2 rounded w-32"
+          required
+        />
+        <input
+          name="StandardWeight"
+          value={form.StandardWeight}
+          onChange={handleChange}
+          placeholder="Weight"
+          type="number"
+          className="border px-3 py-2 rounded w-32"
+          required
+        />
+        <select
+          name="Status"
+          value={form.Status}
+          onChange={handleChange}
+          className="border px-3 py-2 rounded w-32"
+        >
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+        <button type="submit" className="bg-green-700 text-white px-4 py-2 rounded">
+          {editingId ? 'Update Product' : 'Add New Product'}
+        </button>
+        <button
+          type="button"
+          onClick={fetchProducts}
+          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+        >
+          🔁 Refresh
+        </button>
+      </form>
+
+      <table className="w-full text-sm border border-gray-300">
+        <thead className="bg-gray-800 text-white">
+          <tr>
+            <th className="p-2 text-left">Item Code</th>
+            <th className="p-2 text-left">Item Name</th>
+            <th className="p-2 text-left">Size</th>
+            <th className="p-2 text-left">Standard Weight (lbs)</th>
+            <th className="p-2 text-left">Status</th>
+            <th className="p-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {products.map(product => (
+            <tr key={product.id} className="border-t border-gray-200">
+              <td className="p-2">{product.ItemCodeDisplay || '—'}</td>
+              <td className="p-2">{product.ItemNameDisplay || '—'}</td>
+              <td className="p-2">{product.SizeNameDisplay || '—'}</td>
+              <td className="p-2">{product.StandardWeight || '—'}</td>
+              <td className="p-2">{product.Status}</td>
+              <td className="p-2">
+                <button onClick={() => handleEdit(product)} className="text-green-600 mr-2">✏️</button>
+                <button onClick={() => handleDelete(product.id)} className="text-red-600">🗑️</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

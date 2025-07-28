@@ -1,9 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// ... full StaffModal code as before ...
-export default function StaffModal({ title, initialData, onClose, onSave }) {
-  // paste code from your previous StaffModal implementation
-}
-import React, { useState, useEffect } from 'react';
 
 export default function StaffModal({ title, initialData, onClose, onSave }) {
   const [form, setForm] = useState(() => ({
@@ -16,7 +11,6 @@ export default function StaffModal({ title, initialData, onClose, onSave }) {
 
   const [error, setError] = useState('');
 
-  // Auto-set authType based on selected role
   useEffect(() => {
     if (form.role) {
       const authType = form.role === 'Warehouse' ? 'PIN' : 'Google';
@@ -32,7 +26,6 @@ export default function StaffModal({ title, initialData, onClose, onSave }) {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (!form.name.trim()) {
       setError('Name is required');
       return;
@@ -46,7 +39,6 @@ export default function StaffModal({ title, initialData, onClose, onSave }) {
       return;
     }
 
-    // Build payload
     const dataToSave = {
       name: form.name,
       email: form.email,
@@ -55,7 +47,6 @@ export default function StaffModal({ title, initialData, onClose, onSave }) {
       status: form.status,
     };
 
-    // For warehouse users, initialize PIN setup fields
     if (form.authType === 'PIN') {
       dataToSave.pinSetup = false;
       dataToSave.pinHash = null;
@@ -74,7 +65,6 @@ export default function StaffModal({ title, initialData, onClose, onSave }) {
       <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
         <h2 className="text-xl font-bold mb-4">{title}</h2>
         <form onSubmit={submit} className="space-y-3">
-          {/* Name */}
           <input
             type="text"
             placeholder="Full Name"
@@ -84,7 +74,6 @@ export default function StaffModal({ title, initialData, onClose, onSave }) {
             required
           />
 
-          {/* Email */}
           <input
             type="email"
             placeholder="Email Address"
@@ -94,7 +83,6 @@ export default function StaffModal({ title, initialData, onClose, onSave }) {
             disabled={form.authType === 'PIN'}
           />
 
-          {/* Role */}
           <select
             value={form.role}
             onChange={e => handleChange('role', e.target.value)}
@@ -107,7 +95,6 @@ export default function StaffModal({ title, initialData, onClose, onSave }) {
             <option value="Warehouse">Warehouse</option>
           </select>
 
-          {/* Auth Type Display */}
           {form.authType && (
             <div className="p-3 bg-gray-50 rounded">
               <label className="text-sm text-gray-600">Authentication Type:</label>
@@ -128,7 +115,6 @@ export default function StaffModal({ title, initialData, onClose, onSave }) {
             </div>
           )}
 
-          {/* Status */}
           <select
             value={form.status}
             onChange={e => handleChange('status', e.target.value)}
