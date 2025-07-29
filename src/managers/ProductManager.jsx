@@ -1,179 +1,199 @@
-// src/managers/ProductManager.jsx
+// src/managers/ProductManager.jsx - COMPLETE VERSION
 import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  query,
-  where,
-} from 'firebase/firestore';
+import PageHeader from '../components/PageHeader';
+import ProductModal from '../modals/ProductModal';
+import { EditIcon, DeleteIcon } from '../components/Icons';
 
 export default function ProductManager() {
   const [products, setProducts] = useState([]);
-  const [form, setForm] = useState({
-    ItemCodeDisplay: '',
-    ItemNameDisplay: '',
-    SizeNameDisplay: '',
-    StandardWeight: '',
-    Status: 'Active',
-  });
-  const [editingId, setEditingId] = useState(null);
-
-  const fetchProducts = async () => {
-    console.log('🔁 Fetching products...');
-    const snap = await getDocs(collection(db, 'products'));
-    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    const sorted = data.sort((a, b) => {
-      const aKey = `${a.ItemCodeDisplay}-${a.SizeNameDisplay}-${a.StandardWeight}`;
-      const bKey = `${b.ItemCodeDisplay}-${b.SizeNameDisplay}-${b.StandardWeight}`;
-      return aKey.localeCompare(bKey);
-    });
-    setProducts([...sorted]);
-  };
+  const [items, setItems] = useState([]);
+  const [sizes, setSizes] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProducts();
+    const unsubscribes = [];
+
+    // Subscribe to items
+    const itemsUnsub = onSnapshot(
+      collection(db, 'items'),
+      (snapshot) => {
+        setItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      (error) => console.error('Error fetching items:', error)
+    );
+    unsubscribes.push(itemsUnsub);
+
+    // Subscribe to sizes
+    const sizesUnsub = onSnapshot(
+      collection(db, 'sizes'),
+      (snapshot) => {
+        setSizes(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      (error) => console.error('Error fetching sizes:', error)
+    );
+    unsubscribes.push(sizesUnsub);
+
+    // Subscribe to products
+    const productsUnsub = onSnapshot(
+      collection(db, 'products'),
+      (snapshot) => {
+        const productData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setProducts(productData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching products:', error);
+        setLoading(false);
+      }
+    );
+    unsubscribes.push(productsUnsub);
+
+    return () => unsubscribes.forEach(unsub => unsub());
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+  // Get item name by ID
+  const getItemName = (itemId) => {
+    const item = items.find(i => i.id === itemId);
+    return item ? `${item.ItemCode} - ${item.ItemName}` : '—';
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const { ItemCodeDisplay, SizeNameDisplay, StandardWeight } = form;
-    if (!ItemCodeDisplay || !SizeNameDisplay || !StandardWeight) return;
+  // Get size name by ID
+  const getSizeName = (sizeId) => {
+    const size = sizes.find(s => s.id === sizeId);
+    return size ? size.SizeName : '—';
+  };
 
-    const q = query(
-      collection(db, 'products'),
-      where('ItemCodeDisplay', '==', ItemCodeDisplay),
-      where('SizeNameDisplay', '==', SizeNameDisplay),
-      where('StandardWeight', '==', StandardWeight)
+  // Enhanced products with item and size names
+  const enhancedProducts = products.map(product => ({
+    ...product,
+    ItemName: getItemName(product.ItemId),
+    SizeName: getSizeName(product.SizeId),
+  }));
+
+  const fields = [
+    { name: 'ItemName', label: 'Item' },
+    { name: 'SizeName', label: 'Size' },
+    { name: 'ItemCodeDisplay', label: 'Item Code' },
+    { name: 'ItemNameDisplay', label: 'Item Name' },
+    { name: 'SizeNameDisplay', label: 'Size Display' },
+    { name: 'StandardWeight', label: 'Weight (lbs)' },
+    { name: 'Status', label: 'Status' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-lg">Loading products...</div>
+      </div>
     );
-    const existing = await getDocs(q);
-    if (!existing.empty && !editingId) {
-      alert('Product combination already exists.');
-      return;
-    }
-
-    if (editingId) {
-      await updateDoc(doc(db, 'products', editingId), form);
-    } else {
-      await addDoc(collection(db, 'products'), form);
-    }
-
-    setForm({
-      ItemCodeDisplay: '',
-      ItemNameDisplay: '',
-      SizeNameDisplay: '',
-      StandardWeight: '',
-      Status: 'Active',
-    });
-    setEditingId(null);
-    fetchProducts();
-  };
-
-  const handleEdit = (product) => {
-    setForm({ ...product });
-    setEditingId(product.id);
-  };
-
-  const handleDelete = async (id) => {
-    await deleteDoc(doc(db, 'products', id));
-    fetchProducts();
-  };
+  }
 
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold text-green-600 mb-2">Products Management</h2>
-      <p className="text-gray-600 mb-6">Manage item + size + weight combinations</p>
+    <>
+      <PageHeader
+        title="Products Management"
+        subtitle="Manage product combinations of items and sizes"
+        buttonText="Add New Product"
+        onAdd={() => {
+          setCurrent(null);
+          setOpen(true);
+        }}
+      />
 
-      <form onSubmit={handleSubmit} className="flex flex-wrap gap-4 mb-6 items-center">
-        <input
-          name="ItemCodeDisplay"
-          value={form.ItemCodeDisplay}
-          onChange={handleChange}
-          placeholder="Item Code"
-          className="border px-3 py-2 rounded w-40"
-          required
-        />
-        <input
-          name="ItemNameDisplay"
-          value={form.ItemNameDisplay}
-          onChange={handleChange}
-          placeholder="Item Name"
-          className="border px-3 py-2 rounded w-48"
-        />
-        <input
-          name="SizeNameDisplay"
-          value={form.SizeNameDisplay}
-          onChange={handleChange}
-          placeholder="Size"
-          className="border px-3 py-2 rounded w-32"
-          required
-        />
-        <input
-          name="StandardWeight"
-          value={form.StandardWeight}
-          onChange={handleChange}
-          placeholder="Weight"
-          type="number"
-          className="border px-3 py-2 rounded w-32"
-          required
-        />
-        <select
-          name="Status"
-          value={form.Status}
-          onChange={handleChange}
-          className="border px-3 py-2 rounded w-32"
-        >
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-        <button type="submit" className="bg-green-700 text-white px-4 py-2 rounded">
-          {editingId ? 'Update Product' : 'Add New Product'}
-        </button>
-        <button
-          type="button"
-          onClick={fetchProducts}
-          className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
-        >
-          🔁 Refresh
-        </button>
-      </form>
-
-      <table className="w-full text-sm border border-gray-300">
-        <thead className="bg-gray-800 text-white">
-          <tr>
-            <th className="p-2 text-left">Item Code</th>
-            <th className="p-2 text-left">Item Name</th>
-            <th className="p-2 text-left">Size</th>
-            <th className="p-2 text-left">Standard Weight (lbs)</th>
-            <th className="p-2 text-left">Status</th>
-            <th className="p-2 text-left">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map(product => (
-            <tr key={product.id} className="border-t border-gray-200">
-              <td className="p-2">{product.ItemCodeDisplay || '—'}</td>
-              <td className="p-2">{product.ItemNameDisplay || '—'}</td>
-              <td className="p-2">{product.SizeNameDisplay || '—'}</td>
-              <td className="p-2">{product.StandardWeight || '—'}</td>
-              <td className="p-2">{product.Status}</td>
-              <td className="p-2">
-                <button onClick={() => handleEdit(product)} className="text-green-600 mr-2">✏️</button>
-                <button onClick={() => handleDelete(product.id)} className="text-red-600">🗑️</button>
-              </td>
+      <div className="bg-white shadow rounded overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+            <tr>
+              {fields.map(f => (
+                <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
+              ))}
+              <th className="px-6 py-3 text-right">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {enhancedProducts.map(product => (
+              <tr key={product.id} className="hover:bg-gray-50">
+                {fields.map(f => (
+                  <td key={f.name} className="px-6 py-4 text-sm">
+                    {f.name === 'StandardWeight' ? `${product[f.name]} lbs` : product[f.name] ?? '—'}
+                  </td>
+                ))}
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => {
+                        setCurrent(product);
+                        setOpen(true);
+                      }}
+                      className="text-green-800 hover:text-green-600"
+                      title="Edit"
+                    >
+                      <EditIcon />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('Are you sure you want to delete this product?')) {
+                          await deleteDoc(doc(db, 'products', product.id));
+                        }
+                      }}
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete"
+                    >
+                      <DeleteIcon />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {enhancedProducts.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No products found. Click "Add New Product" to get started.
+          </div>
+        )}
+      </div>
+
+      {open && (
+        <ProductModal
+          title={`${current ? 'Edit' : 'Add'} Product`}
+          initialData={current}
+          items={items.filter(i => i.Status === 'Active')}
+          sizes={sizes.filter(s => s.Status === 'Active')}
+          onClose={() => setOpen(false)}
+          onSave={async (data) => {
+            try {
+              // Find the selected item and size to populate display fields
+              const selectedItem = items.find(i => i.id === data.ItemId);
+              const selectedSize = sizes.find(s => s.id === data.SizeId);
+
+              const productData = {
+                ...data,
+                ItemCodeDisplay: selectedItem?.ItemCode || data.ItemCodeDisplay,
+                ItemNameDisplay: selectedItem?.ItemName || data.ItemNameDisplay,
+                SizeNameDisplay: selectedSize?.SizeName || data.SizeNameDisplay,
+                StandardWeight: parseInt(data.StandardWeight) || 1,
+                Status: data.Status || 'Active'
+              };
+
+              if (current?.id) {
+                await updateDoc(doc(db, 'products', current.id), productData);
+              } else {
+                await addDoc(collection(db, 'products'), productData);
+              }
+              setOpen(false);
+            } catch (error) {
+              console.error('Error saving product:', error);
+              alert('Error saving product. Please try again.');
+            }
+          }}
+        />
+      )}
+    </>
   );
 }

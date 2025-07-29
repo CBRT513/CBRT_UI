@@ -20,7 +20,9 @@ const collections = [
   'products',
   'sizes',
   'releases',
-  'staff'
+  'staff',
+  'barges',
+  'lots'
 ];
 
 async function getSchema() {

@@ -58,15 +58,38 @@ export default function BarcodeUploadModal({ onClose }) {
       try {
         const bargeId = await findOrCreateDoc('barges', 'BargeName', BargeName);
         const customerId = await findOrCreateDoc('customers', 'CustomerName', CustomerName);
+        
+        // ✅ FIXED: Clean lots creation - no ItemId or SizeId
         const lotId = await findOrCreateDoc('lots', 'LotNumber', LotNo, {
           BargeId: bargeId,
           CustomerId: customerId,
         });
+        
         const itemId = await findOrCreateDoc('items', 'ItemCode', ProductName, {
           ItemName: ProductName,
         });
         const sizeId = await findOrCreateDoc('sizes', 'SizeName', SizeName);
 
+        // ✅ ADD: Create product combinations (this was missing!)
+        const productQuery = query(
+          collection(db, 'products'),
+          where('ItemId', '==', itemId),
+          where('SizeId', '==', sizeId)
+        );
+        const existingProduct = await getDocs(productQuery);
+        if (existingProduct.empty) {
+          await addDoc(collection(db, 'products'), {
+            ItemId: itemId,
+            SizeId: sizeId,
+            StandardWeight: parseInt(row.StandardWeight) || 1, // Add default weight
+            ItemCodeDisplay: ProductName,
+            ItemNameDisplay: ProductName,
+            SizeNameDisplay: SizeName,
+            Status: 'Active'
+          });
+        }
+
+        // ✅ Create barcode with all relationships
         await addDoc(collection(db, 'barcodes'), {
           BargeId: bargeId,
           LotId: lotId,

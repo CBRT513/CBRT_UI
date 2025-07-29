@@ -1,231 +1,215 @@
-// src/pages/DataImportManager.jsx
+// src/pages/DataImportManager.jsx - COMPLETE FIXED VERSION
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebase/config';
 import {
   collection,
   addDoc,
-  getDocs,
-  deleteDoc,
   doc,
-  onSnapshot,
+  getDocs,
   query,
   where,
+  onSnapshot,
+  deleteDoc,
+  setDoc,
   serverTimestamp,
 } from 'firebase/firestore';
+import { db } from '../firebase/config';
 
 export default function DataImportManager() {
   const [csvData, setCsvData] = useState([]);
   const [stagedData, setStagedData] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
-  const [generating, setGenerating] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'stagedBarcodes'), (snap) => {
-      const sorted = snap.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .sort((a, b) => {
-          const aKey = `${a.CustomerName || ''}${a.ItemCode || ''}${a.SizeName || ''}`;
-          const bKey = `${b.CustomerName || ''}${b.ItemCode || ''}${b.SizeName || ''}`;
-          return aKey.localeCompare(bKey);
-        });
-      setStagedData(sorted);
+    const unsub = onSnapshot(collection(db, 'stagedBarcodes'), snap => {
+      const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setStagedData(rows);
     });
     return () => unsub();
   }, []);
 
-  const parseCSV = (text) => {
-    const lines = text.trim().split('\n');
-    const headers = lines[0].split(',').map((h) => h.trim());
-    return lines.slice(1).map((line) => {
-      const values = line.split(',');
-      const row = headers.reduce((acc, h, i) => {
-        acc[h] = values[i]?.trim();
-        return acc;
-      }, {});
-      row.GeneratedBarcode = `${row.BargeName}${row.LotNumber}${row.CustomerName}${row.ItemCode}${row.SizeName}`.replace(/\s/g, '');
-      return row;
-    });
-  };
-
-  const handleFileUpload = (e) => {
+  const parseCSV = async (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const text = event.target.result;
-      const parsed = parseCSV(text);
-      setUploading(true);
-      for (const row of parsed) {
-        await addDoc(collection(db, 'stagedBarcodes'), {
-          ...row,
-          status: 'PENDING',
-          createdAt: serverTimestamp(),
-        });
-      }
-      setUploading(false);
-    };
-    reader.readAsText(file);
-  };
-
-  const findOrCreate = async (col, matchField, matchValue, extra = {}) => {
-    const q = query(collection(db, col), where(matchField, '==', matchValue));
-    const snap = await getDocs(q);
-    if (!snap.empty) return snap.docs[0].id;
-    const docRef = await addDoc(collection(db, col), {
-      [matchField]: matchValue,
-      Status: 'Active',
-      ...extra,
+    if (!file || !file.name.endsWith('.csv')) return;
+    const text = await file.text();
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim());
+    const rows = lines.slice(1).map(l => {
+      const values = l.split(',');
+      return headers.reduce((obj, h, i) => {
+        obj[h] = values[i]?.trim();
+        return obj;
+      }, {});
     });
-    return docRef.id;
+
+    for (const row of rows) {
+      row.Barcode = `${row.BargeName}${row.LotNumber}${row.CustomerName}${row.ItemCode}${row.SizeName}`.replace(/\s/g, '');
+      await addDoc(collection(db, 'stagedBarcodes'), row);
+    }
+
+    setCsvData(rows);
   };
 
-  const ensureProductExists = async (row) => {
-    const q = query(
-      collection(db, 'products'),
-      where('ItemCodeDisplay', '==', row.ItemCode),
-      where('SizeNameDisplay', '==', row.SizeName),
-      where('StandardWeight', '==', row.StandardWeight)
-    );
+  const findOrCreate = async (col, field, value, extra = {}) => {
+    const q = query(collection(db, col), where(field, '==', value));
     const snap = await getDocs(q);
-    if (snap.empty) {
-      await addDoc(collection(db, 'products'), {
-        ItemCodeDisplay: row.ItemCode,
-        ItemNameDisplay: row.ItemName,
-        SizeNameDisplay: row.SizeName,
-        StandardWeight: row.StandardWeight,
-        Status: 'Active'
-      });
-    }
+    if (!snap.empty) return snap.docs[0];
+    const docRef = await addDoc(collection(db, col), { [field]: value, Status: 'Active', ...extra });
+    return await getDocs(query(collection(db, col), where(field, '==', value))).then(s => s.docs[0]);
   };
 
   const generateBarcodes = async () => {
-    setGenerating(true);
+    setUploading(true);
+    setError('');
+    const existing = await getDocs(collection(db, 'barcodes'));
+    const barcodes = existing.docs.map(d => d.data().Barcode);
+
     try {
       for (const row of stagedData) {
-        const customerId = await findOrCreate('customers', 'CustomerName', row.CustomerName);
-        const supplierId = await findOrCreate('suppliers', 'SupplierName', row.SupplierName);
+        if (barcodes.includes(row.Barcode)) {
+          throw new Error(`Duplicate barcode: ${row.Barcode}`);
+        }
 
-        const bargeId = await findOrCreate('barges', 'BargeName', row.BargeName, {
-          SupplierName: row.SupplierName,
-          ArrivalDateFormatted: new Date().toISOString().split('T')[0],
-          Status: 'Expected'
-        });
+        const barge = await findOrCreate('barges', 'BargeName', row.BargeName, { Status: 'Expected', ArrivalDateFormatted: new Date().toISOString().split('T')[0] });
+        const supplier = await findOrCreate('suppliers', 'SupplierName', row.SupplierName);
+        const customer = await findOrCreate('customers', 'CustomerName', row.CustomerName);
+        const item = await findOrCreate('items', 'ItemCode', row.ItemCode, { ItemName: row.ItemName });
+        const size = await findOrCreate('sizes', 'SizeName', row.SizeName, { SortOrder: 'ascending' });
 
-        const lotId = await findOrCreate('lots', 'LotNumber', row.LotNumber, {
-          BargeId: bargeId,
-          CustomerId: customerId,
-        });
-
-        const itemId = await findOrCreate('items', 'ItemCode', row.ItemCode, {
-          ItemName: row.ItemName,
-        });
-
-        const sizeId = await findOrCreate('sizes', 'SizeName', row.SizeName, {
-          SortOrder: 'ascending'
-        });
-
-        await ensureProductExists(row);
-
-        const barcodeSnap = await getDocs(
-          query(collection(db, 'barcodes'), where('GeneratedBarcode', '==', row.GeneratedBarcode))
+        const productQuery = query(
+          collection(db, 'products'),
+          where('ItemId', '==', item.id),
+          where('SizeId', '==', size.id),
+          where('StandardWeight', '==', parseInt(row.StandardWeight))
         );
-
-        if (barcodeSnap.empty) {
-          await addDoc(collection(db, 'barcodes'), {
-            BargeId: bargeId,
-            LotId: lotId,
-            CustomerId: customerId,
-            ItemId: itemId,
-            SizeId: sizeId,
-            Quantity: parseInt(row.Quantity, 10),
-            GeneratedBarcode: row.GeneratedBarcode,
+        const existingProduct = await getDocs(productQuery);
+        if (existingProduct.empty) {
+          await addDoc(collection(db, 'products'), {
+            ItemId: item.id,
+            SizeId: size.id,
+            StandardWeight: parseInt(row.StandardWeight),
+            ItemCodeDisplay: row.ItemCode,
+            ItemNameDisplay: row.ItemName,
+            SizeNameDisplay: row.SizeName,
+            Status: 'Active'
           });
         }
 
-        await deleteDoc(doc(db, 'stagedBarcodes', row.id));
+        // ✅ FIXED: Clean lots schema - REMOVED ItemId and SizeId
+        const lotQuery = query(collection(db, 'lots'), where('LotNumber', '==', row.LotNumber));
+        const lotSnap = await getDocs(lotQuery);
+        const lotData = {
+          LotNumber: row.LotNumber,
+          BargeId: barge.id,
+          CustomerId: customer.id,
+          // ❌ REMOVED: ItemId: item.id,
+          // ❌ REMOVED: SizeId: size.id,
+          Status: 'Active'
+        };
+
+        let lotDoc;
+        if (!lotSnap.empty) {
+          await setDoc(doc(db, 'lots', lotSnap.docs[0].id), lotData, { merge: true });
+          lotDoc = lotSnap.docs[0];
+        } else {
+          const newLotRef = await addDoc(collection(db, 'lots'), lotData);
+          const newLotSnap = await getDocs(query(collection(db, 'lots'), where('LotNumber', '==', row.LotNumber)));
+          lotDoc = newLotSnap.docs[0];
+        }
+
+        await addDoc(collection(db, 'barcodes'), {
+          BargeId: barge.id,
+          LotId: lotDoc.id,
+          CustomerId: customer.id,
+          ItemId: item.id,
+          SizeId: size.id,
+          Quantity: parseInt(row.Quantity),
+          Barcode: row.Barcode
+        });
       }
+
+      for (const staged of stagedData) {
+        await deleteDoc(doc(db, 'stagedBarcodes', staged.id));
+      }
+
+      setSuccess(true);
     } catch (err) {
       console.error(err);
       setError(err.message);
-    }
-    setGenerating(false);
-  };
-
-  const cancelUpload = async () => {
-    for (const row of stagedData) {
-      await deleteDoc(doc(db, 'stagedBarcodes', row.id));
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Data Import & Barcode Staging</h1>
+    <div className="max-w-7xl mx-auto text-white">
+      <h1 className="text-2xl font-bold mb-2">Data Import & Barcode Staging</h1>
 
-      <input type="file" accept=".csv" onChange={handleFileUpload} className="mb-4" />
+      <div className="flex items-center gap-2 mb-4">
+        <input type="file" accept=".csv" onChange={parseCSV} className="px-2 py-1" />
+        {csvData.length > 0 && <span>{csvData.length} rows ready</span>}
+      </div>
 
-      {uploading && <p>Uploading data...</p>}
-      {error && <p className="text-red-600">Error: {error}</p>}
+      {error && <div className="bg-red-700 px-4 py-2 rounded mb-2">Error: {error}</div>}
 
       {stagedData.length > 0 && (
-        <>
-          <table className="w-full text-sm border border-gray-300 mb-4">
-            <thead className="bg-gray-100">
+        <div className="bg-gray-900 rounded shadow overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-800 text-gray-400">
               <tr>
-                <th>Barcode</th>
-                <th>ItemCode</th>
-                <th>ItemName</th>
-                <th>LotNumber</th>
-                <th>BargeName</th>
-                <th>CustomerName</th>
-                <th>SupplierName</th>
-                <th>SizeName</th>
-                <th>Std Weight</th>
-                <th>Quantity</th>
-                <th>Delete</th>
+                <th className="px-4 py-2 text-left">Barcode</th>
+                <th className="px-4 py-2 text-left">ItemCode</th>
+                <th className="px-4 py-2 text-left">ItemName</th>
+                <th className="px-4 py-2 text-left">LotNumber</th>
+                <th className="px-4 py-2 text-left">BargeName</th>
+                <th className="px-4 py-2 text-left">CustomerName</th>
+                <th className="px-4 py-2 text-left">SupplierName</th>
+                <th className="px-4 py-2 text-left">SizeName</th>
+                <th className="px-4 py-2 text-left">Std Weight</th>
+                <th className="px-4 py-2 text-left">Quantity</th>
+                <th className="px-4 py-2 text-right">Delete</th>
               </tr>
             </thead>
             <tbody>
-              {stagedData.map((row) => (
-                <tr key={row.id}>
-                  <td><code>{row.GeneratedBarcode}</code></td>
-                  <td>{row.ItemCode}</td>
-                  <td>{row.ItemName}</td>
-                  <td>{row.LotNumber}</td>
-                  <td>{row.BargeName}</td>
-                  <td>{row.CustomerName}</td>
-                  <td>{row.SupplierName}</td>
-                  <td>{row.SizeName}</td>
-                  <td>{row.StandardWeight}</td>
-                  <td>{row.Quantity}</td>
-                  <td>
-                    <button
-                      className="text-red-600 hover:underline"
-                      onClick={() => deleteDoc(doc(db, 'stagedBarcodes', row.id))}
-                    >
-                      Delete
-                    </button>
+              {stagedData.map((row, i) => (
+                <tr key={i} className="border-t border-gray-800 hover:bg-gray-800">
+                  <td className="px-4 py-1 font-mono text-green-400">{row.Barcode}</td>
+                  <td className="px-4 py-1">{row.ItemCode}</td>
+                  <td className="px-4 py-1">{row.ItemName}</td>
+                  <td className="px-4 py-1">{row.LotNumber}</td>
+                  <td className="px-4 py-1">{row.BargeName}</td>
+                  <td className="px-4 py-1">{row.CustomerName}</td>
+                  <td className="px-4 py-1">{row.SupplierName}</td>
+                  <td className="px-4 py-1">{row.SizeName}</td>
+                  <td className="px-4 py-1">{row.StandardWeight}</td>
+                  <td className="px-4 py-1">{row.Quantity}</td>
+                  <td className="px-4 py-1 text-right">
+                    <button onClick={() => deleteDoc(doc(db, 'stagedBarcodes', row.id))} className="text-red-400">Delete</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="flex gap-4">
+
+          <div className="flex justify-between p-4">
             <button
-              disabled={generating}
               onClick={generateBarcodes}
-              className="bg-green-800 text-white px-4 py-2 rounded shadow hover:opacity-90"
+              className="bg-green-700 text-white px-4 py-2 rounded disabled:opacity-50"
+              disabled={uploading}
             >
-              {generating ? 'Generating…' : 'Generate Barcodes'}
+              Generate Barcodes
             </button>
             <button
-              onClick={cancelUpload}
-              className="bg-red-600 text-white px-4 py-2 rounded shadow hover:opacity-90"
+              onClick={async () => {
+                for (const staged of stagedData) await deleteDoc(doc(db, 'stagedBarcodes', staged.id));
+              }}
+              className="bg-red-700 text-white px-4 py-2 rounded"
             >
               Cancel Upload
             </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );
