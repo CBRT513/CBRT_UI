@@ -5,6 +5,11 @@
 /* ---------- 1. IMPORTS ---------- */
 import React, { useState, useEffect } from 'react';
 import {
+  useFirestoreCollection,
+  useFirestoreActions,
+  useFirestoreMultiCollection,
+} from './hooks/useFirestore';
+import {
   BrowserRouter as Router,
   Routes,
   Route,
@@ -12,31 +17,14 @@ import {
 } from 'react-router-dom';
 import {
   collection,
-  doc,
-  onSnapshot,
   addDoc,
-  updateDoc,
-  deleteDoc,
-  getFirestore,
 } from 'firebase/firestore';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { signInAnonymously } from 'firebase/auth';
+import { db, auth } from './firebase';
 import { v4 as uuid } from 'uuid';
 
 /* ---------- 2. FIREBASE CONFIG ---------- */
-const firebaseConfig = {
-  apiKey: "AIzaSyAfFS_p_a_tZNTzoFZN7u7k4pA8FYdVkLk",
-  authDomain: "cbrt-app-ui-dev.firebaseapp.com",
-  projectId: "cbrt-app-ui-dev",
-  storageBucket: "cbrt-app-ui-dev.appspot.com",
-  messagingSenderId: "1087116999170",
-  appId: "1:1087116999170:web:e99afb7f4d076f8d75051b",
-  measurementId: "G-0ZEBLX6VX0",
-};
-
-const app  = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+// Firebase initialized in src/firebase.js and exported as db/auth
 
 /* ---------- 3. ICONS ---------- */
 const UserPlusIcon = () => (
@@ -148,18 +136,13 @@ function ProductManager() { return <Manager collectionName="products"  fields={[
 
 /* ---------- 8. RELEASES ---------- */
 function NewRelease() {
-  const [customers, setCustomers] = useState([]);
-  const [products, setProducts] = useState([]);
+  const { data, loading } = useFirestoreMultiCollection([
+    { name: 'customers' },
+    { name: 'products' },
+  ]);
+  const customers = data.customers || [];
+  const products = data.products || [];
   const [form, setForm] = useState({ customerId: '', items: [] });
-
-  useEffect(() => {
-    onSnapshot(collection(db, 'customers'), (snap) =>
-      setCustomers(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
-    onSnapshot(collection(db, 'products'), (snap) =>
-      setProducts(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-    );
-  }, []);
 
   const addLine = () =>
     setForm({ ...form, items: [...form.items, { id: uuid(), productId: '', qty: 1 }] });
@@ -258,17 +241,10 @@ function NewRelease() {
 
 /* ---------- 9. GENERIC MANAGER ---------- */
 function Manager({ collectionName, fields }) {
-  const [rows, setRows] = useState([]);
+  const { data: rows } = useFirestoreCollection(collectionName);
+  const { add, update } = useFirestoreActions(collectionName);
   const [open, setOpen] = useState(false);
   const [current, setCurrent] = useState(null);
-
-  useEffect(
-    () =>
-      onSnapshot(collection(db, collectionName), (snap) =>
-        setRows(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
-      ),
-    [collectionName]
-  );
 
   const openModal = (r = null) => {
     setCurrent(r);
@@ -327,9 +303,8 @@ function Manager({ collectionName, fields }) {
             .toUpperCase()}${collectionName.slice(1)}`}
           onClose={() => setOpen(false)}
           onSave={async (data) => {
-            if (current?.id)
-              await updateDoc(doc(db, collectionName, current.id), data);
-            else await addDoc(collection(db, collectionName), data);
+            if (current?.id) await update(current.id, data);
+            else await add(data);
             setOpen(false);
           }}
           initialData={current}
@@ -381,11 +356,15 @@ function Modal({ title, onClose, onSave, initialData, fields }) {
                   className="w-full border px-3 py-2"
                 >
                   <option value="">Select {f.label}</option>
-                  {f.options.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.name}
-                    </option>
-                  ))}
+                  {f.options.map((opt) => {
+                    const value = typeof opt === 'string' ? opt : opt.id;
+                    const label = typeof opt === 'string' ? opt : opt.name;
+                    return (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    );
+                  })}
                 </select>
               );
             } else {

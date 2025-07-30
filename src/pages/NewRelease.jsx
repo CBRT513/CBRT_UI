@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../../firebase';          // will create next
+import { db } from '../firebase';
 import { collection, addDoc, onSnapshot } from 'firebase/firestore';
 import { v4 as uuid } from 'uuid';
 
