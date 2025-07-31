@@ -1,101 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+// BargeManager.jsx
+// Manages barge records in Firestore, styled like CustomerManager.
+
+import React, { useState } from 'react';
+import { useFirestoreCollection, useFirestoreActions } from '../hooks/useFirestore';
+import BargeModal from '../modals/BargeModal';
+import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
 import PageHeader from '../components/PageHeader';
-import Modal from '../components/Modal';
 import { EditIcon, DeleteIcon } from '../components/Icons';
 
 export default function BargeManager() {
-  const [rows, setRows] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
+  const { data: barges, loading, error, retry } = useFirestoreCollection('barges');
+  const { add, update, delete: deleteBarge } = useFirestoreActions('barges');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
 
-  useEffect(() => {
-    return onSnapshot(collection(db, 'suppliers'), snap => {
-      setSuppliers(snap.docs.map(d => ({ id: d.id, name: d.data().SupplierName })));
-    });
-  }, []);
+  const handleAdd = () => { setEditTarget(null); setModalOpen(true); };
+  const handleEdit = (item) => { setEditTarget(item); setModalOpen(true); };
 
-  useEffect(() => {
-    if (!suppliers.length) return;
-    return onSnapshot(collection(db, 'barges'), snap => {
-      setRows(snap.docs.map(d => {
-        const data = { id: d.id, ...d.data() };
-        return {
-          ...data,
-          SupplierName: suppliers.find(s => s.id === data.SupplierId)?.name || 'Unknown',
-          ArrivalDateFormatted: data.ArrivalDate
-            ? (data.ArrivalDate.seconds
-                ? new Date(data.ArrivalDate.seconds * 1000)
-                : new Date(data.ArrivalDate)
-              ).toLocaleDateString()
-            : '—'
-        };
-      }));
-    });
-  }, [suppliers]);
+  const handleDelete = async (id) => {
+    if (window.confirm('Delete this barge?')) {
+      setLoadingId(id);
+      await deleteBarge(id);
+      setLoadingId(null);
+    }
+  };
 
-  const fields = [
-    { name: 'BargeName', label: 'Barge Name', type: 'text' },
-    { name: 'SupplierName', label: 'Supplier', type: 'display' },
-    { name: 'ArrivalDateFormatted', label: 'Arrival Date', type: 'display' },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Expected','Arrived','Processing','Complete'] },
-  ];
+  const handleSave = async (data) => {
+    try {
+      setLoadingId('save');
+      if (editTarget) {
+        await update(editTarget.id, data);
+      } else {
+        await add(data);
+      }
+      setModalOpen(false);
+    } catch (err) {
+      console.error('Failed to save barge:', err);
+      alert('There was an error saving the barge.');
+    } finally {
+      setLoadingId(null);
+    }
+  };
 
-  if (!suppliers.length) {
-    return <div className="flex justify-center p-8">Loading barges...</div>;
-  }
+  if (loading) return <TableSkeleton />;
+  if (error) return <ErrorDisplay error={error} onRetry={retry} />;
+  if (!barges.length) return <EmptyState message="No barges found." onAction={handleAdd} actionLabel="Add Barge" />;
 
   return (
-    <>
+    <div className="p-4">
       <PageHeader
-        title="Barges Management"
-        subtitle="Manage incoming barges"
-        buttonText="Add New Barge"
-        onAdd={() => { setCurrent(null); setOpen(true); }}
+        title="Barge Manager"
+        subtitle="Manage the barges available for shipment"
+        buttonText="Add Barge"
+        onAdd={handleAdd}
+        disabled={loadingId === 'save'}
       />
       <div className="bg-white shadow rounded overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+        <table className="min-w-full text-sm" aria-label="Barges Table">
+          <thead className="bg-gray-100 text-gray-700">
             <tr>
-              {fields.map(f => <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>)}
-              <th className="px-6 py-3 text-right">Actions</th>
+              <th className="text-left px-4 py-2">Name</th>
+              <th className="text-left px-4 py-2">Status</th>
+              <th className="text-left px-4 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                {fields.map(f => <td key={f.name} className="px-6 py-4">{r[f.name] ?? '—'}</td>)}
-                <td className="px-6 py-4 text-right">
-                  <button onClick={() => { setCurrent(r); setOpen(true); }} className="text-green-800 hover:text-green-600" title="Edit"><EditIcon /></button>
-                  <button onClick={async () => { if (confirm('Delete this barge?')) await deleteDoc(doc(db,'barges',r.id)); }} className="text-red-600 hover:text-red-800" title="Delete"><DeleteIcon /></button>
+            {barges.map(item => (
+              <tr key={item.id} className="border-t">
+                <td className="px-4 py-2">{item.name}</td>
+                <td className="px-4 py-2">{item.status}</td>
+                <td className="px-4 py-2 space-x-2">
+                  <EditIcon onClick={() => handleEdit(item)} disabled={loadingId === item.id || loadingId === 'save'} />
+                  <DeleteIcon onClick={() => handleDelete(item.id)} disabled={loadingId === item.id || loadingId === 'save'} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Barge`}
-          fields={[
-            { name: 'BargeName', label: 'Barge Name', type: 'text' },
-            { name: 'SupplierId', label: 'Supplier', type: 'select', options: suppliers },
-            { name: 'ArrivalDate', label: 'Arrival Date', type: 'date' },
-            { name: 'Status', label: 'Status', type: 'select', options: ['Expected','Arrived','Processing','Complete'] },
-            { name: 'Notes', label: 'Notes', type: 'text' },
-          ]}
-          initialData={current}
-          onClose={() => setOpen(false)}
-          onSave={async data => {
-            if (data.ArrivalDate) data.ArrivalDate = new Date(data.ArrivalDate);
-            if (current?.id) await updateDoc(doc(db,'barges',current.id),data);
-            else await addDoc(collection(db,'barges'),data);
-            setOpen(false);
-          }}
+      {modalOpen && (
+        <BargeModal
+          title={editTarget ? 'Edit Barge' : 'Add Barge'}
+          initialData={editTarget}
+          onClose={() => setModalOpen(false)}
+          onSave={handleSave}
         />
       )}
-    </>
+      {loadingId === 'save' && <LoadingSpinner />}
+    </div>
   );
 }

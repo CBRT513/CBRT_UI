@@ -1,113 +1,93 @@
+// src/managers/TruckManager.jsx
 import React, { useState } from 'react';
+import { useFirestoreCollection, useFirestoreActions } from '../hooks/useFirestore';
+import TruckModal from '../modals/TruckModal';
 import PageHeader from '../components/PageHeader';
-import Modal from '../components/Modal';
 import { EditIcon, DeleteIcon } from '../components/Icons';
-import { db } from '../firebase/config';
-import {
-  collection,
-  doc,
-  updateDoc,
-  addDoc,
-  deleteDoc,
-} from 'firebase/firestore';
+import { TableSkeleton, ErrorDisplay, EmptyState } from '../components/LoadingStates';
 
-import useTrucksWithCarriers from '../hooks/useTrucksWithCarriers';
+const fields = [
+  { name: 'TruckNumber', label: 'Truck Number' },
+  { name: 'TrailerNumber', label: 'Trailer Number' },
+  { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
+];
 
 export default function TruckManager() {
-  const { trucks, carriers, isLoading } = useTrucksWithCarriers();
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
+  const { data: trucks, loading, error } = useFirestoreCollection('trucks');
+  const { add, update, remove } = useFirestoreActions('trucks');
+  const [selected, setSelected] = useState(null);
+  const [isOpen, setIsOpen] = useState(false);
 
-  const fields = [
-    { name: 'TruckNumber', label: 'Truck Number', type: 'text' },
-    { name: 'TrailerNumber', label: 'Trailer Number', type: 'text' },
-    { name: 'Carrier', label: 'Carrier', type: 'select', options: carriers },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] },
-  ];
+  const handleAdd = () => {
+    console.log("Add truck clicked");
+    setSelected(null);
+    setIsOpen(true);
+  };
 
-  const displayFields = [
-    { name: 'TruckNumber', label: 'Truck Number' },
-    { name: 'TrailerNumber', label: 'Trailer Number' },
-    { name: 'CarrierName', label: 'Carrier' },
-    { name: 'Status', label: 'Status' },
-  ];
+  const handleEdit = (truck) => {
+    setSelected(truck);
+    setIsOpen(true);
+  };
 
-  if (isLoading) {
-    return <div className="p-8 text-center text-gray-500">Loading trucks...</div>;
-  }
+  const handleDelete = async (id) => {
+    if (window.confirm('Delete this truck?')) {
+      await remove(id);
+    }
+  };
+
+  const handleSave = async (data) => {
+    if (selected?.id) {
+      await update(selected.id, data);
+    } else {
+      await add(data);
+    }
+    setIsOpen(false);
+  };
 
   return (
-    <>
-      <PageHeader
-        title="Trucks Management"
-        subtitle="Manage trucks and assign carriers"
-        buttonText="Add New Truck"
-        onAdd={() => {
-          setCurrent(null);
-          setOpen(true);
-        }}
-      />
+    <div className="p-4">
+      <PageHeader title="Trucks" onAdd={handleAdd} buttonText="Add Truck" />
 
-      <div className="bg-white shadow rounded overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-100 text-xs uppercase text-gray-600">
-            <tr>
-              {displayFields.map(f => (
-                <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
-              ))}
-              <th className="px-6 py-3 text-right">Actions</th>
+
+      {loading && <TableSkeleton />}
+      {error && <ErrorDisplay message={error.message} />}
+      {!loading && !error && trucks.length === 0 && <EmptyState label="trucks" />}
+
+      {!loading && !error && trucks.length > 0 && (
+        <table className="min-w-full bg-white border border-gray-300">
+          <thead>
+            <tr className="bg-gray-100 text-left">
+              <th className="px-4 py-2">Truck Number</th>
+              <th className="px-4 py-2">Trailer Number</th>
+              <th className="px-4 py-2">Status</th>
+              <th className="px-4 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {trucks.map(r => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                {displayFields.map(f => (
-                  <td key={f.name} className="px-6 py-4">{r[f.name] ?? '—'}</td>
-                ))}
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => { setCurrent(r); setOpen(true); }}
-                      className="text-green-800 hover:text-green-600"
-                      title="Edit"
-                    >
-                      <EditIcon />
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (window.confirm('Are you sure you want to delete this truck?')) {
-                          await deleteDoc(doc(db, 'trucks', r.id));
-                        }
-                      }}
-                      className="text-red-600 hover:text-red-800"
-                      title="Delete"
-                    >
-                      <DeleteIcon />
-                    </button>
-                  </div>
+            {trucks.map(truck => (
+              <tr key={truck.id} className="border-t">
+                <td className="px-4 py-2">{truck.TruckNumber}</td>
+                <td className="px-4 py-2">{truck.TrailerNumber}</td>
+                <td className="px-4 py-2">{truck.Status}</td>
+                <td className="px-4 py-2 flex gap-2">
+                  <button onClick={() => handleEdit(truck)}><EditIcon /></button>
+                  <button onClick={() => handleDelete(truck.id)}><DeleteIcon /></button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      )}
 
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Truck`}
+      {isOpen && (
+        <TruckModal
+          title={selected ? 'Edit Truck' : 'Add Truck'}
+          initialData={selected || {}}
           fields={fields}
-          initialData={current}
-          onClose={() => setOpen(false)}
-          onSave={async data => {
-            if (current?.id) {
-              await updateDoc(doc(db, 'trucks', current.id), data);
-            } else {
-              await addDoc(collection(db, 'trucks'), data);
-            }
-            setOpen(false);
-          }}
+          onClose={() => setIsOpen(false)}
+          onSave={handleSave}
         />
       )}
-    </>
+    </div>
   );
 }

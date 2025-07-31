@@ -1,117 +1,94 @@
-// src/managers/SizeManager.jsx
-import React, { useState, useEffect } from 'react';
-import { db } from '../firebase/config';
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  orderBy,
-  query,
-} from 'firebase/firestore';
+// SizeManager.jsx
+// Manages size entries in Firestore
+// Aligned with CustomerManager structure: uses PageHeader, Edit/Delete icons, consistent table design
+
+import React, { useState } from 'react';
+import { useFirestoreCollection, useFirestoreActions } from '../hooks/useFirestore';
+import SizeModal from '../modals/SizeModal';
+import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+import PageHeader from '../components/PageHeader';
+import { EditIcon, DeleteIcon } from '../components/Icons';
 
 export default function SizeManager() {
-  const [sizes, setSizes] = useState([]);
-  const [form, setForm] = useState({ SizeName: '', Status: 'Active' });
-  const [editingId, setEditingId] = useState(null);
+  const { data: sizes, loading, error, retry } = useFirestoreCollection('sizes');
+  const { add, update, delete: deleteSize } = useFirestoreActions('sizes');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
 
-  const fetchSizes = async () => {
-    const q = query(collection(db, 'sizes'), orderBy('SizeName'));
-    const snap = await getDocs(q);
-    setSizes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  };
-
-  useEffect(() => {
-    fetchSizes();
-  }, []);
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.SizeName.trim()) return;
-
-    if (editingId) {
-      await updateDoc(doc(db, 'sizes', editingId), {
-        SizeName: form.SizeName.trim(),
-        Status: form.Status,
-      });
-    } else {
-      await addDoc(collection(db, 'sizes'), {
-        SizeName: form.SizeName.trim(),
-        Status: form.Status,
-        SortOrder: 'ascending'
-      });
-    }
-    setForm({ SizeName: '', Status: 'Active' });
-    setEditingId(null);
-    fetchSizes();
-  };
-
-  const handleEdit = (size) => {
-    setForm({ SizeName: size.SizeName, Status: size.Status });
-    setEditingId(size.id);
-  };
+  const handleAdd = () => { setEditTarget(null); setModalOpen(true); };
+  const handleEdit = (item) => { setEditTarget(item); setModalOpen(true); };
 
   const handleDelete = async (id) => {
-    await deleteDoc(doc(db, 'sizes', id));
-    fetchSizes();
+    if (window.confirm('Delete this size?')) {
+      setLoadingId(id);
+      await deleteSize(id);
+      setLoadingId(null);
+    }
   };
 
+  const handleSave = async (data) => {
+    try {
+      setLoadingId('save');
+      if (editTarget) {
+        await update(editTarget.id, data);
+      } else {
+        await add(data);
+      }
+      setModalOpen(false);
+    } catch (err) {
+      console.error('Failed to save size:', err);
+      alert('There was an error saving the size.');
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  if (loading) return <TableSkeleton />;
+  if (error) return <ErrorDisplay error={error} onRetry={retry} />;
+  if (!sizes.length) return <EmptyState message="No sizes found." onAction={handleAdd} actionLabel="Add Size" />;
+
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold text-green-600 mb-2">Sizes Management</h2>
-      <p className="text-gray-600 mb-6">Manage sizes</p>
-
-      <form onSubmit={handleSubmit} className="flex flex-wrap gap-4 mb-6">
-        <input
-          name="SizeName"
-          value={form.SizeName}
-          onChange={handleChange}
-          placeholder="Size Name"
-          className="border px-3 py-2 rounded w-48"
-          required
-        />
-        <select
-          name="Status"
-          value={form.Status}
-          onChange={handleChange}
-          className="border px-3 py-2 rounded w-32"
-        >
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-        <button type="submit" className="bg-green-700 text-white px-4 py-2 rounded">
-          {editingId ? 'Update Size' : 'Add New Size'}
-        </button>
-      </form>
-
-      <table className="w-full text-sm border border-gray-300">
-        <thead className="bg-gray-800 text-white">
-          <tr>
-            <th className="p-2 text-left">Size Name</th>
-            <th className="p-2 text-left">Status</th>
-            <th className="p-2 text-left">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sizes.map(size => (
-            <tr key={size.id} className="border-t border-gray-200">
-              <td className="p-2">{size.SizeName}</td>
-              <td className="p-2">{size.Status}</td>
-              <td className="p-2">
-                <button onClick={() => handleEdit(size)} className="text-green-600 mr-2">✏️</button>
-                <button onClick={() => handleDelete(size.id)} className="text-red-600">🗑️</button>
-              </td>
+    <div className="p-4">
+      <PageHeader
+        title="Size Manager"
+        subtitle="Manage all package sizes"
+        buttonText="Add Size"
+        onAdd={handleAdd}
+        disabled={loadingId === 'save'}
+      />
+      <div className="bg-white shadow rounded overflow-x-auto">
+        <table className="min-w-full text-sm" aria-label="Sizes Table">
+          <thead className="bg-gray-100 text-gray-700">
+            <tr>
+              <th className="text-left px-4 py-2">Name</th>
+              <th className="text-left px-4 py-2">Status</th>
+              <th className="text-left px-4 py-2">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sizes.map(item => (
+              <tr key={item.id} className="border-t">
+                <td className="px-4 py-2">{item.name}</td>
+                <td className="px-4 py-2">{item.status}</td>
+                <td className="px-4 py-2 space-x-2">
+                  <EditIcon onClick={() => handleEdit(item)} disabled={loadingId === item.id || loadingId === 'save'} />
+                  <DeleteIcon onClick={() => handleDelete(item.id)} disabled={loadingId === item.id || loadingId === 'save'} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {modalOpen && (
+        <SizeModal
+          title={editTarget ? 'Edit Size' : 'Add Size'}
+          initialData={editTarget}
+          onClose={() => setModalOpen(false)}
+          onSave={handleSave}
+        />
+      )}
+      {loadingId === 'save' && <LoadingSpinner />}
     </div>
   );
 }

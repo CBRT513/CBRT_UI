@@ -1,152 +1,100 @@
-// src/managers/StaffManager.jsx - COMPLETE FIXED VERSION
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import PageHeader from '../components/PageHeader';
+// StaffManager.jsx
+// Manages staff member data using Firestore.
+// Fully aligned with CustomerManager styling and structure.
+
+import React, { useState } from 'react';
+import { useFirestoreCollection, useFirestoreActions } from '../hooks/useFirestore';
 import StaffModal from '../modals/StaffModal';
+import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+import PageHeader from '../components/PageHeader';
 import { EditIcon, DeleteIcon } from '../components/Icons';
 
 export default function StaffManager() {
-  const [rows, setRows] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data: staff, loading, error, retry } = useFirestoreCollection('staff');
+  const { add, update, delete: deleteStaff } = useFirestoreActions('staff');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(
-      collection(db, 'staff'),
-      (snapshot) => {
-        setRows(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error fetching staff:', error);
-        setLoading(false);
+  const handleAdd = () => { setEditTarget(null); setModalOpen(true); };
+  const handleEdit = (item) => { setEditTarget(item); setModalOpen(true); };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Delete this staff member?')) {
+      setLoadingId(id);
+      await deleteStaff(id);
+      setLoadingId(null);
+    }
+  };
+
+  const handleSave = async (data) => {
+    try {
+      setLoadingId('save');
+      if (editTarget) {
+        await update(editTarget.id, data);
+      } else {
+        await add(data);
       }
-    );
+      setModalOpen(false);
+    } catch (err) {
+      console.error('Failed to save staff:', err);
+      alert('There was an error saving the staff member.');
+    } finally {
+      setLoadingId(null);
+    }
+  };
 
-    return unsubscribe;
-  }, []);
-
-  const fields = [
-    { name: 'name', label: 'Name' },
-    { name: 'email', label: 'Email' },
-    { name: 'role', label: 'Role' },
-    { name: 'authType', label: 'Auth Type' },
-    { name: 'status', label: 'Status' },
-  ];
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-lg">Loading staff...</div>
-      </div>
-    );
-  }
+  if (loading) return <TableSkeleton />;
+  if (error) return <ErrorDisplay error={error} onRetry={retry} />;
+  if (!staff.length) return <EmptyState message="No staff found." onAction={handleAdd} actionLabel="Add Staff" />;
 
   return (
-    <>
-      <PageHeader 
-        title="Staff Management" 
-        subtitle="Manage staff members" 
-        buttonText="Add New Staff" 
-        onAdd={() => {
-          setCurrent(null);
-          setOpen(true);
-        }}
+    <div className="p-4">
+      <PageHeader
+        title="Staff Manager"
+        subtitle="Manage your team and authentication access"
+        buttonText="Add Staff"
+        onAdd={handleAdd}
+        disabled={loadingId === 'save'}
       />
-
       <div className="bg-white shadow rounded overflow-x-auto">
-        <table className="w-full divide-y divide-gray-200">
-          <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+        <table className="min-w-full text-sm" aria-label="Staff Table">
+          <thead className="bg-gray-100 text-gray-700">
             <tr>
-              {fields.map(f => (
-                <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
-              ))}
-              <th className="px-6 py-3 text-right">Actions</th>
+              <th className="text-left px-4 py-2">Name</th>
+              <th className="text-left px-4 py-2">Email</th>
+              <th className="text-left px-4 py-2">Role</th>
+              <th className="text-left px-4 py-2">Auth Type</th>
+              <th className="text-left px-4 py-2">Status</th>
+              <th className="text-left px-4 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium">{r.name ?? '—'}</td>
-                <td className="px-6 py-4">{r.email ?? '—'}</td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex px-2 py-1 text-xs rounded-full font-medium ${
-                    r.role === 'Admin' ? 'bg-red-100 text-red-800' :
-                    r.role === 'Office' ? 'bg-blue-100 text-blue-800' :
-                    r.role === 'Warehouse' ? 'bg-green-100 text-green-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {r.role ?? '—'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                    r.authType === 'Google' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                  }`}>
-                    {r.authType ?? '—'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                    r.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}>
-                    {r.status ?? '—'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => { 
-                        setCurrent(r); 
-                        setOpen(true); 
-                      }}
-                      className="text-green-800 hover:text-green-600"
-                      title="Edit"
-                    >
-                      <EditIcon />
-                    </button>
-                    <button
-                      onClick={async () => {
-                        if (window.confirm('Are you sure you want to delete this staff member?')) {
-                          await deleteDoc(doc(db, 'staff', r.id));
-                        }
-                      }}
-                      className="text-red-600 hover:text-red-800"
-                      title="Delete"
-                    >
-                      <DeleteIcon />
-                    </button>
-                  </div>
+            {staff.map(item => (
+              <tr key={item.id} className="border-t">
+                <td className="px-4 py-2">{item.name}</td>
+                <td className="px-4 py-2">{item.email}</td>
+                <td className="px-4 py-2">{item.role}</td>
+                <td className="px-4 py-2">{item.authType}</td>
+                <td className="px-4 py-2">{item.status}</td>
+                <td className="px-4 py-2 space-x-2">
+                  <EditIcon onClick={() => handleEdit(item)} disabled={loadingId === item.id || loadingId === 'save'} />
+                  <DeleteIcon onClick={() => handleDelete(item.id)} disabled={loadingId === item.id || loadingId === 'save'} />
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-
-        {rows.length === 0 && (
-          <div className="text-center py-8 text-gray-500">
-            No staff members found. Click "Add New Staff" to get started.
-          </div>
-        )}
       </div>
-
-      {open && (
-        <StaffModal 
-          title={`${current ? 'Edit' : 'Add'} Staff`} 
-          initialData={current} 
-          onClose={() => setOpen(false)} 
-          onSave={async data => {
-            if (current?.id) {
-              await updateDoc(doc(db, 'staff', current.id), data);
-            } else {
-              await addDoc(collection(db, 'staff'), data);
-            }
-            setOpen(false);
-          }}
+      {modalOpen && (
+        <StaffModal
+          title={editTarget ? 'Edit Staff' : 'Add Staff'}
+          initialData={editTarget}
+          onClose={() => setModalOpen(false)}
+          onSave={handleSave}
         />
       )}
-    </>
+      {loadingId === 'save' && <LoadingSpinner />}
+    </div>
   );
 }

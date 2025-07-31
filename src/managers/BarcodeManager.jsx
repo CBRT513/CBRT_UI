@@ -1,51 +1,41 @@
-// src/managers/BarcodeManager.jsx
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+// BarcodeManager.jsx - Hook-based version (CSV upload removed)
+import React, { useState } from 'react';
+import { useFirestoreMultiCollection, useFirestoreActions } from '../hooks/useFirestore';
 import PageHeader from '../components/PageHeader';
 import Modal from '../modals/BarcodeModal';
-import BarcodeUploadModal from '../modals/BarcodeUploadModal';
 import { EditIcon, DeleteIcon } from '../components/Icons';
+import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
 
 export default function BarcodeManager() {
-  const [rows, setRows] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const collectionNames = ['barcodes', 'barges', 'lots', 'customers', 'items', 'sizes'];
+  const { data: collectionsData = {}, loading, error, retry } = useFirestoreMultiCollection(
+    collectionNames.map(name => ({ name }))
+  );
+  const { add, update, delete: deleteDoc, actionLoading } = useFirestoreActions('barcodes');
+
+  const [modalOpen, setModalOpen] = useState(false);
   const [current, setCurrent] = useState(null);
-  const [refs, setRefs] = useState({ barges: [], lots: [], customers: [], items: [], sizes: [] });
+  const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  useEffect(() => {
-    ['barges', 'lots', 'customers', 'items', 'sizes'].forEach(col => {
-      onSnapshot(collection(db, col), snap => {
-        setRefs(r => ({ ...r, [col]: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
-      });
-    });
-  }, []);
+  const { barcodes = [], barges = [], lots = [], customers = [], items = [], sizes = [] } = collectionsData;
+  const referenceData = { barges, lots, customers, items, sizes };
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'barcodes'), snap => {
-      setRows(snap.docs.map(d => {
-        const data = d.data();
-        const b = refs.barges.find(x => x.id === data.BargeId);
-        const l = refs.lots.find(x => x.id === data.LotId);
-        const c = refs.customers.find(x => x.id === data.CustomerId);
-        const i = refs.items.find(x => x.id === data.ItemId);
-        const s = refs.sizes.find(x => x.id === data.SizeId);
-        return {
-          id: d.id,
-          ...data,
-          BargeName: b?.BargeName || '—',
-          LotNumber: l?.LotNumber || '—',
-          CustomerName: c?.CustomerName || '—',
-          ItemCode: i?.ItemCode || '—',
-          SizeName: s?.SizeName || '—',
-          GeneratedBarcode: `${b?.BargeName || ''}${l?.LotNumber || ''}${c?.CustomerName || ''}${i?.ItemCode || ''}${s?.SizeName || ''}`.replace(/\s/g, '')
-        };
-      }));
-    });
-
-    return unsubscribe;
-  }, [refs]);
+  const rows = barcodes.map(d => {
+    const b = barges.find(x => x.id === d.BargeId);
+    const l = lots.find(x => x.id === d.LotId);
+    const c = customers.find(x => x.id === d.CustomerId);
+    const i = items.find(x => x.id === d.ItemId);
+    const s = sizes.find(x => x.id === d.SizeId);
+    return {
+      ...d,
+      BargeName: b?.BargeName || '—',
+      LotNumber: l?.LotNumber || '—',
+      CustomerName: c?.CustomerName || '—',
+      ItemCode: i?.ItemCode || '—',
+      SizeName: s?.SizeName || '—',
+      GeneratedBarcode: `${b?.BargeName || ''}${l?.LotNumber || ''}${c?.CustomerName || ''}${i?.ItemCode || ''}${s?.SizeName || ''}`.replace(/\s/g, '')
+    };
+  });
 
   const fields = [
     { name: 'BargeName', label: 'Barge' },
@@ -57,53 +47,84 @@ export default function BarcodeManager() {
     { name: 'Quantity', label: 'Qty', type: 'number' },
   ];
 
-  const isLoading = ![refs.barges, refs.lots, refs.customers, refs.items, refs.sizes].every(a => a.length);
+  const handleAdd = () => {
+    setCurrent(null);
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this barcode?')) return;
+    setActionLoadingId(id);
+    try {
+      await deleteDoc(id);
+    } catch (err) {
+      console.error(err);
+      alert('Delete failed.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleSave = async (data) => {
+    try {
+      if (current?.id) {
+        await update(current.id, data);
+      } else {
+        await add(data);
+      }
+      setModalOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert('Save failed.');
+    }
+  };
+
+  if (error && !loading) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <PageHeader title="Barcodes Management" subtitle="Manage barcodes" />
+        <ErrorDisplay error={error} onRetry={retry} title="Failed to load barcodes" />
+      </div>
+    );
+  }
 
   return (
-    <>
+    <div className="max-w-6xl mx-auto">
       <PageHeader
         title="Barcodes Management"
         subtitle="Manage barcodes"
         buttonText="Add New Barcode"
-        onAdd={() => {
-          setCurrent(null);
-          setOpen(true);
-        }}
+        onAdd={handleAdd}
+        disabled={loading}
       />
 
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => setUploadOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:opacity-90"
-        >
-          📁 Upload CSV
-        </button>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center p-8">Loading barcodes...</div>
+      {loading ? (
+        <TableSkeleton rows={6} columns={7} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          title="No barcodes found"
+          description="Start by adding new barcodes."
+          actionText="Add New Barcode"
+          onAction={handleAdd}
+        />
       ) : (
         <div className="bg-white shadow rounded overflow-x-auto">
           <table className="w-full divide-y divide-gray-200">
             <thead className="bg-gray-100 text-xs uppercase text-gray-600">
               <tr>
-                {fields.map((f) => (
-                  <th key={f.name} className="px-6 py-3 text-left">
-                    {f.label}
-                  </th>
+                {fields.map(f => (
+                  <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
                 ))}
                 <th className="px-6 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.map(r => (
                 <tr key={r.id} className="hover:bg-gray-50">
-                  {fields.map((f) => (
+                  {fields.map(f => (
                     <td key={f.name} className="px-6 py-4 text-sm">
                       {f.name === 'GeneratedBarcode' ? (
-                        <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-                          {r[f.name]}
-                        </code>
+                        <code className="bg-gray-100 px-2 py-1 rounded text-xs">{r[f.name]}</code>
                       ) : (
                         r[f.name] ?? '—'
                       )}
@@ -112,25 +133,20 @@ export default function BarcodeManager() {
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
                       <button
-                        onClick={() => {
-                          setCurrent(r);
-                          setOpen(true);
-                        }}
-                        className="text-green-800 hover:text-green-600"
+                        onClick={() => { setCurrent(r); setModalOpen(true); }}
+                        disabled={actionLoadingId === r.id || actionLoading}
+                        className="text-green-800 hover:text-green-600 disabled:text-gray-400"
                         title="Edit"
                       >
                         <EditIcon />
                       </button>
                       <button
-                        onClick={async () => {
-                          if (window.confirm('Are you sure you want to delete this barcode?')) {
-                            await deleteDoc(doc(db, 'barcodes', r.id));
-                          }
-                        }}
-                        className="text-red-600 hover:text-red-800"
+                        onClick={() => handleDelete(r.id)}
+                        disabled={actionLoadingId === r.id || actionLoading}
+                        className="text-red-600 hover:text-red-800 disabled:text-gray-400"
                         title="Delete"
                       >
-                        <DeleteIcon />
+                        {actionLoadingId === r.id ? <LoadingSpinner size="sm" /> : <DeleteIcon />}
                       </button>
                     </div>
                   </td>
@@ -141,23 +157,15 @@ export default function BarcodeManager() {
         </div>
       )}
 
-      {open && (
+      {modalOpen && (
         <Modal
           title={`${current ? 'Edit' : 'Add'} Barcode`}
           initialData={current}
-          referenceData={refs}
-          onClose={() => setOpen(false)}
-          onSave={async (data) => {
-            if (current?.id) await updateDoc(doc(db, 'barcodes', current.id), data);
-            else await addDoc(collection(db, 'barcodes'), data);
-            setOpen(false);
-          }}
+          referenceData={referenceData}
+          onClose={() => setModalOpen(false)}
+          onSave={handleSave}
         />
       )}
-
-      {uploadOpen && (
-        <BarcodeUploadModal onClose={() => setUploadOpen(false)} />
-      )}
-    </>
+    </div>
   );
 }
