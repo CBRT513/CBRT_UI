@@ -1,169 +1,222 @@
-// BarcodeManager.jsx - Hook-based version (CSV upload removed)
 import React, { useState } from 'react';
-import { useFirestoreMultiCollection, useFirestoreActions } from '../hooks/useFirestore';
-import PageHeader from '../components/PageHeader';
-import Modal from '../modals/BarcodeModal';
-import { EditIcon, DeleteIcon } from '../components/Icons';
-import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+import { useFirestoreCollection } from '../hooks/useFirestore';
+import { addDoc, updateDoc, deleteDoc, collection, doc } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import { TableSkeleton, ErrorDisplay, EmptyState } from '../components/LoadingStates';
+import BarcodeModal from '../modals/BarcodeModal';
 
 export default function BarcodeManager() {
-  const collectionNames = ['barcodes', 'barges', 'lots', 'customers', 'items', 'sizes'];
-  const { data: collectionsData = {}, loading, error, retry } = useFirestoreMultiCollection(
-    collectionNames.map(name => ({ name }))
-  );
-  const { add, update, delete: deleteDoc, actionLoading } = useFirestoreActions('barcodes');
-
-  const [modalOpen, setModalOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-  const [actionLoadingId, setActionLoadingId] = useState(null);
-
-  const { barcodes = [], barges = [], lots = [], customers = [], items = [], sizes = [] } = collectionsData;
-  const referenceData = { barges, lots, customers, items, sizes };
-
-  const rows = barcodes.map(d => {
-    const b = barges.find(x => x.id === d.BargeId);
-    const l = lots.find(x => x.id === d.LotId);
-    const c = customers.find(x => x.id === d.CustomerId);
-    const i = items.find(x => x.id === d.ItemId);
-    const s = sizes.find(x => x.id === d.SizeId);
-    return {
-      ...d,
-      BargeName: b?.BargeName || '—',
-      LotNumber: l?.LotNumber || '—',
-      CustomerName: c?.CustomerName || '—',
-      ItemCode: i?.ItemCode || '—',
-      SizeName: s?.SizeName || '—',
-      GeneratedBarcode: `${b?.BargeName || ''}${l?.LotNumber || ''}${c?.CustomerName || ''}${i?.ItemCode || ''}${s?.SizeName || ''}`.replace(/\s/g, '')
-    };
-  });
-
-  const fields = [
-    { name: 'BargeName', label: 'Barge' },
-    { name: 'LotNumber', label: 'Lot #' },
-    { name: 'CustomerName', label: 'Customer' },
-    { name: 'ItemCode', label: 'Item' },
-    { name: 'SizeName', label: 'Size' },
-    { name: 'GeneratedBarcode', label: 'Barcode' },
-    { name: 'Quantity', label: 'Qty', type: 'number' },
-  ];
+  const { data: barcodes, loading, error } = useFirestoreCollection('barcodes');
+  const [showModal, setShowModal] = useState(false);
+  const [editingBarcode, setEditingBarcode] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
 
   const handleAdd = () => {
-    setCurrent(null);
-    setModalOpen(true);
+    setEditingBarcode(null);
+    setShowModal(true);
+  };
+
+  const handleEdit = (barcode) => {
+    setEditingBarcode(barcode);
+    setShowModal(true);
+  };
+
+  const handleSave = async (barcodeData) => {
+    try {
+      if (editingBarcode) {
+        await updateDoc(doc(db, 'barcodes', editingBarcode.id), {
+          ...barcodeData,
+          UpdatedAt: new Date()
+        });
+      } else {
+        await addDoc(collection(db, 'barcodes'), {
+          ...barcodeData,
+          CreatedAt: new Date()
+        });
+      }
+      setShowModal(false);
+      setEditingBarcode(null);
+    } catch (error) {
+      console.error('Error saving barcode:', error);
+      throw error;
+    }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this barcode?')) return;
-    setActionLoadingId(id);
+    if (!window.confirm('Delete this barcode?')) return;
+    
+    setLoadingId(id);
     try {
-      await deleteDoc(id);
-    } catch (err) {
-      console.error(err);
-      alert('Delete failed.');
+      await deleteDoc(doc(db, 'barcodes', id));
+    } catch (error) {
+      console.error('Error deleting barcode:', error);
+      alert('Failed to delete barcode');
     } finally {
-      setActionLoadingId(null);
+      setLoadingId(null);
     }
   };
 
-  const handleSave = async (data) => {
-    try {
-      if (current?.id) {
-        await update(current.id, data);
-      } else {
-        await add(data);
-      }
-      setModalOpen(false);
-    } catch (err) {
-      console.error(err);
-      alert('Save failed.');
-    }
-  };
-
-  if (error && !loading) {
+  if (loading) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <PageHeader title="Barcodes Management" subtitle="Manage barcodes" />
-        <ErrorDisplay error={error} onRetry={retry} title="Failed to load barcodes" />
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Barcodes Management</h1>
+          <TableSkeleton rows={10} columns={8} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Barcodes Management</h1>
+          <ErrorDisplay message="Failed to load barcodes" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <PageHeader
-        title="Barcodes Management"
-        subtitle="Manage barcodes"
-        buttonText="Add New Barcode"
-        onAdd={handleAdd}
-        disabled={loading}
-      />
+    <div className="max-w-7xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Barcodes Management</h1>
+          <button
+            onClick={handleAdd}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            + Add New Barcode
+          </button>
+        </div>
 
-      {loading ? (
-        <TableSkeleton rows={6} columns={7} />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          title="No barcodes found"
-          description="Start by adding new barcodes."
-          actionText="Add New Barcode"
-          onAction={handleAdd}
-        />
-      ) : (
-        <div className="bg-white shadow rounded overflow-x-auto">
-          <table className="w-full divide-y divide-gray-200">
-            <thead className="bg-gray-100 text-xs uppercase text-gray-600">
-              <tr>
-                {fields.map(f => (
-                  <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
-                ))}
-                <th className="px-6 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  {fields.map(f => (
-                    <td key={f.name} className="px-6 py-4 text-sm">
-                      {f.name === 'GeneratedBarcode' ? (
-                        <code className="bg-gray-100 px-2 py-1 rounded text-xs">{r[f.name]}</code>
-                      ) : (
-                        r[f.name] ?? '—'
-                      )}
+        <div className="text-sm text-gray-600 mb-4">
+          Manage barcodes
+        </div>
+
+        {!barcodes || barcodes.length === 0 ? (
+          <EmptyState 
+            message="No barcodes found"
+            submessage="Start by adding new barcodes."
+            actionLabel="Add New Barcode"
+            onAction={handleAdd}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Barcode
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Item
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Size
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Lot
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Customer
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {barcodes.map((barcode, index) => (
+                  <tr key={barcode.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-green-600">
+                      {barcode.Barcode}
                     </td>
-                  ))}
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {barcode.ItemCode} - {barcode.ItemName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {barcode.SizeName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {barcode.LotNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {barcode.CustomerName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {barcode.Quantity} bags
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        barcode.Status === 'Available' 
+                          ? 'bg-green-100 text-green-800' 
+                          : barcode.Status === 'Scanned'
+                          ? 'bg-blue-100 text-blue-800'
+                          : barcode.Status === 'Shipped'
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {barcode.Status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
-                        onClick={() => { setCurrent(r); setModalOpen(true); }}
-                        disabled={actionLoadingId === r.id || actionLoading}
-                        className="text-green-800 hover:text-green-600 disabled:text-gray-400"
+                        onClick={() => handleEdit(barcode)}
+                        className="text-green-600 hover:text-green-900 mr-3"
                         title="Edit"
                       >
-                        <EditIcon />
+                        ✏️
                       </button>
                       <button
-                        onClick={() => handleDelete(r.id)}
-                        disabled={actionLoadingId === r.id || actionLoading}
-                        className="text-red-600 hover:text-red-800 disabled:text-gray-400"
+                        onClick={() => handleDelete(barcode.id)}
+                        disabled={loadingId === barcode.id}
+                        className="text-red-600 hover:text-red-900"
                         title="Delete"
                       >
-                        {actionLoadingId === r.id ? <LoadingSpinner size="sm" /> : <DeleteIcon />}
+                        {loadingId === barcode.id ? '⏳' : '🗑️'}
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {modalOpen && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Barcode`}
-          initialData={current}
-          referenceData={referenceData}
-          onClose={() => setModalOpen(false)}
+        {barcodes && barcodes.length > 0 && (
+          <div className="mt-6 bg-gray-50 rounded-lg p-4">
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">{barcodes.length}</span> barcode{barcodes.length !== 1 ? 's' : ''} total
+              {' | '}
+              <span className="font-medium">
+                {barcodes.reduce((sum, b) => sum + (parseInt(b.Quantity) || 0), 0)}
+              </span> total bags
+              {' | '}
+              <span className="font-medium">
+                {barcodes.filter(b => b.Status === 'Available').length}
+              </span> available
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showModal && (
+        <BarcodeModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            setEditingBarcode(null);
+          }}
           onSave={handleSave}
+          initialData={editingBarcode}
         />
       )}
     </div>

@@ -69,8 +69,8 @@ export default function SizeManager() {
           <tbody>
             {sizes.map(item => (
               <tr key={item.id} className="border-t">
-                <td className="px-4 py-2">{item.name}</td>
-                <td className="px-4 py-2">{item.status}</td>
+                <td className="px-4 py-2">{item.SizeName}</td>
+                <td className="px-4 py-2">{item.Status}</td>
                 <td className="px-4 py-2 space-x-2">
                   <EditIcon onClick={() => handleEdit(item)} disabled={loadingId === item.id || loadingId === 'save'} />
                   <DeleteIcon onClick={() => handleDelete(item.id)} disabled={loadingId === item.id || loadingId === 'save'} />

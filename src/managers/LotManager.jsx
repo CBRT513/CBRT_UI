@@ -60,7 +60,7 @@ export default function LotManager() {
         <table className="min-w-full text-sm" aria-label="Lots Table">
           <thead className="bg-gray-100 text-gray-700">
             <tr>
-              <th className="text-left px-4 py-2">Lot Code</th>
+              <th className="text-left px-4 py-2">Lot Number</th>
               <th className="text-left px-4 py-2">Status</th>
               <th className="text-left px-4 py-2">Actions</th>
             </tr>
@@ -68,7 +68,7 @@ export default function LotManager() {
           <tbody>
             {lots.map(item => (
               <tr key={item.id} className="border-t">
-                <td className="px-4 py-2">{item.LotCode}</td>
+                <td className="px-4 py-2">{item.LotNumber}</td>
                 <td className="px-4 py-2">{item.Status}</td>
                 <td className="px-4 py-2 space-x-2">
                   <EditIcon onClick={() => handleEdit(item)} disabled={loadingId === item.id || loadingId === 'save'} />

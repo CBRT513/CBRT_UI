@@ -1,0 +1,6 @@
+BargeName,SupplierName,CustomerName,ItemCode,ItemName,SizeName,LotNumber,StandardWeight,Quantity
+ACL00209,YAS,URC,WFA,White Fused Alumina,3X8,WA231010,2200,15
+ACL00209,YAS,URC,WFA,White Fused Alumina,2X4,WA231010,2200,10
+ACL00209,YAS,URC,BX85,Bauxite 85 Regular,3/4X3/8,BX240509,2200,5
+ACL00210,YAS,ABC,WFA,White Fused Alumina,3X8,WA231011,2200,20
+ACL00210,YAS,ABC,BX85,Bauxite 85 Regular,1/2X1/4,BX240510,2200,12

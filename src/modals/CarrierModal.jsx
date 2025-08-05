@@ -1,6 +1,6 @@
 // CarrierModal.jsx - Modal for managing Carriers
 import React from 'react';
-import Modal from '../modals/Modal';
+import Modal from './Modal';
 
 export default function CarrierModal({ title, initialData, onClose, onSave }) {
   const fields = [

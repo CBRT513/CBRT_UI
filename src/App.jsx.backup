@@ -1,4 +1,4 @@
-/****************************************************************************************
+/*****************************************************************************************
  *  CBRT App.jsx — Complete warehouse-management app with barcode generation + data import
  *****************************************************************************************/
 
@@ -11,13 +11,7 @@ import { auth } from './firebase/config';
 // Routes
 import Home from './routes/Home';
 import NewRelease from './routes/NewRelease';
-import Releases from "./routes/Releases";
-import ExpectedShipments from "./routes/ExpectedShipments";
 import DataImportManager from './pages/DataImportManager';
-import BOLGenerator from "./features/bol-generation/BOLGenerator";
-import BOLManager from "./managers/BOLManager";
-import ReleaseDetails from './routes/ReleaseDetails';
-import PDFTestPage from './routes/PDFTestPage';
 
 // Managers
 import StaffManager from './managers/StaffManager';
@@ -51,11 +45,8 @@ export default function App() {
     'Barges',
     'Lots',
     'Barcodes',
-    'Enter a Release',
-    'Data Import',
-    "BOL Generator",
-    "BOL Manager",
-    "PDF Test"
+    'Releases/New',
+    'Data Import'
   ];
 
   return (
@@ -90,14 +81,8 @@ export default function App() {
             <Route path="/barges" element={<BargeManager />} />
             <Route path="/lots" element={<LotManager />} />
             <Route path="/barcodes" element={<BarcodeManager />} />
-            <Route path="/enterarelease" element={<NewRelease />} />
-            <Route path="/releases" element={<Releases />} />
-            <Route path="/expected-shipments" element={<ExpectedShipments />} />
+            <Route path="/releases/new" element={<NewRelease />} />
             <Route path="/dataimport" element={<DataImportManager />} />
-            <Route path="/bolgenerator" element={<BOLGenerator />} />
-            <Route path="/bolmanager" element={<BOLManager />} />
-            <Route path="/release-details/:id" element={<ReleaseDetails />} />
-            <Route path="/pdftest" element={<PDFTestPage />} />
           </Routes>
         </main>
       </div>

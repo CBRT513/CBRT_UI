@@ -2,7 +2,7 @@
 import React from 'react';
 import { PlusIcon } from './Icons';
 
-const PageHeader = ({ title, subtitle, buttonText, onAdd, extraButtons }) => (
+const PageHeader = ({ title, subtitle, buttonText, onAction, extraButtons }) => (
   <div className="flex justify-between items-center mb-6">
     <div>
       <h2 className="text-2xl font-bold text-green-800">{title}</h2>
@@ -12,7 +12,7 @@ const PageHeader = ({ title, subtitle, buttonText, onAdd, extraButtons }) => (
       {extraButtons}
       {buttonText && (
         <button
-          onClick={onAdd}
+          onClick={onAction}
           className="flex items-center gap-2 bg-green-800 text-white px-4 py-2 rounded shadow hover:opacity-90"
         >
           <PlusIcon /> <span>{buttonText}</span>

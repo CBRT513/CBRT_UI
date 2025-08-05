@@ -1,265 +1,708 @@
-// src/routes/NewRelease.jsx - COMPLETE FIXED VERSION
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, addDoc } from 'firebase/firestore';
+// File: /Users/cerion/CBRT_UI/src/routes/NewRelease.jsx
+// Barcode-Based Release Entry (No Products Collection)
+import React, { useState, useMemo, useEffect } from 'react';
+import { useFirestoreCollection } from '../hooks/useFirestore';
+import { addDoc, collection } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import PageHeader from '../components/PageHeader';
-import { v4 as uuid } from 'uuid';
+import { PickTicketService } from '../services/pickTicketService';
+import { SMSService } from '../services/smsService';
+
+/**
+ * Simple logger helper. Replace or extend sendRemoteLog to ship logs externally.
+ */
+const timestamp = () => new Date().toISOString();
+const sendRemoteLog = async (level, message, extra = {}) => {
+  // Placeholder: hook into an external logging service here if desired.
+  // Example: fetch('/api/log', { method: 'POST', body: JSON.stringify({ level, message, extra, ts: timestamp() }) })
+  // For now, it's a no-op.
+  return;
+};
+
+const log = {
+  debug: (msg, extra) => {
+    console.debug(`[DEBUG ${timestamp()}] ${msg}`, extra || '');
+    sendRemoteLog('debug', msg, extra);
+  },
+  info: (msg, extra) => {
+    console.info(`[INFO  ${timestamp()}] ${msg}`, extra || '');
+    sendRemoteLog('info', msg, extra);
+  },
+  warn: (msg, extra) => {
+    console.warn(`[WARN  ${timestamp()}] ${msg}`, extra || '');
+    sendRemoteLog('warn', msg, extra);
+  },
+  error: (msg, extra) => {
+    console.error(`[ERROR ${timestamp()}] ${msg}`, extra || '');
+    sendRemoteLog('error', msg, extra);
+  },
+};
 
 export default function NewRelease() {
-  const [customers, setCustomers] = useState([]);
-  const [barcodes, setBarcodes] = useState([]);  // ✅ ADD: Barcodes collection
-  const [lots, setLots] = useState([]);
-  const [items, setItems] = useState([]);
-  const [sizes, setSizes] = useState([]);
-  const [form, setForm] = useState({ customerId: '', items: [] });
-
+  // Attach global error handler for this component lifespan
   useEffect(() => {
-    const unsub = [
-      onSnapshot(collection(db, 'customers'), snap => setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
-      onSnapshot(collection(db, 'barcodes'), snap => setBarcodes(snap.docs.map(d => ({ id: d.id, ...d.data() })))), // ✅ ADD: Barcodes subscription
-      onSnapshot(collection(db, 'lots'), snap => setLots(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
-      onSnapshot(collection(db, 'items'), snap => setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
-      onSnapshot(collection(db, 'sizes'), snap => setSizes(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
-    ];
-    return () => unsub.forEach(fn => fn());
+    const handleGlobalError = (message, source, lineno, colno, error) => {
+      log.error('Global uncaught error', {
+        message,
+        source,
+        lineno,
+        colno,
+        stack: error?.stack || null,
+      });
+    };
+
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', (ev) => {
+      log.error('Unhandled promise rejection', { reason: ev.reason });
+    });
+
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+    };
   }, []);
 
-  const updateLine = (idx, key, value) => {
-    setForm(f => {
-      const updated = [...f.items];
-      const currentLine = { ...updated[idx], [key]: value };
-      
-      // Auto-reset downstream selects when upstream changes
-      if (key === 'itemId') {
-        currentLine.sizeId = '';
-        currentLine.lotId = '';
-      } else if (key === 'sizeId') {
-        currentLine.lotId = '';
-      }
-      
-      updated[idx] = currentLine;
-      return { ...f, items: updated };
+  const { data: suppliers } = useFirestoreCollection('suppliers');
+  const { data: customers } = useFirestoreCollection('customers');
+  const { data: items } = useFirestoreCollection('items');
+  const { data: sizes } = useFirestoreCollection('sizes');
+  const { data: lots } = useFirestoreCollection('lots');
+  const { data: barcodes } = useFirestoreCollection('barcodes');
+  const { data: staff } = useFirestoreCollection('staff');
+
+  const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState('');
+  const [releaseNumber, setReleaseNumber] = useState('');
+  const [pickupDate, setPickupDate] = useState('');
+  const [lineItems, setLineItems] = useState([
+    {
+      ItemId: '',
+      SizeId: '',
+      LotId: '',
+      Quantity: 1,
+    },
+  ]);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+
+  // BARCODE-BASED: Get available items using barcodes directly
+  const getAvailableItems = useMemo(() => {
+    log.debug('Computing available items', {
+      selectedSupplier,
+      selectedCustomer,
+      hasBarcodes: !!barcodes,
+      hasItems: !!items,
     });
+
+    if (
+      !selectedSupplier ||
+      !selectedCustomer ||
+      !barcodes ||
+      !items ||
+      !suppliers ||
+      !customers
+    ) {
+      log.debug('Missing required data to compute available items');
+      return [];
+    }
+
+    const supplier = suppliers.find((s) => s.id === selectedSupplier);
+    const customer = customers.find((c) => c.id === selectedCustomer);
+
+    if (!supplier || !customer) {
+      log.warn('Supplier or customer not found while computing available items', {
+        selectedSupplier,
+        selectedCustomer,
+      });
+      return [];
+    }
+
+    const supplierBarcodes = barcodes.filter(
+      (barcode) =>
+        barcode.SupplierName === supplier.SupplierName &&
+        barcode.CustomerName === customer.CustomerName &&
+        barcode.Status === 'Available'
+    );
+
+    const itemIds = [...new Set(supplierBarcodes.map((b) => b.ItemId))];
+    const result = items.filter((item) => itemIds.includes(item.id));
+
+    log.debug('Available items resolved', { count: result.length, itemIds });
+    return result;
+  }, [
+    selectedSupplier,
+    selectedCustomer,
+    barcodes,
+    items,
+    suppliers,
+    customers,
+  ]);
+
+  const getAvailableSizes = (itemId) => {
+    log.debug('Computing available sizes', {
+      itemId,
+      selectedSupplier,
+      selectedCustomer,
+    });
+
+    if (
+      !itemId ||
+      !selectedSupplier ||
+      !selectedCustomer ||
+      !barcodes ||
+      !sizes ||
+      !suppliers ||
+      !customers
+    ) {
+      log.debug('Missing data for available sizes');
+      return [];
+    }
+
+    const supplier = suppliers.find((s) => s.id === selectedSupplier);
+    const customer = customers.find((c) => c.id === selectedCustomer);
+
+    if (!supplier || !customer) {
+      log.warn('Supplier or customer missing for sizes lookup');
+      return [];
+    }
+
+    const itemBarcodes = barcodes.filter(
+      (barcode) =>
+        barcode.SupplierName === supplier.SupplierName &&
+        barcode.CustomerName === customer.CustomerName &&
+        barcode.ItemId === itemId &&
+        barcode.Status === 'Available'
+    );
+
+    const sizeIds = [...new Set(itemBarcodes.map((b) => b.SizeId))];
+    const result = sizes.filter((size) => sizeIds.includes(size.id));
+
+    log.debug('Available sizes result', { sizeIds, count: result.length });
+    return result;
   };
 
-  const addLine = () => {
-    setForm(f => ({
-      ...f,
-      items: [...f.items, { id: uuid(), itemId: '', sizeId: '', lotId: '', qty: 1 }]
-    }));
+  const getAvailableLots = (itemId, sizeId) => {
+    log.debug('Computing available lots', {
+      itemId,
+      sizeId,
+      selectedSupplier,
+      selectedCustomer,
+    });
+
+    if (
+      !itemId ||
+      !sizeId ||
+      !selectedSupplier ||
+      !selectedCustomer ||
+      !barcodes ||
+      !lots ||
+      !suppliers ||
+      !customers
+    ) {
+      log.debug('Missing data for available lots');
+      return [];
+    }
+
+    const supplier = suppliers.find((s) => s.id === selectedSupplier);
+    const customer = customers.find((c) => c.id === selectedCustomer);
+
+    if (!supplier || !customer) {
+      log.warn('Supplier or customer missing for lots lookup');
+      return [];
+    }
+
+    const matchingBarcodes = barcodes.filter(
+      (barcode) =>
+        barcode.SupplierName === supplier.SupplierName &&
+        barcode.CustomerName === customer.CustomerName &&
+        barcode.ItemId === itemId &&
+        barcode.SizeId === sizeId &&
+        barcode.Status === 'Available'
+    );
+
+    const lotIds = [...new Set(matchingBarcodes.map((b) => b.LotId))];
+    const result = lots.filter((lot) => lotIds.includes(lot.id));
+
+    log.debug('Available lots result', { lotIds, count: result.length });
+    return result;
   };
 
-  const submit = async e => {
+  const handleLineItemChange = (index, field, value) => {
+    log.debug('Line item change', { index, field, value });
+    try {
+      const updatedItems = [...lineItems];
+      updatedItems[index] = { ...updatedItems[index], [field]: value };
+
+      if (field === 'ItemId') {
+        updatedItems[index].SizeId = '';
+        updatedItems[index].LotId = '';
+      }
+      if (field === 'SizeId') {
+        updatedItems[index].LotId = '';
+      }
+
+      setLineItems(updatedItems);
+    } catch (e) {
+      log.error('Error in handleLineItemChange', { error: e, index, field, value });
+    }
+  };
+
+  const addLineItem = () => {
+    log.info('Adding new line item');
+    setLineItems([
+      ...lineItems,
+      { ItemId: '', SizeId: '', LotId: '', Quantity: 1 },
+    ]);
+  };
+
+  const removeLineItem = (index) => {
+    log.info('Removing line item', { index });
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter((_, i) => i !== index));
+    } else {
+      log.warn('Attempted to remove last line item; ignored');
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    await addDoc(collection(db, 'releases'), { ...form, status: 'open', createdAt: new Date() });
-    setForm({ customerId: '', items: [] });
-  };
-
-  // ✅ FIXED: Step 1 - Items for Customer (using barcodes)
-  const getItemsForCustomer = () => {
-    if (!form.customerId) return [];
-    
-    // Get unique item IDs from barcodes that match the customer
-    const itemIds = new Set(
-      barcodes
-        .filter(b => b.CustomerId === form.customerId)
-        .map(b => b.ItemId)
-        .filter(Boolean)
-    );
-    
-    // Get items that match these IDs and are active, then deduplicate
-    const itemMap = new Map();
-    items
-      .filter(i => itemIds.has(i.id) && i.Status === 'Active')
-      .forEach(i => {
-        if (!itemMap.has(i.id)) {
-          itemMap.set(i.id, {
-            id: i.id,
-            code: i.ItemCode,
-            name: i.ItemName
-          });
-        }
-      });
-    
-    // Return sorted array
-    return Array.from(itemMap.values()).sort((a, b) => (a.code || '').localeCompare(b.code || ''));
-  };
-
-  // ✅ FIXED: Step 2 - Sizes for Customer + Item (using barcodes)
-  const getSizesForItem = itemId => {
-    if (!form.customerId || !itemId) return [];
-    
-    // Get unique size IDs from barcodes that match customer + item
-    const sizeIds = new Set(
-      barcodes
-        .filter(b => b.CustomerId === form.customerId && b.ItemId === itemId)
-        .map(b => b.SizeId)
-        .filter(Boolean)
-    );
-    
-    // Get sizes that match these IDs and are active, then deduplicate
-    const sizeMap = new Map();
-    sizes
-      .filter(s => sizeIds.has(s.id) && s.Status === 'Active')
-      .forEach(s => {
-        if (!sizeMap.has(s.id)) {
-          sizeMap.set(s.id, {
-            id: s.id,
-            name: s.SizeName,
-            sortOrder: s.SortOrder || 0
-          });
-        }
-      });
-    
-    // Return sorted array (by SortOrder, then by name)
-    return Array.from(sizeMap.values()).sort((a, b) => {
-      if (a.sortOrder !== b.sortOrder) {
-        return a.sortOrder - b.sortOrder;
-      }
-      return (a.name || '').localeCompare(b.name || '');
+    log.info('Submit invoked', {
+      selectedSupplier,
+      selectedCustomer,
+      releaseNumber,
+      pickupDate,
+      lineItems,
     });
-  };
 
-  // ✅ FIXED: Step 3 - Lots for Customer + Item + Size (using barcodes)
-  const getLotsForItem = (customerId, itemId, sizeId) => {
-    if (!customerId || !itemId || !sizeId) return [];
-    
-    // Get unique lot IDs from barcodes that match customer + item + size
-    const lotIds = new Set(
-      barcodes
-        .filter(b => 
-          b.CustomerId === customerId && 
-          b.ItemId === itemId && 
-          b.SizeId === sizeId
+    setError('');
+    setSuccess('');
+    setLoading(true);
+
+    try {
+      if (!selectedSupplier || !selectedCustomer || !releaseNumber.trim()) {
+        throw new Error('Please fill in all required fields');
+      }
+
+      if (
+        lineItems.some(
+          (item) => !item.ItemId || !item.SizeId || !item.Quantity
         )
-        .map(b => b.LotId)
-        .filter(Boolean)
-    );
-    
-    // Get lots that match these IDs and are active, then deduplicate
-    const lotMap = new Map();
-    lots
-      .filter(l => lotIds.has(l.id) && l.Status === 'Active')
-      .forEach(l => {
-        if (!lotMap.has(l.id)) {
-          lotMap.set(l.id, {
-            id: l.id,
-            number: l.LotNumber
-          });
-        }
-      });
-    
-    // Return sorted array
-    return Array.from(lotMap.values()).sort((a, b) => (a.number || '').localeCompare(b.number || ''));
-  };
+      ) {
+        throw new Error('Please complete all line items');
+      }
 
-  // Get active customers sorted alphabetically
-  const getActiveCustomers = () => {
-    return customers
-      .filter(c => c.Status === 'Active')
-      .sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
+      const totalItems = lineItems.reduce(
+        (sum, item) => sum + parseInt(item.Quantity, 10),
+        0
+      );
+      const totalWeight = totalItems * 2200;
+
+      const releaseData = {
+        ReleaseNumber: releaseNumber.trim(),
+        SupplierId: selectedSupplier,
+        CustomerId: selectedCustomer,
+        PickupDate: pickupDate || null,
+        LineItems: lineItems,
+        TotalItems: totalItems,
+        TotalWeight: totalWeight,
+        Status: 'Entered',
+        CreatedAt: new Date(),
+        CreatedBy: 'Office',
+      };
+
+      log.debug('Prepared releaseData', { releaseData });
+      await addDoc(collection(db, 'releases'), releaseData);
+      log.info('Release document created in Firestore');
+
+      // Post-creation: pick ticket + notifications
+      try {
+        const supplier = suppliers?.find((s) => s.id === selectedSupplier);
+        const customer = customers?.find((c) => c.id === selectedCustomer);
+
+        // Generate pick ticket PDF
+        const pickTicketDoc = await PickTicketService.generatePickTicket(
+          releaseData,
+          supplier,
+          customer,
+          lineItems.map((item) => ({
+            ...item,
+            itemName:
+              items?.find((i) => i.id === item.ItemId)?.ItemName || 'Unknown',
+            itemCode:
+              items?.find((i) => i.id === item.ItemId)?.ItemCode || 'Unknown',
+            sizeName:
+              sizes?.find((s) => s.id === item.SizeId)?.SizeName || 'Unknown',
+            lotNumber:
+              lots?.find((l) => l.id === item.LotId)?.LotNumber || 'TBD',
+          }))
+        );
+
+        const pickTicketBlob = PickTicketService.getPDFBlob(pickTicketDoc);
+
+        log.debug('Pick ticket generated successfully');
+
+        const warehouseStaff =
+          (staff
+            ?.filter(
+              (s) =>
+                s.receivesNewRelease &&
+                s.phone &&
+                s.status?.toLowerCase() !== 'inactive'
+            )
+            .map((s) => ({
+              ...s,
+              phone: s.phone,
+            })) || []);
+
+        log.debug('Filtered warehouse staff for notification', {
+          count: warehouseStaff.length,
+          warehouseStaff,
+        });
+
+        if (warehouseStaff.length > 0) {
+          await SMSService.sendNewReleaseNotification(
+            releaseData,
+            supplier,
+            customer,
+            warehouseStaff,
+            pickTicketBlob
+          );
+
+          log.info('SMS notifications sent', {
+            recipients: warehouseStaff.map((w) => w.phone),
+          });
+
+          setSuccess(
+            `Release created successfully! Pick ticket sent to ${warehouseStaff.length} warehouse staff member${
+              warehouseStaff.length !== 1 ? 's' : ''
+            }.`
+          );
+        } else {
+          log.warn('No warehouse staff configured or eligible for notification');
+          setSuccess(
+            'Release created successfully! No warehouse staff configured for notifications.'
+          );
+        }
+      } catch (notifErr) {
+        log.error('Error during pick ticket / notification phase', {
+          error: notifErr,
+        });
+        setSuccess(
+          'Release created successfully! (Pick ticket/notification failed)'
+        );
+      }
+
+      // Reset form
+      log.info('Resetting form state after success');
+      setSelectedSupplier('');
+      setSelectedCustomer('');
+      setReleaseNumber('');
+      setPickupDate('');
+      setLineItems([{ ItemId: '', SizeId: '', LotId: '', Quantity: 1 }]);
+    } catch (err) {
+      log.error('Error in handleSubmit', { error: err });
+      setError(err.message || 'Unexpected error');
+    } finally {
+      setLoading(false);
+      log.debug('Submit finished, loading cleared');
+    }
   };
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <PageHeader title="Create New Release" subtitle="" />
-      <form onSubmit={submit} className="bg-white shadow rounded p-6 space-y-4">
-        <select
-          value={form.customerId}
-          onChange={e => setForm({ customerId: e.target.value, items: [] })}
-          required
-          className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">Select Customer</option>
-          {getActiveCustomers().map(c => (
-            <option key={c.id} value={c.id}>{c.CustomerName}</option>
-          ))}
-        </select>
+    <div className="max-w-4xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">
+          Enter a Release
+        </h1>
 
-        {form.items.map((line, idx) => {
-          const availableItems = getItemsForCustomer();
-          const availableSizes = getSizesForItem(line.itemId);
-          const availableLots = getLotsForItem(form.customerId, line.itemId, line.sizeId);
-
-          return (
-            <div key={line.id} className="flex gap-2 items-center">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Supplier and Customer */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Supplier *
+              </label>
               <select
-                value={line.itemId}
-                onChange={e => updateLine(idx, 'itemId', e.target.value)}
+                value={selectedSupplier}
+                onChange={(e) => {
+                  setSelectedSupplier(e.target.value);
+                  log.debug('Supplier selected', { value: e.target.value });
+                }}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                 required
-                className="flex-1 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Select Item</option>
-                {availableItems.map(i => (
-                  <option key={i.id} value={i.id}>{i.code}</option>
+                <option value="">Select Supplier</option>
+                {suppliers?.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.SupplierName}
+                  </option>
                 ))}
               </select>
+              {!suppliers && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  Suppliers data not loaded yet.
+                </p>
+              )}
+            </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Customer *
+              </label>
               <select
-                value={line.sizeId}
-                onChange={e => updateLine(idx, 'sizeId', e.target.value)}
-                disabled={!line.itemId}
+                value={selectedCustomer}
+                onChange={(e) => {
+                  setSelectedCustomer(e.target.value);
+                  log.debug('Customer selected', { value: e.target.value });
+                }}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                 required
-                className="flex-1 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
-                <option value="">Select Size</option>
-                {availableSizes.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                <option value="">Select Customer</option>
+                {customers?.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.CustomerName}
+                  </option>
                 ))}
               </select>
+              {!customers && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  Customers data not loaded yet.
+                </p>
+              )}
+            </div>
+          </div>
 
-              <select
-                value={line.lotId}
-                onChange={e => updateLine(idx, 'lotId', e.target.value)}
-                disabled={!line.itemId || !line.sizeId}
-                required
-                className="flex-1 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                <option value="">Select Lot</option>
-                {availableLots.map(l => (
-                  <option key={l.id} value={l.id}>{l.number}</option>
-                ))}
-              </select>
-
+          {/* Release Number and Pickup Date */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Release Number *
+              </label>
               <input
-                type="number"
-                min="1"
-                value={line.qty}
-                onChange={e => updateLine(idx, 'qty', parseInt(e.target.value, 10))}
-                className="w-16 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                type="text"
+                value={releaseNumber}
+                onChange={(e) => {
+                  setReleaseNumber(e.target.value);
+                  log.debug('Release number changed', {
+                    value: e.target.value,
+                  });
+                }}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                placeholder="Enter release number"
                 required
               />
+            </div>
 
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Pickup Date (Optional)
+              </label>
+              <input
+                type="date"
+                value={pickupDate}
+                onChange={(e) => {
+                  setPickupDate(e.target.value);
+                  log.debug('Pickup date changed', {
+                    value: e.target.value,
+                  });
+                }}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          </div>
+
+          {/* Line Items */}
+          <div>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Line Items</h3>
               <button
                 type="button"
-                onClick={() => setForm(f => ({
-                  ...f,
-                  items: f.items.filter((_, i2) => i2 !== idx)
-                }))}
-                className="text-red-600 hover:text-red-800 font-bold text-xl w-8 h-8 flex items-center justify-center"
-                title="Remove line"
-              >×</button>
+                onClick={addLineItem}
+                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                + Add Line Item
+              </button>
             </div>
-          );
-        })}
 
-        <div className="flex justify-between">
-          <button 
-            type="button" 
-            onClick={addLine} 
-            className="border border-gray-300 px-3 py-1 rounded hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            + Line
-          </button>
-          <button 
-            type="submit" 
-            disabled={!form.customerId || form.items.length === 0}
-            className="bg-green-800 text-white px-4 py-2 rounded hover:bg-green-900 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            Save
-          </button>
-        </div>
-      </form>
+            {lineItems.map((lineItem, index) => (
+              <div
+                key={index}
+                className="border border-gray-200 rounded-lg p-4 mb-4"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="font-medium text-gray-800">
+                    Line Item {index + 1}
+                  </h4>
+                  {lineItems.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeLineItem(index)}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {/* Item */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Item *
+                    </label>
+                    <select
+                      value={lineItem.ItemId}
+                      onChange={(e) =>
+                        handleLineItemChange(index, 'ItemId', e.target.value)
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      required
+                    >
+                      <option value="">Select Item</option>
+                      {getAvailableItems.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.ItemCode} - {item.ItemName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Size */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Size *
+                    </label>
+                    <select
+                      value={lineItem.SizeId}
+                      onChange={(e) =>
+                        handleLineItemChange(index, 'SizeId', e.target.value)
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      required
+                      disabled={!lineItem.ItemId}
+                    >
+                      <option value="">Select Size</option>
+                      {getAvailableSizes(lineItem.ItemId).map((size) => (
+                        <option key={size.id} value={size.id}>
+                          {size.SizeName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Lot */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Lot (Optional)
+                    </label>
+                    <select
+                      value={lineItem.LotId}
+                      onChange={(e) =>
+                        handleLineItemChange(index, 'LotId', e.target.value)
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      disabled={!lineItem.ItemId || !lineItem.SizeId}
+                    >
+                      <option value="">Select Lot</option>
+                      {getAvailableLots(lineItem.ItemId, lineItem.SizeId).map(
+                        (lot) => (
+                          <option key={lot.id} value={lot.id}>
+                            {lot.LotNumber}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Quantity */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Quantity *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={lineItem.Quantity}
+                      onChange={(e) =>
+                        handleLineItemChange(
+                          index,
+                          'Quantity',
+                          parseInt(e.target.value, 10) || 1
+                        )
+                      }
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Error/Success Messages */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+              {success}
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Creating Release...' : 'Create Release'}
+            </button>
+          </div>
+
+          {/* Debug Info */}
+          {selectedSupplier && selectedCustomer && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="font-medium text-gray-700 mb-2">Debug Info:</h4>
+              <div className="text-sm text-gray-600">
+                <p>
+                  Supplier:{' '}
+                  {
+                    suppliers?.find((s) => s.id === selectedSupplier)
+                      ?.SupplierName
+                  }
+                </p>
+                <p>
+                  Customer:{' '}
+                  {
+                    customers?.find((c) => c.id === selectedCustomer)
+                      ?.CustomerName
+                  }
+                </p>
+                <p>
+                  Available barcodes:{' '}
+                  {barcodes
+                    ?.filter(
+                      (b) =>
+                        b.SupplierName ===
+                          suppliers?.find((s) => s.id === selectedSupplier)
+                            ?.SupplierName &&
+                        b.CustomerName ===
+                          customers?.find((c) => c.id === selectedCustomer)
+                            ?.CustomerName
+                    )
+                    .length || 0}
+                </p>
+                <p>Available items: {getAvailableItems.length}</p>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
     </div>
   );
 }

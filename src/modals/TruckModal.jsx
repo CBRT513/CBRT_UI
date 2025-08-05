@@ -1,22 +1,26 @@
-// TruckModal.jsx - Modal for managing Trucks
-import React from 'react';
-import Modal from './Modal'; 
+import React, { useState } from 'react';
+import Modal from './Modal';
 
-export default function TruckModal({ title, initialData, onClose, onSave }) {
 const fields = [
-  { name: 'TruckNumber', label: 'Truck Number', type: 'text' },
-  { name: 'TrailerNumber', label: 'Trailer Number', type: 'text' },
-  { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
+  { name: 'CarrierId', label: 'Carrier', type: 'select', required: true, collection: 'carriers', displayField: 'CarrierName' },
+  { name: 'TruckNumber', label: 'Truck Number', type: 'text', required: true },
+  { name: 'TrailerNumber', label: 'Trailer Number', type: 'text', required: false },
+  { name: 'Status', label: 'Status', type: 'select', required: true, options: [
+    { value: 'Active', label: 'Active' },
+    { value: 'Inactive', label: 'Inactive' }
+  ], defaultValue: 'Active' }
 ];
 
-
+export default function TruckModal({ isOpen, onClose, onSave, initialData }) {
   return (
     <Modal
-      title={title}
-      fields={fields}
-      initialData={initialData}
+      isOpen={isOpen}
       onClose={onClose}
       onSave={onSave}
+      title={initialData ? 'Edit Truck' : 'Add Truck'}
+      fields={fields}
+      initialData={initialData}
+      collection="trucks"
     />
   );
 }
