@@ -56,6 +56,19 @@ export default function NewRelease() {
       log.error('Unhandled promise rejection', { reason: ev.reason });
     });
 
+  // Test availability function
+  const testAvailability = async () => {
+    console.log("🧪 Testing availability calculation...");
+    try {
+      const itemId = "SSF3P9XNHZz0olGfyvi0";
+      const sizeId = "bctJ3wnvwdr3IWxU4W54";
+      const lotId = "4T7D6FlDdHdtzsH8DBxW";
+      const availability = await inventoryAvailabilityService.getAvailableQuantity(itemId, sizeId, lotId);
+      alert(`Available: ${availability.available} | On-hand: ${availability.onHand} | Committed: ${availability.committed}`);
+    } catch (error) {
+      alert("Test failed: " + error.message);
+    }
+  };
 
     return () => {
       window.removeEventListener('error', handleGlobalError);
@@ -73,6 +86,16 @@ export default function NewRelease() {
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
 
+  // Test availability function
+  const testAvailability = async () => {
+    console.log("Testing availability...");
+    try {
+      const availability = await inventoryAvailabilityService.getAvailableQuantity("SSF3P9XNHZz0olGfyvi0", "bctJ3wnvwdr3IWxU4W54", "4T7D6FlDdHdtzsH8DBxW");
+      alert("Available: " + availability.available + " | On-hand: " + availability.onHand);
+    } catch (error) {
+      alert("Test failed: " + error.message);
+    }
+  };
   const [releaseNumber, setReleaseNumber] = useState('');
   const [pickupDate, setPickupDate] = useState('');
   const [lineItems, setLineItems] = useState([
@@ -85,7 +108,6 @@ export default function NewRelease() {
   ]);
 
   const [loading, setLoading] = useState(false);
-  const [availability, setAvailability] = useState(new Map());
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -246,12 +268,7 @@ export default function NewRelease() {
       }
 
       setLineItems(updatedItems);
-
-      // Update availability when selections change
-      if (field === "ItemId" || field === "SizeId" || field === "LotId") {
-        const item = updatedItems[index];
-        updateAvailability(item.ItemId, item.SizeId, item.LotId);
-      }    } catch (e) {
+    } catch (e) {
       log.error('Error in handleLineItemChange', { error: e, index, field, value });
     }
   };
@@ -264,33 +281,6 @@ export default function NewRelease() {
     ]);
   };
 
-
-  // Calculate availability for an item/size/lot combination
-  const updateAvailability = async (itemId, sizeId, lotId) => {
-    if (!itemId || !sizeId) return;
-    try {
-      const result = await inventoryAvailabilityService.getAvailableQuantity(itemId, sizeId, lotId || null);
-      const key = itemId + "-" + sizeId + "-" + (lotId || "any");
-      setAvailability(prev => {
-        const newMap = new Map(prev);
-        newMap.set(key, result);
-        return newMap;
-      });
-    } catch (error) {
-      log.error("Error calculating availability", { error: error.message });
-    }
-  };
-
-  // Format item display with availability info
-  const formatItemWithAvailability = (item, itemId, sizeId, lotId) => {
-    const key = itemId + "-" + (sizeId || "any") + "-" + (lotId || "any");
-    const avail = availability.get(key);
-    if (avail) {
-      const status = avail.available > 0 ? "✅" : "⚠️";
-      return item.ItemCode + " - " + item.ItemName + " " + status + " Avail: " + avail.available;
-    }
-    return item.ItemCode + " - " + item.ItemName;
-  };
   const removeLineItem = (index) => {
     log.info('Removing line item', { index });
     if (lineItems.length > 1) {
@@ -449,8 +439,15 @@ export default function NewRelease() {
       <div className="bg-white rounded-lg shadow-md p-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">
           Enter a Release
-        </h1>
 
+        <button
+          type="button"
+          onClick={testAvailability}
+          className="mb-4 bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded"
+        >
+          🧪 Test Availability
+        </button>
+        </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Supplier and Customer */}
@@ -599,7 +596,7 @@ export default function NewRelease() {
                       <option value="">Select Item</option>
                       {getAvailableItems.map((item) => (
                         <option key={item.id} value={item.id}>
-                          {formatItemWithAvailability(item, item.id, lineItem.SizeId, lineItem.LotId)}
+                          {item.ItemCode} - {item.ItemName}
                         </option>
                       ))}
                     </select>
@@ -671,19 +668,7 @@ export default function NewRelease() {
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                       required
                     />
-                    {/* Availability Warning */}
-                    {(() => {
-                      const key = lineItem.ItemId + "-" + lineItem.SizeId + "-" + (lineItem.LotId || "any");
-                      const avail = availability.get(key);
-                      if (avail && lineItem.Quantity > avail.available) {
-                        return (
-                          <div className="text-red-600 text-xs mt-1 font-medium">
-                            ⚠️ Requested: {lineItem.Quantity} | Available: {avail.available} | Short: {lineItem.Quantity - avail.available}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}                  </div>
+                  </div>
                 </div>
               </div>
             ))}

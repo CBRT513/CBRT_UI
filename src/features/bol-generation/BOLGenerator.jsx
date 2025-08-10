@@ -1,7 +1,10 @@
+// File: /Users/cerion/CBRT_UI/src/features/bol-generation/BOLGenerator.jsx
+// Updated to use actual staging records instead of fake data
+
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useFirestoreCollection } from '../../hooks/useFirestore';
-import { addDoc, updateDoc, collection, doc } from 'firebase/firestore';
+import { addDoc, updateDoc, collection, doc, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import BOLPreview from "../../components/BOLPreview";
 
@@ -9,15 +12,13 @@ export default function BOLGenerator() {
   const location = useLocation();
   const navigate = useNavigate();
   const preSelectedRelease = location.state?.selectedRelease;
-
+  
   const { data: releases } = useFirestoreCollection('releases');
   const { data: carriers } = useFirestoreCollection('carriers');
   const { data: trucks } = useFirestoreCollection('trucks');
   const { data: suppliers } = useFirestoreCollection('suppliers');
   const { data: customers } = useFirestoreCollection('customers');
-  const { data: items } = useFirestoreCollection('items');
-  const { data: sizes } = useFirestoreCollection('sizes');
-
+  
   const [selectedReleaseId, setSelectedReleaseId] = useState(preSelectedRelease?.id || '');
   const [selectedCarrierId, setSelectedCarrierId] = useState('');
   const [selectedTruckId, setSelectedTruckId] = useState('');
@@ -26,11 +27,10 @@ export default function BOLGenerator() {
   const [showPreview, setShowPreview] = useState(false);
   const [bolPreviewData, setBolPreviewData] = useState(null);
 
-  // Get available releases
- // Get available releases (exclude already shipped releases)
+  // Get available releases (only verified releases can generate BOLs)
   const availableReleases = releases?.filter(r => 
-  r.Status === 'Available' && !r.BOLNumber
- ) || [];
+    r.Status === 'Verified' && !r.BOLNumber 
+  ) || [];
 
   // Get selected release
   const selectedRelease = availableReleases.find(r => r.id === selectedReleaseId);
@@ -52,6 +52,72 @@ export default function BOLGenerator() {
     }
   }, [selectedTruck]);
 
+  // Generate sequential BOL number for supplier
+  const generateBOLNumber = async (supplier) => {
+    try {
+      // Query existing BOLs for this supplier to find the next number
+      const bolQuery = query(
+        collection(db, 'bols'), 
+        where('SupplierId', '==', supplier.id)
+      );
+      const bolSnapshot = await getDocs(bolQuery);
+      
+      // Extract numbers from existing BOL numbers for this supplier
+      const existingNumbers = bolSnapshot.docs
+        .map(doc => doc.data().BOLNumber)
+        .filter(bolNum => bolNum && bolNum.startsWith(supplier.BOLPrefix))
+        .map(bolNum => {
+          const numPart = bolNum.replace(supplier.BOLPrefix, '');
+          return parseInt(numPart) || 0;
+        });
+      
+      // Find the next sequential number
+      const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+      
+      // Format with leading zeros (4 digits)
+      const formattedNumber = String(nextNumber).padStart(4, '0');
+      
+      return `${supplier.BOLPrefix}${formattedNumber}`;
+    } catch (error) {
+      console.error('Error generating BOL number:', error);
+      // Fallback to timestamp-based number
+      return `${supplier.BOLPrefix}${String(Date.now()).slice(-4)}`;
+    }
+  };
+
+  // Load actual staging records for the verified release
+  const loadStagingRecords = async (releaseId) => {
+    try {
+      const stagingQuery = query(
+        collection(db, 'staging'),
+        where('releaseId', '==', releaseId)
+      );
+      const stagingSnapshot = await getDocs(stagingQuery);
+      
+      const stagingRecords = stagingSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Verify this release has been verified (should have verification record)
+      const verificationQuery = query(
+        collection(db, 'verifications'),
+        where('releaseId', '==', releaseId),
+        where('status', '==', 'approved')
+      );
+      const verificationSnapshot = await getDocs(verificationQuery);
+      
+      if (verificationSnapshot.empty) {
+        throw new Error('Release has not been verified');
+      }
+      
+      return stagingRecords;
+    } catch (error) {
+      console.error('Error loading staging records:', error);
+      throw error;
+    }
+  };
+
   const handlePreviewBOL = async () => {
     if (!selectedReleaseId || !selectedCarrierId || !selectedTruckId) {
       alert('Please fill in all required fields');
@@ -67,23 +133,31 @@ export default function BOLGenerator() {
       const truck = trucks?.find(t => t.id === selectedTruckId);
 
       // Generate BOL number
-      const prefix = supplier?.BOLPrefix || 'BOL';
-      const bolNumber = `${prefix}${String(Date.now()).slice(-5)}`;
+      const bolNumber = await generateBOLNumber(supplier);
 
-      // Prepare line items with full details
-      const lineItemsWithDetails = selectedRelease.LineItems?.map(lineItem => {
-        const item = items?.find(i => i.id === lineItem.ItemId);
-        const size = sizes?.find(s => s.id === lineItem.SizeId);
-        
-        return {
-          itemCode: item?.ItemCode || 'Unknown',
-          itemName: item?.ItemName || 'Unknown Item',
-          sizeName: size?.SizeName || 'Unknown Size',
-          quantity: lineItem.Quantity,
-          lotNumber: lineItem.LotId ? `LOT${lineItem.LotId.slice(-6)}` : 'TBD',
-          barcode: `Y${String(Math.floor(Math.random() * 999999)).padStart(6, '0')}`
-        };
-      }) || [];
+      // Load actual staging records (verified barcode data)
+      const stagingRecords = await loadStagingRecords(selectedReleaseId);
+
+      if (stagingRecords.length === 0) {
+        throw new Error('No staging records found for this release');
+      }
+
+      // Format staging records as BOL line items
+      const lineItemsWithDetails = stagingRecords.map(record => ({
+        barcode: record.barcode,
+        itemCode: record.itemCode,
+        itemName: record.itemName,
+        sizeName: record.sizeName,
+        quantity: record.quantity,
+        lotNumber: record.lotNumber,
+        // Calculate total weight for this barcode (quantity * standard weight)
+        weight: record.quantity * 2200, // TODO: Get actual weight from barcode record
+        pallets: 'N' // As per your BOL example
+      }));
+
+      // Calculate totals
+      const totalSacks = stagingRecords.reduce((sum, record) => sum + record.quantity, 0);
+      const totalWeight = lineItemsWithDetails.reduce((sum, item) => sum + item.weight, 0);
 
       // Prepare preview data
       const previewData = {
@@ -98,6 +172,11 @@ export default function BOLGenerator() {
           TrailerNumber: trailerNumber
         },
         items: lineItemsWithDetails,
+        totals: {
+          totalSacks,
+          totalPallets: 0,
+          totalWeight
+        },
         // Store form state for approval
         formData: {
           selectedReleaseId,
@@ -107,12 +186,13 @@ export default function BOLGenerator() {
         }
       };
 
+      console.log('BOL Preview Data with Real Staging Records:', previewData);
       setBolPreviewData(previewData);
       setShowPreview(true);
 
     } catch (error) {
       console.error('Error preparing BOL preview:', error);
-      alert('Failed to prepare BOL preview');
+      alert(`Failed to prepare BOL preview: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -129,22 +209,24 @@ export default function BOLGenerator() {
         TruckId: selectedTruckId,
         TrailerNumber: trailerNumber,
         Status: 'Generated',
-        CreatedAt: new Date(),
+        CreatedAt: new Date().toISOString(),
         SupplierId: selectedRelease.SupplierId,
         CustomerId: selectedRelease.CustomerId,
-        LineItems: previewData.items
+        LineItems: previewData.items,
+        Totals: previewData.totals
       };
 
-      await addDoc(collection(db, 'bols'), bolData);
+      const bolRef = await addDoc(collection(db, 'bols'), bolData);
 
       // Update release status
       await updateDoc(doc(db, 'releases', selectedReleaseId), {
         Status: 'Shipped',
-        ShippedAt: new Date(),
-        BOLNumber: previewData.bolNumber
+        ShippedAt: new Date().toISOString(),
+        BOLNumber: previewData.bolNumber,
+        BOLId: bolRef.id
       });
 
-      alert('BOL generated and approved successfully!');
+      alert(`BOL ${previewData.bolNumber} generated and approved successfully!`);
       navigate('/bolmanager');
       
     } catch (error) {
@@ -164,12 +246,12 @@ export default function BOLGenerator() {
     <div className="max-w-4xl mx-auto p-6">
       <div className="bg-white rounded-lg shadow-md p-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Generate Bill of Lading</h1>
-
+        
         <div className="space-y-6">
           {/* Release Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Release *
+              Select Verified Release *
             </label>
             <select
               value={selectedReleaseId}
@@ -177,13 +259,18 @@ export default function BOLGenerator() {
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             >
-              <option value="">Choose a release...</option>
+              <option value="">Choose a verified release...</option>
               {availableReleases.map(release => (
                 <option key={release.id} value={release.id}>
                   Release #{release.ReleaseNumber} - {getSupplierName(release.SupplierId)} → {getCustomerName(release.CustomerId)}
                 </option>
               ))}
             </select>
+            {selectedReleaseId && availableReleases.length === 0 && (
+              <p className="text-sm text-amber-600 mt-1">
+                No verified releases available. Releases must be staged and verified before BOL generation.
+              </p>
+            )}
           </div>
 
           {/* Carrier Selection */}
@@ -255,7 +342,8 @@ export default function BOLGenerator() {
                 <p>Release #: {selectedRelease.ReleaseNumber}</p>
                 <p>Supplier: {getSupplierName(selectedRelease.SupplierId)}</p>
                 <p>Customer: {getCustomerName(selectedRelease.CustomerId)}</p>
-                <p>Line Items: {selectedRelease.TotalItems || selectedRelease.LineItems?.length || 0}</p>
+                <p>Status: <span className="font-medium text-green-600">{selectedRelease.Status}</span></p>
+                <p>Verified: {selectedRelease.VerifiedAt ? new Date(selectedRelease.VerifiedAt).toLocaleDateString() : 'N/A'}</p>
               </div>
             </div>
           )}
@@ -267,7 +355,7 @@ export default function BOLGenerator() {
               disabled={loading || !selectedReleaseId || !selectedCarrierId || !selectedTruckId}
               className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Preparing Preview...' : 'Preview Bill of Lading'}
+              {loading ? 'Loading Staging Data...' : 'Preview Bill of Lading'}
             </button>
           </div>
         </div>
@@ -277,7 +365,7 @@ export default function BOLGenerator() {
       {showPreview && bolPreviewData && (
         <BOLPreview
           bolData={bolPreviewData}
-          onApprove={handleApproveBOL}
+          onApprove={() => handleApproveBOL(bolPreviewData)}
           onEdit={handleEditBOL}
           onClose={() => setShowPreview(false)}
         />

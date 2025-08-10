@@ -60,7 +60,7 @@ export default function DataImportManager() {
   };
 
   const generateFromStaged = async () => {
-    if (!stagedData || stagedData.length === 0) {
+    console.log("Sample row:", stagedData[0]);    if (!stagedData || stagedData.length === 0) {
       alert('No staged data to process');
       return;
     }
@@ -122,11 +122,10 @@ export default function DataImportManager() {
       // Process each staged row
       for (const row of stagedData) {
         // Check if supplier and customer exist
-        const supplierId = supplierMap.get(row.SupplierName);
+        const supplierId = supplierMap.get(row.BOLPrefix);
         const customerId = customerMap.get(row.CustomerName);
 
         if (!supplierId || !customerId) {
-          console.warn(`Missing supplier or customer for row:`, row);
           continue;
         }
 
@@ -182,7 +181,7 @@ export default function DataImportManager() {
           const bargeDoc = await addDoc(collection(db, 'barges'), {
             BargeName: row.BargeName,
             SupplierId: supplierId,
-            SupplierName: row.SupplierName, // Store supplier name for easy display
+            SupplierName: row.BOLPrefix, // Store supplier name for easy display
             ArrivalDate: null, // Can be set later manually
             Status: 'Expected', // Default status for new barges
             CreatedAt: new Date()
@@ -239,7 +238,7 @@ export default function DataImportManager() {
             LotNumber: row.LotNumber,
             BargeName: row.BargeName,
             CustomerName: row.CustomerName,
-            SupplierName: row.SupplierName
+            SupplierName: row.BOLPrefix
           });
           results.barcodes++;
         }

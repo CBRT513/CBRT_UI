@@ -8,6 +8,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './firebase/config';
 
+
 // Routes
 import Home from './routes/Home';
 import NewRelease from './routes/NewRelease';
@@ -18,6 +19,9 @@ import BOLGenerator from "./features/bol-generation/BOLGenerator";
 import BOLManager from "./managers/BOLManager";
 import ReleaseDetails from './routes/ReleaseDetails';
 import PDFTestPage from './routes/PDFTestPage';
+import WarehouseStaging from './routes/WarehouseStaging';
+import WarehouseApp from './routes/WarehouseApp';
+import WarehouseVerification from './routes/WarehouseVerification';
 
 // Managers
 import StaffManager from './managers/StaffManager';
@@ -31,6 +35,7 @@ import ProductManager from './managers/ProductManager';
 import BargeManager from './managers/BargeManager';
 import LotManager from './managers/LotManager';
 import BarcodeManager from './managers/BarcodeManager';
+
 
 /* ---------- 2. APP ---------- */
 export default function App() {
@@ -52,10 +57,12 @@ export default function App() {
     'Lots',
     'Barcodes',
     'Enter a Release',
+    'Warehouse Staging',
     'Data Import',
     "BOL Generator",
     "BOL Manager",
-    "PDF Test"
+    "PDF Test",
+    "Warehouse App"
   ];
 
   return (
@@ -91,6 +98,7 @@ export default function App() {
             <Route path="/lots" element={<LotManager />} />
             <Route path="/barcodes" element={<BarcodeManager />} />
             <Route path="/enterarelease" element={<NewRelease />} />
+            <Route path="/warehousestaging" element={<WarehouseStaging />} />
             <Route path="/releases" element={<Releases />} />
             <Route path="/expected-shipments" element={<ExpectedShipments />} />
             <Route path="/dataimport" element={<DataImportManager />} />
@@ -98,6 +106,7 @@ export default function App() {
             <Route path="/bolmanager" element={<BOLManager />} />
             <Route path="/release-details/:id" element={<ReleaseDetails />} />
             <Route path="/pdftest" element={<PDFTestPage />} />
+            <Route path="/warehouseapp" element={<WarehouseApp />} />
           </Routes>
         </main>
       </div>
