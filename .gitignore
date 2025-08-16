@@ -22,3 +22,44 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+
+# Firebase service accounts and credentials
+**/serviceAccount*.json
+**/firebase-adminsdk*.json
+**/*firebase-adminsdk*.json
+cbrt-app-ui-dev-firebase-adminsdk*.json
+
+# Secrets and credentials
+**/secrets/
+*.pem
+*.key
+*.cert
+*.crt
+
+# Backup files
+*.backup
+*.bak
+*.old
+.backups/
+backups/
+
+# Test outputs
+chaos-test-results/
+test-results/
+
+# Temporary files
+*.tmp
+temp_*
+tmp/
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+Archive.zip
