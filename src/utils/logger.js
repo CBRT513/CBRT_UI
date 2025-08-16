@@ -50,6 +50,11 @@ export const logger = {
     sendRemoteLog('error', msg, errorData);
   },
   
+  critical: (msg, extra = {}) => {
+    console.error(`[CRITICAL ${timestamp()}] ${msg}`, extra);
+    sendRemoteLog('critical', msg, extra);
+  },
+  
   // Method for wrapping async functions with error handling
   wrapAsync: (fn, context = 'Unknown') => {
     return async (...args) => {
