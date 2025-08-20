@@ -63,36 +63,6 @@ const CustomerManager = () => {
     setShowModal(true);
   };
 
-<<<<<<< Updated upstream
-  const handleSave = async (customerData) => {
-    if (editingCustomer) {
-      await updateDoc(doc(db, 'customers', editingCustomer.id), {
-        ...customerData,
-        UpdatedAt: new Date()
-      });
-    } else {
-      await addDoc(collection(db, 'customers'), {
-        ...customerData,
-        CreatedAt: new Date()
-      });
-    }
-    // Don't close modal here - let the Modal component handle it via onClose
-  };
-||||||| Stash base
-  const handleSave = async (customerData) => {
-  if (editingCustomer) {
-    await updateDoc(doc(db, 'customers', editingCustomer.id), {
-      ...customerData,
-      UpdatedAt: new Date()
-    });
-  } else {
-    await addDoc(collection(db, 'customers'), {
-      ...customerData,
-      CreatedAt: new Date()
-    });
-  }
-};
-=======
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -100,7 +70,6 @@ const CustomerManager = () => {
       [name]: value
     }));
   };
->>>>>>> Stashed changes
 
   const validateForm = () => {
     if (!formData.customerName.trim()) {
