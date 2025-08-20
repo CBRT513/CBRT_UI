@@ -105,7 +105,7 @@ export class FirebaseService {
       
       const docRef = await this.create({
         [field]: value,
-        Status: 'Active',
+        status: 'Active',
         ...additionalData
       });
       
@@ -134,12 +134,12 @@ export class FirebaseService {
 
   // Get active items only
   async getActive() {
-    return this.getAll([where('Status', '==', 'Active')]);
+    return this.getAll([where('status', '==', 'Active')]);
   }
 
   // Subscribe to active items only
   subscribeToActive(callback) {
-    return this.subscribe(callback, [where('Status', '==', 'Active')]);
+    return this.subscribe(callback, [where('status', '==', 'Active')]);
   }
 }
 
@@ -166,50 +166,50 @@ export const barcodeOperations = {
     
     for (const row of stagedData) {
       // Step 1: Create basic entities
-      const supplier = await supplierService.findOrCreate('SupplierName', row.SupplierName);
-      const customer = await customerService.findOrCreate('CustomerName', row.CustomerName);
-      const item = await itemService.findOrCreate('ItemCode', row.ItemCode, {
-        ItemName: row.ItemName
+      const supplier = await supplierService.findOrCreate('supplierName', row.supplierName);
+      const customer = await customerService.findOrCreate('customerName', row.customerName);
+      const item = await itemService.findOrCreate('itemCode', row.itemCode, {
+        itemName: row.itemName
       });
-      const size = await sizeService.findOrCreate('SizeName', row.SizeName, {
-        SortOrder: 'ascending'
+      const size = await sizeService.findOrCreate('sizeName', row.sizeName, {
+        sortOrder: 'ascending'
       });
-      const barge = await bargeService.findOrCreate('BargeName', row.BargeName, {
-        Status: 'Expected',
-        ArrivalDateFormatted: new Date().toISOString().split('T')[0]
+      const barge = await bargeService.findOrCreate('bargeName', row.bargeName, {
+        status: 'Expected',
+        arrivalDateFormatted: new Date().toISOString().split('T')[0]
       });
       
       // Step 2: Create/find product (defines valid supplier+customer+item+size combination)
       const existingProducts = await productService.getAll([
-        where('SupplierId', '==', supplier.id),
-        where('CustomerId', '==', customer.id),
-        where('ItemId', '==', item.id),
-        where('SizeId', '==', size.id)
+        where('supplierId', '==', supplier.id),
+        where('customerId', '==', customer.id),
+        where('itemId', '==', item.id),
+        where('sizeId', '==', size.id)
       ]);
       
       let product;
       if (existingProducts.length === 0) {
         const productRef = await productService.create({
-          SupplierId: supplier.id,
-          CustomerId: customer.id,
-          ItemId: item.id,
-          SizeId: size.id,
-          StandardWeight: parseInt(row.StandardWeight),
+          supplierId: supplier.id,
+          customerId: customer.id,
+          itemId: item.id,
+          sizeId: size.id,
+          standardWeight: parseInt(row.standardWeight),
           // Display fields for performance
-          SupplierName: supplier.SupplierName,
-          CustomerName: customer.CustomerName,
-          ItemCode: item.ItemCode,
-          ItemName: item.ItemName,
-          SizeName: size.SizeName,
-          Status: 'Active'
+          supplierName: supplier.supplierName,
+          customerName: customer.customerName,
+          itemCode: item.itemCode,
+          itemName: item.itemName,
+          sizeName: size.sizeName,
+          status: 'Active'
         });
         
         // Get the created product
         const newProducts = await productService.getAll([
-          where('SupplierId', '==', supplier.id),
-          where('CustomerId', '==', customer.id),
-          where('ItemId', '==', item.id),
-          where('SizeId', '==', size.id)
+          where('supplierId', '==', supplier.id),
+          where('customerId', '==', customer.id),
+          where('itemId', '==', item.id),
+          where('sizeId', '==', size.id)
         ]);
         product = newProducts[0];
       } else {
@@ -217,20 +217,20 @@ export const barcodeOperations = {
       }
       
       // Step 3: Create lot (simple lot tracking)
-      let lot = await lotService.findOrCreate('LotNumber', row.LotNumber, {
-        BargeId: barge.id,
-        Status: 'Active'
+      let lot = await lotService.findOrCreate('lotNumber', row.lotNumber, {
+        bargeId: barge.id,
+        status: 'Active'
       });
       
       // Step 4: Create inventory entry (tracks actual available quantities)
       const inventoryRef = await inventoryService.create({
-        ProductId: product.id,
-        LotNumber: row.LotNumber,
-        BargeId: barge.id,
-        Quantity: parseInt(row.Quantity),
-        QuantityAvailable: parseInt(row.Quantity), // Initially all available
-        Barcode: row.Barcode,
-        Status: 'Available' // Available, Reserved, Shipped
+        productId: product.id,
+        lotNumber: row.lotNumber,
+        bargeId: barge.id,
+        quantity: parseInt(row.quantity),
+        quantityAvailable: parseInt(row.quantity), // Initially all available
+        barcode: row.barcode,
+        status: 'Available' // Available, Reserved, Shipped
       });
       
       results.push(inventoryRef);
@@ -242,9 +242,9 @@ export const barcodeOperations = {
   // Helper method to get available inventory for a product
   async getAvailableInventory(productId) {
     return inventoryService.getAll([
-      where('ProductId', '==', productId),
-      where('Status', '==', 'Available'),
-      where('QuantityAvailable', '>', 0)
+      where('productId', '==', productId),
+      where('status', '==', 'Available'),
+      where('quantityAvailable', '>', 0)
     ]);
   }
 };

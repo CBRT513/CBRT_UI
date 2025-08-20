@@ -4,8 +4,8 @@ import Modal from './Modal';
 
 export default function BargeModal({ title, initialData, onClose, onSave }) {
   const fields = [
-    { name: 'BargeName', label: 'Barge Name', type: 'text' },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
+    { name: 'bargeName', label: 'Barge Name', type: 'text' },
+    { name: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
   ];
 
   return (

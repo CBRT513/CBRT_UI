@@ -10,7 +10,7 @@ export default function Home() {
   const { data: suppliers } = useFirestoreCollection("suppliers");
   const { data: items } = useFirestoreCollection("items");
   
-  const openReleases = releases.filter(r => r.Status === "Available");
+  const openReleases = releases.filter(r => r.Status === "Entered" || r.status === "Entered");
   const shippedToday = bols.filter(b => {
     const today = new Date().toDateString();
     return b.CreatedAt && new Date(b.CreatedAt.toDate()).toDateString() === today;
@@ -18,7 +18,7 @@ export default function Home() {
   
   // Expected shipments - releases with pickup dates
   const expectedShipments = releases.filter(r => 
-    r.Status === "Available" && 
+    (r.Status === "Entered" || r.status === "Entered") && 
     r.PickupDate && 
     new Date(r.PickupDate) >= new Date()
   ).sort((a, b) => new Date(a.PickupDate) - new Date(b.PickupDate));
@@ -112,7 +112,7 @@ export default function Home() {
           icon="📋" 
           link="/releases"
           subtitle="Ready for BOL generation"
-          items={openReleases.map(r => "Release " + r.ReleaseNumber + " - " + r.CustomerName)}
+          items={openReleases.map(r => "Release " + (r.ReleaseNumber || r.releaseNumber) + " - " + (r.CustomerName || r.customerName))}
         />
         
         <ClickableStatCard 
@@ -122,7 +122,7 @@ export default function Home() {
           icon="📅" 
           link="/expected-shipments"
           subtitle="Scheduled pickups"
-          items={expectedShipments.map(r => r.PickupDate + " - " + r.ReleaseNumber + " (" + r.SupplierName + ")")}
+          items={expectedShipments.map(r => r.PickupDate + " - " + (r.ReleaseNumber || r.releaseNumber) + " (" + (r.SupplierName || r.supplierName) + ")")}
         />
         
         <ClickableStatCard 

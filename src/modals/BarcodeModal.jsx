@@ -10,14 +10,14 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
   const { data: sizes } = useFirestoreCollection('sizes');
 
   const [form, setForm] = useState({
-    BargeId: '',
-    LotId: '',
-    CustomerId: '',
-    ItemId: '',
-    SizeId: '',
-    Quantity: 0,
-    Barcode: '',
-    Status: 'Active'
+    bargeId: '',
+    lotId: '',
+    customerId: '',
+    itemId: '',
+    sizeId: '',
+    quantity: 0,
+    barcode: '',
+    status: 'Active'
   });
 
   // Safety check - don't render if form is null
@@ -28,36 +28,36 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
       setForm(initialData);
     } else {
       setForm({
-        BargeId: '',
-        LotId: '',
-        CustomerId: '',
-        ItemId: '',
-        SizeId: '',
-        Quantity: 0,
-        Barcode: '',
-        Status: 'Active'
+        bargeId: '',
+        lotId: '',
+        customerId: '',
+        itemId: '',
+        sizeId: '',
+        quantity: 0,
+        barcode: '',
+        status: 'Active'
       });
     }
   }, [initialData, isOpen]);
 
   // Safe access to form properties
-  const selectedBarge = barges?.find(b => b.id === form?.BargeId);
-  const selectedLot = lots?.find(l => l.id === form?.LotId);
-  const selectedCustomer = customers?.find(c => c.id === form?.CustomerId);
-  const selectedItem = items?.find(i => i.id === form?.ItemId);
-  const selectedSize = sizes?.find(s => s.id === form?.SizeId);
+  const selectedBarge = barges?.find(b => b.id === form?.bargeId);
+  const selectedLot = lots?.find(l => l.id === form?.lotId);
+  const selectedCustomer = customers?.find(c => c.id === form?.customerId);
+  const selectedItem = items?.find(i => i.id === form?.itemId);
+  const selectedSize = sizes?.find(s => s.id === form?.sizeId);
 
   // Auto-generate barcode when all fields are selected
   useEffect(() => {
     if (selectedBarge && selectedLot && selectedCustomer && selectedItem && selectedSize) {
       const newBarcode = generateBarcode({
-        barge: selectedBarge.BargeName || selectedBarge.BargeId,
-        lot: selectedLot.LotNumber,
-        customer: selectedCustomer.CustomerCode || selectedCustomer.CustomerName,
-        item: selectedItem.ItemCode,
-        size: selectedSize.SizeCode || selectedSize.SizeName
+        barge: selectedBarge.bargeName || selectedBarge.bargeId,
+        lot: selectedLot.lotNumber,
+        customer: selectedCustomer.customerCode || selectedCustomer.customerName,
+        item: selectedItem.itemCode,
+        size: selectedSize.sizeCode || selectedSize.sizeName
       });
-      setForm(prev => ({ ...prev, Barcode: newBarcode }));
+      setForm(prev => ({ ...prev, barcode: newBarcode }));
     }
   }, [selectedBarge, selectedLot, selectedCustomer, selectedItem, selectedSize]);
 
@@ -96,15 +96,15 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
               Barge *
             </label>
             <select
-              value={form.BargeId}
-              onChange={(e) => setForm(prev => ({ ...prev, BargeId: e.target.value }))}
+              value={form.bargeId}
+              onChange={(e) => setForm(prev => ({ ...prev, bargeId: e.target.value }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             >
               <option value="">Select Barge</option>
               {barges?.map(barge => (
                 <option key={barge.id} value={barge.id}>
-                  {barge.BargeName || barge.BargeId}
+                  {barge.bargeName || barge.bargeId}
                 </option>
               ))}
             </select>
@@ -116,15 +116,15 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
               Lot *
             </label>
             <select
-              value={form.LotId}
-              onChange={(e) => setForm(prev => ({ ...prev, LotId: e.target.value }))}
+              value={form.lotId}
+              onChange={(e) => setForm(prev => ({ ...prev, lotId: e.target.value }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             >
               <option value="">Select Lot</option>
               {lots?.map(lot => (
                 <option key={lot.id} value={lot.id}>
-                  {lot.LotNumber}
+                  {lot.lotNumber}
                 </option>
               ))}
             </select>
@@ -136,15 +136,15 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
               Customer *
             </label>
             <select
-              value={form.CustomerId}
-              onChange={(e) => setForm(prev => ({ ...prev, CustomerId: e.target.value }))}
+              value={form.customerId}
+              onChange={(e) => setForm(prev => ({ ...prev, customerId: e.target.value }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             >
               <option value="">Select Customer</option>
               {customers?.map(customer => (
                 <option key={customer.id} value={customer.id}>
-                  {customer.CustomerName}
+                  {customer.customerName}
                 </option>
               ))}
             </select>
@@ -156,15 +156,15 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
               Item *
             </label>
             <select
-              value={form.ItemId}
-              onChange={(e) => setForm(prev => ({ ...prev, ItemId: e.target.value }))}
+              value={form.itemId}
+              onChange={(e) => setForm(prev => ({ ...prev, itemId: e.target.value }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             >
               <option value="">Select Item</option>
               {items?.map(item => (
                 <option key={item.id} value={item.id}>
-                  {item.ItemCode} - {item.ItemName}
+                  {item.itemCode} - {item.itemName}
                 </option>
               ))}
             </select>
@@ -176,15 +176,15 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
               Size *
             </label>
             <select
-              value={form.SizeId}
-              onChange={(e) => setForm(prev => ({ ...prev, SizeId: e.target.value }))}
+              value={form.sizeId}
+              onChange={(e) => setForm(prev => ({ ...prev, sizeId: e.target.value }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             >
               <option value="">Select Size</option>
               {sizes?.map(size => (
                 <option key={size.id} value={size.id}>
-                  {size.SizeName}
+                  {size.sizeName}
                 </option>
               ))}
             </select>
@@ -197,8 +197,8 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
             </label>
             <input
               type="number"
-              value={form.Quantity}
-              onChange={(e) => setForm(prev => ({ ...prev, Quantity: parseInt(e.target.value) || 0 }))}
+              value={form.quantity}
+              onChange={(e) => setForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
               min="1"
@@ -212,8 +212,8 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
             </label>
             <input
               type="text"
-              value={form.Barcode}
-              onChange={(e) => setForm(prev => ({ ...prev, Barcode: e.target.value }))}
+              value={form.barcode}
+              onChange={(e) => setForm(prev => ({ ...prev, barcode: e.target.value }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
               placeholder="Barcode will be auto-generated"
             />
@@ -225,8 +225,8 @@ export default function BarcodeModal({ isOpen, onClose, onSave, initialData }) {
               Status *
             </label>
             <select
-              value={form.Status}
-              onChange={(e) => setForm(prev => ({ ...prev, Status: e.target.value }))}
+              value={form.status}
+              onChange={(e) => setForm(prev => ({ ...prev, status: e.target.value }))}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             >

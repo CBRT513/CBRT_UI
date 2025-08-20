@@ -1,69 +1,172 @@
-// File: /Users/cerion/CBRT_UI/src/managers/BargeManager.jsx
+// Fixed BargeManager.jsx - Using direct Firebase fetch
+// Path: /Users/cerion/CBRT_UI/src/managers/BargeManager.jsx
 
-import React, { useState } from 'react';
-import { useFirestoreCollection } from '../hooks/useFirestore';
-import { addDoc, updateDoc, deleteDoc, collection, doc } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { addDoc, updateDoc, deleteDoc, collection, doc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { TableSkeleton, ErrorDisplay, EmptyState } from '../components/LoadingStates';
-import BargeModal from '../modals/BargeModal';
 
-export default function BargeManager() {
-  const { data: barges, loading, error } = useFirestoreCollection('barges');
+// Direct Firebase fetch for barges
+const useBargesDirect = () => {
+  const [barges, setBarges] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchBarges = async () => {
+      try {
+        console.log('🔍 Fetching barges directly from Firestore...');
+        const snapshot = await getDocs(collection(db, 'barges'));
+        const bargesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        console.log('🔍 Barges data:', bargesData);
+        console.log('🔍 Barges count:', bargesData.length);
+        
+        setBarges(bargesData);
+        setLoading(false);
+      } catch (err) {
+        console.error('❌ Error fetching barges:', err);
+        setError(err);
+        setLoading(false);
+      }
+    };
+
+    fetchBarges();
+  }, []);
+
+  return { barges, loading, error };
+};
+
+// Direct Firebase fetch for suppliers
+const useSuppliersDirect = () => {
+  const [suppliers, setSuppliers] = useState([]);
+  
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, 'suppliers'));
+        const suppliersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setSuppliers(suppliersData);
+      } catch (err) {
+        console.error('❌ Error fetching suppliers:', err);
+      }
+    };
+
+    fetchSuppliers();
+  }, []);
+
+  return suppliers;
+};
+
+const BargeManager = () => {
+  const { barges, loading, error } = useBargesDirect();
+  const suppliers = useSuppliersDirect();
+  
   const [showModal, setShowModal] = useState(false);
   const [editingBarge, setEditingBarge] = useState(null);
-  const [loadingId, setLoadingId] = useState(null);
+  const [formData, setFormData] = useState({
+    bargeName: '',
+    supplierId: '',
+    supplierName: '',
+    status: 'Active'
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleAdd = () => {
+  const resetForm = () => {
+    setFormData({
+      bargeName: '',
+      supplierId: '',
+      supplierName: '',
+      status: 'Active'
+    });
     setEditingBarge(null);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    resetForm();
+    setIsSubmitting(false);
+  };
+
+  const handleAddBarge = () => {
+    resetForm();
     setShowModal(true);
   };
 
-  const handleEdit = (barge) => {
+  const handleEditBarge = (barge) => {
+    setFormData({
+      bargeName: barge.bargeName || '',
+      supplierId: barge.supplierId || '',
+      supplierName: barge.supplierName || '',
+      status: barge.status || 'Active'
+    });
     setEditingBarge(barge);
     setShowModal(true);
   };
 
-  const handleSave = async (bargeData) => {
-    try {
-      if (editingBarge) {
-        await updateDoc(doc(db, 'barges', editingBarge.id), {
-          ...bargeData,
-          UpdatedAt: new Date()
-        });
-      } else {
-        await addDoc(collection(db, 'barges'), {
-          ...bargeData,
-          CreatedAt: new Date()
-        });
+  const handleDeleteBarge = async (bargeId) => {
+    if (window.confirm('Are you sure you want to delete this barge?')) {
+      try {
+        await deleteDoc(doc(db, 'barges', bargeId));
+        console.log('✅ Barge deleted successfully');
+        // Refresh data
+        window.location.reload();
+      } catch (error) {
+        console.error('❌ Error deleting barge:', error);
+        alert('Error deleting barge: ' + error.message);
       }
-      setShowModal(false);
-      setEditingBarge(null);
-    } catch (error) {
-      console.error('Error saving barge:', error);
-      throw error;
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this barge?')) return;
-    
-    setLoadingId(id);
+  const handleSupplierChange = (supplierId) => {
+    const supplier = suppliers.find(s => s.id === supplierId);
+    setFormData({
+      ...formData,
+      supplierId: supplierId,
+      supplierName: supplier ? (supplier.supplierName || supplier.SupplierName || '') : ''
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
     try {
-      await deleteDoc(doc(db, 'barges', id));
+      const bargeData = {
+        bargeName: formData.bargeName,
+        supplierId: formData.supplierId,
+        supplierName: formData.supplierName,
+        status: formData.status,
+        updatedAt: new Date()
+      };
+
+      if (editingBarge) {
+        await updateDoc(doc(db, 'barges', editingBarge.id), bargeData);
+        console.log('✅ Barge updated successfully');
+      } else {
+        await addDoc(collection(db, 'barges'), {
+          ...bargeData,
+          createdAt: new Date()
+        });
+        console.log('✅ Barge added successfully');
+      }
+
+      closeModal();
+      // Refresh data
+      window.location.reload();
     } catch (error) {
-      console.error('Error deleting barge:', error);
-      alert('Failed to delete barge');
+      console.error('❌ Error saving barge:', error);
+      alert('Error saving barge: ' + error.message);
     } finally {
-      setLoadingId(null);
+      setIsSubmitting(false);
     }
   };
 
   if (loading) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Barges Management</h1>
-          <TableSkeleton rows={5} columns={5} />
+      <div className="p-6">
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-2 text-gray-600">Loading barges...</p>
         </div>
       </div>
     );
@@ -71,142 +174,174 @@ export default function BargeManager() {
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Barges Management</h1>
-          <ErrorDisplay message="Failed to load barges" />
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-red-800 font-medium">Error Loading Barges</h3>
+          <p className="text-red-700 text-sm mt-1">{error.message}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Barges Management</h1>
-          <button
-            onClick={handleAdd}
-            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            + Add Barge
-          </button>
-        </div>
-
-        <div className="text-sm text-gray-600 mb-4">
-          Manage barges
-        </div>
-
-        {!barges || barges.length === 0 ? (
-          <EmptyState 
-            message="No barges found"
-            submessage="Start by adding new barges."
-            actionLabel="Add Barge"
-            onAction={handleAdd}
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Barge Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Supplier
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Arrival Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {barges.map((barge, index) => (
-                  <tr key={barge.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {barge.BargeName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {barge.SupplierName || 'Unknown Supplier'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {barge.ArrivalDate ? new Date(barge.ArrivalDate).toLocaleDateString() : 'Not set'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        barge.Status === 'Expected' 
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : barge.Status === 'Working'
-                          ? 'bg-blue-100 text-blue-800' 
-                          : barge.Status === 'Completed'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {barge.Status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(barge)}
-                        className="text-green-600 hover:text-green-900 mr-3"
-                        title="Edit"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleDelete(barge.id)}
-                        disabled={loadingId === barge.id}
-                        className="text-red-600 hover:text-red-900"
-                        title="Delete"
-                      >
-                        {loadingId === barge.id ? '⏳' : '🗑️'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {barges && barges.length > 0 && (
-          <div className="mt-6 bg-gray-50 rounded-lg p-4">
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">{barges.length}</span> barge{barges.length !== 1 ? 's' : ''} total
-              {' | '}
-              <span className="font-medium">
-                {barges.filter(b => b.Status === 'Expected').length}
-              </span> expected
-              {' | '}
-              <span className="font-medium">
-                {barges.filter(b => b.Status === 'Working').length}
-              </span> working
-              {' | '}
-              <span className="font-medium">
-                {barges.filter(b => b.Status === 'Completed').length}
-              </span> completed
-            </div>
-          </div>
-        )}
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Barges</h1>
+        <button
+          onClick={handleAddBarge}
+          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center gap-2"
+        >
+          <span className="text-lg">+</span> Add Barge
+        </button>
       </div>
 
+      {barges && barges.length > 0 ? (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="min-w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Barge Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Supplier
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {barges.map((barge) => (
+                <tr key={barge.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {barge.bargeName || 'No Name'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {barge.supplierName || 'No Supplier'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      barge.status === 'Active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {barge.status || 'Unknown'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                    <button
+                      onClick={() => handleEditBarge(barge)}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteBarge(barge.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="bg-gray-50 rounded-lg p-8 text-center">
+          <p className="text-gray-600 mb-4">No barges found</p>
+          <button
+            onClick={handleAddBarge}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+          >
+            Add First Barge
+          </button>
+        </div>
+      )}
+
+      {/* Modal for Add/Edit */}
       {showModal && (
-        <BargeModal
-          isOpen={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setEditingBarge(null);
-          }}
-          onSave={handleSave}
-          initialData={editingBarge}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-bold mb-4">
+              {editingBarge ? 'Edit Barge' : 'Add New Barge'}
+            </h2>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Barge Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.bargeName}
+                  onChange={(e) => setFormData({ ...formData, bargeName: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., RF707X"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Supplier
+                </label>
+                <select
+                  value={formData.supplierId}
+                  onChange={(e) => handleSupplierChange(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select Supplier</option>
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.supplierName || supplier.SupplierName || 'Unknown Supplier'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : editingBarge ? 'Update' : 'Add'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
-}
+};
+
+export default BargeManager;

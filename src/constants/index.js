@@ -33,13 +33,13 @@ export const AUTH_TYPES = [
 export const ENTITY_FIELDS = {
   staff: [
     {
-      name: 'Name',
+      name: 'name',
       label: 'Name',
       type: 'text',
       required: true
     },
     {
-      name: 'Role',
+      name: 'role',
       label: 'Role',
       type: 'select',
       options: [
@@ -50,26 +50,26 @@ export const ENTITY_FIELDS = {
       required: true
     },
     {
-      name: 'Email',
+      name: 'email',
       label: 'Email',
       type: 'email',
       required: false
     },
     {
-      name: 'Phone',
+      name: 'phone',
       label: 'Phone Number',
       type: 'tel',
       required: false
     },
     {
-      name: 'ReceivesNewRelease',
+      name: 'receivesNewRelease',
       label: 'Receives New Release Notifications',
       type: 'checkbox',
       required: false,
       defaultValue: false
     },
     {
-      name: 'AuthType',
+      name: 'authType',
       label: 'Authentication Type',
       type: 'select',
       options: AUTH_TYPES,
@@ -88,49 +88,49 @@ export const ENTITY_FIELDS = {
 
   customer: [
     {
-      name: 'CustomerName',
+      name: 'customerName',
       label: 'Customer Name',
       type: 'text',
       required: true
     },
     {
-      name: 'ContactName',
+      name: 'contactName',
       label: 'Contact Name',
       type: 'text',
       required: false
     },
     {
-      name: 'Phone',
+      name: 'phone',
       label: 'Phone',
       type: 'tel',
       required: false
     },
     {
-      name: 'Address',
+      name: 'address',
       label: 'Address',
       type: 'text',
       required: false
     },
     {
-      name: 'City',
+      name: 'city',
       label: 'City',
       type: 'text',
       required: false
     },
     {
-      name: 'State',
+      name: 'state',
       label: 'State',
       type: 'text',
       required: false
     },
     {
-      name: 'ZipCode',
+      name: 'zipCode',
       label: 'Zip Code',
       type: 'text',
       required: false
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: STATUS_OPTIONS,
@@ -141,37 +141,37 @@ export const ENTITY_FIELDS = {
 
   supplier: [
     {
-      name: 'SupplierName',
+      name: 'supplierName',
       label: 'Supplier Name',
       type: 'text',
       required: true
     },
     {
-      name: 'BOLPrefix',
+      name: 'bolPrefix',
       label: 'BOL Prefix',
       type: 'text',
       required: true
     },
     {
-      name: 'ContactName',
+      name: 'contactName',
       label: 'Contact Name',
       type: 'text',
       required: false
     },
     {
-      name: 'Phone',
+      name: 'phone',
       label: 'Phone',
       type: 'tel',
       required: false
     },
     {
-      name: 'Email',
+      name: 'email',
       label: 'Email',
       type: 'email',
       required: false
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: STATUS_OPTIONS,
@@ -182,31 +182,31 @@ export const ENTITY_FIELDS = {
 
   carrier: [
     {
-      name: 'CarrierName',
+      name: 'carrierName',
       label: 'Carrier Name',
       type: 'text',
       required: true
     },
     {
-      name: 'ContactName',
+      name: 'contactName',
       label: 'Contact Name',
       type: 'text',
       required: false
     },
     {
-      name: 'Phone',
+      name: 'phone',
       label: 'Phone',
       type: 'tel',
       required: false
     },
     {
-      name: 'Email',
+      name: 'email',
       label: 'Email',
       type: 'email',
       required: false
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: STATUS_OPTIONS,
@@ -217,27 +217,27 @@ export const ENTITY_FIELDS = {
 
   truck: [
     {
-      name: 'CarrierId',
+      name: 'carrierId',
       label: 'Carrier',
       type: 'select',
       required: true,
       collection: 'carriers',
-      displayField: 'CarrierName'
+      displayField: 'carrierName'
     },
     {
-      name: 'TruckNumber',
+      name: 'truckNumber',
       label: 'Truck Number',
       type: 'text',
       required: true
     },
     {
-      name: 'TrailerNumber',
+      name: 'trailerNumber',
       label: 'Trailer Number',
       type: 'text',
       required: false
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: STATUS_OPTIONS,
@@ -248,25 +248,25 @@ export const ENTITY_FIELDS = {
 
   item: [
     {
-      name: 'ItemCode',
+      name: 'itemCode',
       label: 'Item Code',
       type: 'text',
       required: true
     },
     {
-      name: 'ItemName',
+      name: 'itemName',
       label: 'Item Name',
       type: 'text',
       required: true
     },
     {
-      name: 'StandardWeight',
+      name: 'standardWeight',
       label: 'Standard Weight (lbs)',
       type: 'number',
       required: false
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: STATUS_OPTIONS,
@@ -277,13 +277,13 @@ export const ENTITY_FIELDS = {
 
   size: [
     {
-      name: 'SizeName',
+      name: 'sizeName',
       label: 'Size Name',
       type: 'text',
       required: true
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: STATUS_OPTIONS,
@@ -294,45 +294,45 @@ export const ENTITY_FIELDS = {
 
   product: [
     {
-      name: 'ItemId',
+      name: 'itemId',
       label: 'Item',
       type: 'select',
       collection: 'items',
-      displayField: 'ItemCode',
+      displayField: 'itemCode',
       required: true
     },
     {
-      name: 'SizeId',
+      name: 'sizeId',
       label: 'Size',
       type: 'select',
       collection: 'sizes',
-      displayField: 'SizeName',
+      displayField: 'sizeName',
       required: true
     },
     {
-      name: 'SupplierId',
+      name: 'supplierId',
       label: 'Supplier',
       type: 'select',
       collection: 'suppliers',
-      displayField: 'SupplierName',
+      displayField: 'supplierName',
       required: true
     },
     {
-      name: 'CustomerId',
+      name: 'customerId',
       label: 'Customer',
       type: 'select',
       collection: 'customers',
-      displayField: 'CustomerName',
+      displayField: 'customerName',
       required: true
     },
     {
-      name: 'StandardWeight',
+      name: 'standardWeight',
       label: 'Standard Weight (lbs)',
       type: 'number',
       required: false
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: STATUS_OPTIONS,
@@ -343,33 +343,33 @@ export const ENTITY_FIELDS = {
 
   barge: [
     {
-      name: 'BargeName',
+      name: 'bargeName',
       label: 'Barge Name',
       type: 'text',
       required: true
     },
     {
-      name: 'SupplierId',
+      name: 'supplierId',
       label: 'Supplier',
       type: 'select',
       collection: 'suppliers',
-      displayField: 'SupplierName',
+      displayField: 'supplierName',
       required: true
     },
     {
-      name: 'SupplierName',
+      name: 'supplierName',
       label: 'Supplier Name',
       type: 'text',
       required: false
     },
     {
-      name: 'ArrivalDate',
+      name: 'arrivalDate',
       label: 'Arrival Date',
       type: 'date',
       required: false
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: [
@@ -384,29 +384,29 @@ export const ENTITY_FIELDS = {
 
   lot: [
     {
-      name: 'LotNumber',
+      name: 'lotNumber',
       label: 'Lot Number',
       type: 'text',
       required: true
     },
     {
-      name: 'BargeId',
+      name: 'bargeId',
       label: 'Barge',
       type: 'select',
       collection: 'barges',
-      displayField: 'BargeName',
+      displayField: 'bargeName',
       required: true
     },
     {
-      name: 'CustomerId',
+      name: 'customerId',
       label: 'Customer',
       type: 'select',
       collection: 'customers',
-      displayField: 'CustomerName',
+      displayField: 'customerName',
       required: true
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: STATUS_OPTIONS,
@@ -417,65 +417,65 @@ export const ENTITY_FIELDS = {
 
   barcode: [
     {
-      name: 'Barcode',
+      name: 'barcode',
       label: 'Barcode',
       type: 'text',
       required: true
     },
     {
-      name: 'ItemId',
+      name: 'itemId',
       label: 'Item',
       type: 'select',
       collection: 'items',
-      displayField: 'ItemCode',
+      displayField: 'itemCode',
       required: true
     },
     {
-      name: 'SizeId',
+      name: 'sizeId',
       label: 'Size',
       type: 'select',
       collection: 'sizes',
-      displayField: 'SizeName',
+      displayField: 'sizeName',
       required: true
     },
     {
-      name: 'LotId',
+      name: 'lotId',
       label: 'Lot',
       type: 'select',
       collection: 'lots',
-      displayField: 'LotNumber',
+      displayField: 'lotNumber',
       required: true
     },
     {
-      name: 'CustomerId',
+      name: 'customerId',
       label: 'Customer',
       type: 'select',
       collection: 'customers',
-      displayField: 'CustomerName',
+      displayField: 'customerName',
       required: true
     },
     {
-      name: 'BargeId',
+      name: 'bargeId',
       label: 'Barge',
       type: 'select',
       collection: 'barges',
-      displayField: 'BargeName',
+      displayField: 'bargeName',
       required: true
     },
     {
-      name: 'Quantity',
+      name: 'quantity',
       label: 'Quantity (bags)',
       type: 'number',
       required: true
     },
     {
-      name: 'StandardWeight',
+      name: 'standardWeight',
       label: 'Weight per bag (lbs)',
       type: 'number',
       required: true
     },
     {
-      name: 'Status',
+      name: 'status',
       label: 'Status',
       type: 'select',
       options: [
@@ -527,7 +527,7 @@ export const NAVIGATION_ITEMS = [
 
 // Default form values
 export const DEFAULT_VALUES = {
-  Status: 'Active',
-  AuthType: 'Google',
-  StandardWeight: 2200
+  status: 'Active',
+  authType: 'Google',
+  standardWeight: 2200
 };

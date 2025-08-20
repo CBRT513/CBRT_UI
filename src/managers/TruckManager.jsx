@@ -1,206 +1,331 @@
+// TruckManager.jsx - Fixed with Truck Number + Trailer Number fields
+// Path: /Users/cerion/CBRT_UI/src/managers/TruckManager.jsx
+// Changes: Added Trailer Number field, removed Capacity, uses Carrier dropdown
+
 import React, { useState } from 'react';
 import { useFirestoreCollection } from '../hooks/useFirestore';
 import { addDoc, updateDoc, deleteDoc, collection, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { TableSkeleton, ErrorDisplay, EmptyState } from '../components/LoadingStates';
-import TruckModal from '../modals/TruckModal';
 
-export default function TruckManager() {
-  const { data: trucks, loading, error } = useFirestoreCollection('trucks');
-  const { data: carriers } = useFirestoreCollection('carriers');
+const TruckManager = () => {
+  const { data: trucks, loading: trucksLoading, error: trucksError } = useFirestoreCollection('trucks');
+  const { data: carriers, loading: carriersLoading, error: carriersError } = useFirestoreCollection('carriers');
   const [showModal, setShowModal] = useState(false);
   const [editingTruck, setEditingTruck] = useState(null);
-  const [loadingId, setLoadingId] = useState(null);
-  const [selectedCarrierId, setSelectedCarrierId] = useState('');
+  const [formData, setFormData] = useState({
+    truckNumber: '',
+    trailerNumber: '',
+    carrierId: '',
+    status: 'Active'
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Group trucks by carrier
-  const groupedTrucks = React.useMemo(() => {
-    if (!trucks || !carriers) return [];
-
-    // Filter by selected carrier if one is chosen
-    const carriersToShow = selectedCarrierId 
-      ? carriers.filter(carrier => carrier.id === selectedCarrierId)
-      : carriers;
-
-    const grouped = carriersToShow.map(carrier => ({
-      carrier,
-      trucks: trucks.filter(truck => truck.CarrierId === carrier.id)
-    })).filter(group => group.trucks.length > 0);
-
-    // Sort by carrier name
-    return grouped.sort((a, b) => a.carrier.CarrierName.localeCompare(b.carrier.CarrierName));
-  }, [trucks, carriers, selectedCarrierId]);
-
-  const handleAdd = () => {
+  const resetForm = () => {
+    setFormData({
+      truckNumber: '',
+      trailerNumber: '',
+      carrierId: '',
+      status: 'Active'
+    });
     setEditingTruck(null);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    resetForm();
+    setIsSubmitting(false);
+  };
+
+  const handleAddTruck = () => {
+    resetForm();
     setShowModal(true);
   };
 
-  const handleEdit = (truck) => {
+  const handleEditTruck = (truck) => {
+    setFormData({
+      truckNumber: truck.TruckNumber || truck.truckNumber || '',
+      trailerNumber: truck.TrailerNumber || truck.trailerNumber || '',
+      carrierId: truck.CarrierId || truck.carrierId || '',
+      status: truck.Status || truck.status || 'Active'
+    });
     setEditingTruck(truck);
     setShowModal(true);
   };
 
-  const handleSave = async (truckData) => {
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const validateForm = () => {
+    if (!formData.truckNumber.trim()) {
+      alert('Truck Number is required');
+      return false;
+    }
+    if (!formData.carrierId) {
+      alert('Carrier is required');
+      return false;
+    }
+    return true;
+  };
+
+  const checkForDuplicate = () => {
+    if (!trucks) return false;
+    
+    const duplicate = trucks.find(truck => 
+      (truck.TruckNumber || truck.truckNumber || '').toLowerCase() === formData.truckNumber.toLowerCase() &&
+      (!editingTruck || truck.id !== editingTruck.id)
+    );
+    
+    if (duplicate) {
+      alert('A truck with this number already exists');
+      return true;
+    }
+    return false;
+  };
+
+  const getCarrierName = (carrierId) => {
+    if (!carriers) return 'Unknown';
+    const carrier = carriers.find(c => c.id === carrierId);
+    return carrier ? (carrier.CarrierName || carrier.carrierName) : 'Unknown';
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (isSubmitting) return;
+    
+    if (!validateForm()) return;
+    if (checkForDuplicate()) return;
+
+    setIsSubmitting(true);
+
     try {
+      const selectedCarrier = carriers?.find(c => c.id === formData.carrierId);
+      const truckData = {
+        TruckNumber: formData.truckNumber,
+        TrailerNumber: formData.trailerNumber,
+        CarrierId: formData.carrierId,
+        CarrierName: selectedCarrier ? (selectedCarrier.CarrierName || selectedCarrier.carrierName) : '',
+        Status: formData.status
+      };
+
       if (editingTruck) {
         await updateDoc(doc(db, 'trucks', editingTruck.id), {
           ...truckData,
           UpdatedAt: new Date()
         });
+        console.log('Truck updated successfully');
       } else {
         await addDoc(collection(db, 'trucks'), {
           ...truckData,
           CreatedAt: new Date()
         });
+        console.log('Truck added successfully');
       }
+      closeModal();
     } catch (error) {
       console.error('Error saving truck:', error);
-      throw error;
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this truck?')) return;
-    
-    setLoadingId(id);
-    try {
-      await deleteDoc(doc(db, 'trucks', id));
-    } catch (error) {
-      console.error('Error deleting truck:', error);
-      alert('Failed to delete truck');
+      alert('Error saving truck. Please try again.');
     } finally {
-      setLoadingId(null);
+      setIsSubmitting(false);
     }
   };
 
-  if (loading) return <TableSkeleton />;
-  if (error) return <ErrorDisplay message={error} />;
+  const handleDeleteTruck = async (truckId) => {
+    if (window.confirm('Are you sure you want to delete this truck?')) {
+      try {
+        await deleteDoc(doc(db, 'trucks', truckId));
+        console.log('Truck deleted successfully');
+      } catch (error) {
+        console.error('Error deleting truck:', error);
+        alert('Error deleting truck. Please try again.');
+      }
+    }
+  };
+
+  if (trucksLoading || carriersLoading) return <div className="flex justify-center p-8">Loading trucks...</div>;
+  if (trucksError || carriersError) return <div className="text-red-600 p-8">Error loading data: {(trucksError || carriersError).message}</div>;
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-md">
-        <div className="flex justify-between items-center p-6 border-b">
-          <h1 className="text-2xl font-bold text-gray-900">Trucks</h1>
-          <div className="flex items-center space-x-4">
-            {/* Carrier Filter */}
-            <select
-              value={selectedCarrierId}
-              onChange={(e) => setSelectedCarrierId(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="">All Carriers</option>
-              {carriers?.map(carrier => (
-                <option key={carrier.id} value={carrier.id}>
-                  {carrier.CarrierName}
-                </option>
-              ))}
-            </select>
-            
-            <button
-              onClick={handleAdd}
-              className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              + Add Truck
-            </button>
+    <div className="container mx-auto p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Trucks</h1>
+        <button
+          onClick={handleAddTruck}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+        >
+          + Add Truck
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Truck Number
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Trailer Number
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Carrier
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {trucks?.map((truck) => (
+              <tr key={truck.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  {truck.TruckNumber || truck.truckNumber}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {truck.TrailerNumber || truck.trailerNumber}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {truck.CarrierName || getCarrierName(truck.CarrierId || truck.carrierId)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    (truck.Status || truck.status) === 'Active' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {truck.Status || truck.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button
+                    onClick={() => handleEditTruck(truck)}
+                    className="text-blue-600 hover:text-blue-900 mr-3"
+                  >
+                    ✏️
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTruck(truck.id)}
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    🗑️
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {(!trucks || trucks.length === 0) && (
+          <div className="text-center py-8 text-gray-500">
+            No trucks found. Click "Add Truck" to get started.
           </div>
-        </div>
-
-        <div className="p-6">
-          {groupedTrucks.length === 0 ? (
-            <EmptyState 
-              title="No trucks found"
-              description="Add your first truck to get started"
-              actionLabel="Add Truck"
-              onAction={handleAdd}
-            />
-          ) : (
-            <div className="space-y-8">
-              {groupedTrucks.map(({ carrier, trucks }) => (
-                <div key={carrier.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                  {/* Carrier Header */}
-                  <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      {carrier.CarrierName}
-                    </h2>
-                    <p className="text-sm text-gray-600">
-                      {trucks.length} truck{trucks.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-
-                  {/* Trucks Table */}
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Truck Number
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Trailer Number
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {trucks.map((truck, index) => (
-                          <tr key={truck.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {truck.TruckNumber}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {truck.TrailerNumber || '-'}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                truck.Status === 'Active' 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {truck.Status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                              <button
-                                onClick={() => handleEdit(truck)}
-                                className="text-blue-600 hover:text-blue-700"
-                                disabled={loadingId === truck.id}
-                              >
-                                ✏️
-                              </button>
-                              <button
-                                onClick={() => handleDelete(truck.id)}
-                                className="text-red-600 hover:text-red-700"
-                                disabled={loadingId === truck.id}
-                              >
-                                {loadingId === truck.id ? '⏳' : '🗑️'}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {showModal && (
-        <TruckModal
-          isOpen={showModal}
-          onClose={() => setShowModal(false)}
-          onSave={handleSave}
-          initialData={editingTruck}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-screen overflow-y-auto">
+            <h2 className="text-xl font-bold mb-4">
+              {editingTruck ? 'Edit Truck' : 'Add New Truck'}
+            </h2>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Truck Number *
+                </label>
+                <input
+                  type="text"
+                  name="truckNumber"
+                  value={formData.truckNumber}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 397A"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Trailer Number
+                </label>
+                <input
+                  type="text"
+                  name="trailerNumber"
+                  value={formData.trailerNumber}
+                  onChange={handleInputChange}
+                  placeholder="e.g., T123"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Carrier *
+                </label>
+                <select
+                  name="carrierId"
+                  value={formData.carrierId}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="">Select a carrier...</option>
+                  {carriers?.map((carrier) => (
+                    <option key={carrier.id} value={carrier.id}>
+                      {carrier.CarrierName || carrier.carrierName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status *
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
-}
+};
+
+export default TruckManager;

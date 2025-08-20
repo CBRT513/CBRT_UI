@@ -24,7 +24,8 @@ const WarehouseStaging = () => {
 
   // Filter releases that need staging
   const availableReleases = releases?.filter(
-    release => release.Status === 'Entered' || release.Status === 'Partially Staged'
+    release => release.Status === 'Entered' || release.status === 'Entered' || 
+               release.Status === 'Partially Staged' || release.status === 'Partially Staged'
   ) || [];
 
   // Load staged items for selected release
@@ -118,8 +119,8 @@ const WarehouseStaging = () => {
     }
 
     // Find the required quantity from release line items
-    const requiredItem = selectedRelease.LineItems.find(item => 
-      item.ItemId === barcodeInfo.ItemId && item.SizeId === barcodeInfo.SizeId
+    const requiredItem = (selectedRelease.LineItems || selectedRelease.lineItems)?.find(item => 
+      (item.ItemId || item.itemId) === barcodeInfo.ItemId && (item.SizeId || item.sizeId) === barcodeInfo.SizeId
     );
 
     if (!requiredItem) {
@@ -128,8 +129,9 @@ const WarehouseStaging = () => {
     }
 
     // Validate exact quantity match against release requirement, not barcode inventory
-    if (quantity !== requiredItem.Quantity) {
-      setError(`Must stage exact quantity of ${requiredItem.Quantity} units as required by this release - no partial staging allowed`);
+    const requiredQuantity = requiredItem.Quantity || requiredItem.requestedQuantity || requiredItem.quantity;
+    if (quantity !== requiredQuantity) {
+      setError(`Must stage exact quantity of ${requiredQuantity} units as required by this release - no partial staging allowed`);
       return false;
     }
 
@@ -244,28 +246,34 @@ const WarehouseStaging = () => {
   };
 
   const getItemName = (itemId) => {
-    return items?.find(i => i.id === itemId)?.ItemName || 'Unknown Item';
+    const item = items?.find(i => i.id === itemId);
+    return item?.ItemName || item?.itemName || 'Unknown Item';
   };
 
   const getItemCode = (itemId) => {
-    return items?.find(i => i.id === itemId)?.ItemCode || 'Unknown';
+    const item = items?.find(i => i.id === itemId);
+    return item?.ItemCode || item?.itemCode || 'Unknown';
   };
 
   const getSizeName = (sizeId) => {
-    return sizes?.find(s => s.id === sizeId)?.SizeName || 'Unknown Size';
+    const size = sizes?.find(s => s.id === sizeId);
+    return size?.SizeName || size?.sizeName || 'Unknown Size';
   };
 
   const getCustomerName = (customerId) => {
-    return customers?.find(c => c.id === customerId)?.CustomerName || 'Unknown';
+    const customer = customers?.find(c => c.id === customerId);
+    return customer?.CustomerName || customer?.customerName || 'Unknown';
   };
 
   const getSupplierName = (supplierId) => {
-    return suppliers?.find(s => s.id === supplierId)?.SupplierName || 'Unknown';
+    const supplier = suppliers?.find(s => s.id === supplierId);
+    return supplier?.SupplierName || supplier?.supplierName || 'Unknown';
   };
 
   const calculateProgress = () => {
-    if (!selectedRelease?.LineItems) return 0;
-    const totalRequired = selectedRelease.LineItems.reduce((sum, item) => sum + (item.Quantity || 0), 0);
+    const lineItems = selectedRelease?.LineItems || selectedRelease?.lineItems;
+    if (!lineItems) return 0;
+    const totalRequired = lineItems.reduce((sum, item) => sum + (item.Quantity || item.requestedQuantity || item.quantity || 0), 0);
     const totalStaged = stagedItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
     return totalRequired > 0 ? Math.round((totalStaged / totalRequired) * 100) : 0;
   };
@@ -312,13 +320,13 @@ const WarehouseStaging = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="font-semibold text-lg text-blue-600">
-                      Release #{release.ReleaseNumber}
+                      Release #{release.ReleaseNumber || release.releaseNumber}
                     </div>
                     <div className="text-gray-600 mt-1">
-                      {getSupplierName(release.SupplierId)} → {getCustomerName(release.CustomerId)}
+                      {getSupplierName(release.SupplierId || release.supplierId)} → {getCustomerName(release.CustomerId || release.customerId)}
                     </div>
                     <div className="text-sm text-gray-500 mt-1">
-                      {release.LineItems?.length || 0} line items • Status: {release.Status}
+                      {(release.LineItems || release.lineItems)?.length || 0} line items • Status: {release.Status || release.status}
                     </div>
                   </div>
                   <div className="text-right">
@@ -340,10 +348,10 @@ const WarehouseStaging = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">
-            Staging Release #{selectedRelease.ReleaseNumber}
+            Staging Release #{selectedRelease.ReleaseNumber || selectedRelease.releaseNumber}
           </h1>
           <div className="text-gray-600 mt-1">
-            {getSupplierName(selectedRelease.SupplierId)} → {getCustomerName(selectedRelease.CustomerId)}
+            {getSupplierName(selectedRelease.SupplierId || selectedRelease.supplierId)} → {getCustomerName(selectedRelease.CustomerId || selectedRelease.customerId)}
           </div>
         </div>
         <button
@@ -367,7 +375,7 @@ const WarehouseStaging = () => {
           ></div>
         </div>
         <div className="text-xs text-gray-500 mt-1">
-          {stagedItems.length} items staged • {selectedRelease.LineItems?.length || 0} line items total
+          {stagedItems.length} items staged • {(selectedRelease.LineItems || selectedRelease.lineItems)?.length || 0} line items total
         </div>
       </div>
 
@@ -394,10 +402,10 @@ const WarehouseStaging = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Quantity {barcodeInfo && selectedRelease.LineItems && (() => {
-                  const requiredItem = selectedRelease.LineItems.find(item => 
-                    item.ItemId === barcodeInfo.ItemId && item.SizeId === barcodeInfo.SizeId
+                  const requiredItem = (selectedRelease.LineItems || selectedRelease.lineItems)?.find(item => 
+                    (item.ItemId || item.itemId) === barcodeInfo.ItemId && (item.SizeId || item.sizeId) === barcodeInfo.SizeId
                   );
-                  return requiredItem ? `(Required: ${requiredItem.Quantity})` : '';
+                  return requiredItem ? `(Required: ${requiredItem.Quantity || requiredItem.requestedQuantity || requiredItem.quantity})` : '';
                 })()}
               </label>
               <select
@@ -524,21 +532,21 @@ const WarehouseStaging = () => {
       </div>
 
       {/* Required Items (for reference) */}
-      {selectedRelease.LineItems && (
+      {(selectedRelease.LineItems || selectedRelease.lineItems) && (
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
             Required Items (Reference)
           </h2>
           
           <div className="space-y-2">
-            {selectedRelease.LineItems.map((item, index) => (
+            {(selectedRelease.LineItems || selectedRelease.lineItems).map((item, index) => (
               <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                 <div className="text-sm text-gray-700">
-                  <div className="font-medium">{getItemCode(item.ItemId)} - {getItemName(item.ItemId)}</div>
-                  <div className="text-xs text-gray-500">Size: {getSizeName(item.SizeId)}</div>
+                  <div className="font-medium">{getItemCode(item.ItemId || item.itemId)} - {getItemName(item.ItemId || item.itemId)}</div>
+                  <div className="text-xs text-gray-500">Size: {getSizeName(item.SizeId || item.sizeId)}</div>
                 </div>
                 <div className="text-sm font-medium text-gray-900">
-                  Quantity: {item.Quantity}
+                  Quantity: {item.Quantity || item.requestedQuantity || item.quantity}
                 </div>
               </div>
             ))}

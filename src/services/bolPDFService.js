@@ -48,7 +48,7 @@ class BOLPdfService {
     doc.text("BOL Number:", rightX, rightY);
     doc.setFont("helvetica", "normal");
     doc.text(
-      bolData?.bolNumber || bolData?.BOLNumber || "N/A",
+      bolData?.bolNumber || bolData?.bolNumber || "N/A",
       rightX + 30,
       rightY
     );
@@ -58,7 +58,7 @@ class BOLPdfService {
     doc.text("Pickup#:", rightX, rightY);
     doc.setFont("helvetica", "normal");
     doc.text(
-      releaseData?.ReleaseNumber || bolData?.releaseNumber || "N/A",
+      releaseData?.releaseNumber || bolData?.releaseNumber || "N/A",
       rightX + 30,
       rightY
     );
@@ -67,14 +67,14 @@ class BOLPdfService {
     doc.setFont("helvetica", "bold");
     doc.text("Truck#:", rightX, rightY);
     doc.setFont("helvetica", "normal");
-    doc.text(truckData?.TruckNumber || "N/A", rightX + 30, rightY);
+    doc.text(truckData?.truckNumber || "N/A", rightX + 30, rightY);
 
     rightY += 5;
     doc.setFont("helvetica", "bold");
     doc.text("Trailer#:", rightX, rightY);
     doc.setFont("helvetica", "normal");
     doc.text(
-      truckData?.TrailerNumber || bolData?.TrailerNumber || "N/A",
+      truckData?.trailerNumber || bolData?.trailerNumber || "N/A",
       rightX + 30,
       rightY
     );
@@ -88,19 +88,19 @@ class BOLPdfService {
     yPos += 5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(supplierData?.SupplierName || "YAS", margin, yPos);
+    doc.text(supplierData?.supplierName || "YAS", margin, yPos);
 
     // Carrier (right side)
     doc.setFont("helvetica", "bold");
     doc.text("Carrier:", rightX, yPos - 5);
     doc.setFont("helvetica", "normal");
-    doc.text(carrierData?.CarrierName || "Unknown", rightX + 25, yPos - 5);
+    doc.text(carrierData?.carrierName || "Unknown", rightX + 25, yPos - 5);
 
     doc.setFont("helvetica", "bold");
     doc.text("Pickup Date:", rightX, yPos);
     doc.setFont("helvetica", "normal");
-    const pickupDate = releaseData?.PickupDate
-      ? new Date(releaseData.PickupDate).toLocaleDateString()
+    const pickupDate = releaseData?.pickupDate
+      ? new Date(releaseData.pickupDate).toLocaleDateString()
       : new Date().toLocaleDateString();
     doc.text(pickupDate, rightX + 30, yPos);
 
@@ -113,29 +113,29 @@ class BOLPdfService {
     yPos += 5;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.text(customerData?.CustomerName || "Customer", margin, yPos);
+    doc.text(customerData?.customerName || "Customer", margin, yPos);
     yPos += 4;
 
-    if (customerData?.ContactName) {
-      doc.text(`Attn: ${customerData.ContactName}`, margin, yPos);
+    if (customerData?.contactName) {
+      doc.text(`Attn: ${customerData.contactName}`, margin, yPos);
       yPos += 4;
     }
-    if (customerData?.Address) {
-      doc.text(customerData.Address, margin, yPos);
+    if (customerData?.address) {
+      doc.text(customerData.address, margin, yPos);
       yPos += 4;
     }
-    if (customerData?.City && customerData?.State) {
+    if (customerData?.city && customerData?.state) {
       doc.text(
-        `${customerData.City}, ${customerData.State} ${
-          customerData.ZipCode || ""
+        `${customerData.city}, ${customerData.state} ${
+          customerData.zipCode || ""
         }`,
         margin,
         yPos
       );
       yPos += 4;
     }
-    if (customerData?.Phone) {
-      doc.text(`Phone: ${customerData.Phone}`, margin, yPos);
+    if (customerData?.phone) {
+      doc.text(`Phone: ${customerData.phone}`, margin, yPos);
       yPos += 4;
     }
 
