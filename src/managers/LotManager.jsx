@@ -1,5 +1,32 @@
+<<<<<<< Updated upstream
 // Fixed LotManager.jsx - Using direct Firebase fetch
 // Path: /Users/cerion/CBRT_UI/src/managers/LotManager.jsx
+||||||| Stash base
+// src/managers/LotManager.jsx - COMPLETE FIXED VERSION
+import React, { useState, useEffect } from 'react';
+import {
+  collection,
+  doc,
+  deleteDoc,
+  onSnapshot,
+} from 'firebase/firestore';
+import { db } from '../firebase/config';
+import PageHeader from '../components/PageHeader';
+import { EditIcon, DeleteIcon } from '../components/Icons';
+=======
+// src/managers/LotManager.jsx - COMPLETE FIXED VERSION
+import React, { useState, useEffect } from 'react';
+import {
+  collection,
+  doc,
+  deleteDoc,
+  onSnapshot,
+} from 'firebase/firestore';
+import { db } from '../firebase/config';
+import PageHeader from '../components/PageHeader';
+import { EditIcon, DeleteIcon } from '../components/Icons';
+import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+>>>>>>> Stashed changes
 
 import React, { useState, useEffect } from 'react';
 import { addDoc, updateDoc, deleteDoc, collection, doc, getDocs } from 'firebase/firestore';
@@ -9,9 +36,16 @@ import { db } from '../firebase/config';
 const useLotsDirect = () => {
   const [lots, setLots] = useState([]);
   const [loading, setLoading] = useState(true);
+<<<<<<< Updated upstream
   const [error, setError] = useState(null);
+||||||| Stash base
+=======
+  const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+>>>>>>> Stashed changes
 
   useEffect(() => {
+<<<<<<< Updated upstream
     const fetchLots = async () => {
       try {
         console.log('🔍 Fetching lots directly from Firestore...');
@@ -28,6 +62,84 @@ const useLotsDirect = () => {
         setError(err);
         setLoading(false);
       }
+||||||| Stash base
+    const unsubLots = onSnapshot(collection(db, 'lots'), snap => {
+      setLots(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    });
+    
+    // Only subscribe to collections that lots actually reference
+    const unsubCustomers = onSnapshot(collection(db, 'customers'), snap => {
+      setRefs(r => ({ ...r, customers: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+    });
+    
+    const unsubBarges = onSnapshot(collection(db, 'barges'), snap => {
+      setRefs(r => ({ ...r, barges: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+    });
+    
+    return () => {
+      unsubLots();
+      unsubCustomers();
+      unsubBarges();
+=======
+    const unsubLots = onSnapshot(
+      collection(db, 'lots'), 
+      (snap) => {
+        try {
+          setLots(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+          setLoading(false);
+          setError(null);
+        } catch (err) {
+          console.error('Error processing lots:', err);
+          setError(err);
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error('Error fetching lots:', error);
+        setError(error);
+        setLoading(false);
+      }
+    );
+    
+    // Only subscribe to collections that lots actually reference
+    const unsubCustomers = onSnapshot(
+      collection(db, 'customers'), 
+      (snap) => {
+        try {
+          setRefs(r => ({ ...r, customers: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+        } catch (err) {
+          console.error('Error processing customers:', err);
+          setError(err);
+        }
+      },
+      (error) => {
+        console.error('Error fetching customers:', error);
+        setError(error);
+      }
+    );
+    
+    const unsubBarges = onSnapshot(
+      collection(db, 'barges'), 
+      (snap) => {
+        try {
+          setRefs(r => ({ ...r, barges: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+        } catch (err) {
+          console.error('Error processing barges:', err);
+          setError(err);
+        }
+      },
+      (error) => {
+        console.error('Error fetching barges:', error);
+        setError(error);
+      }
+    );
+    
+    return () => {
+      unsubLots();
+      unsubCustomers();
+      unsubBarges();
+>>>>>>> Stashed changes
     };
 
     fetchLots();
@@ -177,8 +289,29 @@ const LotManager = () => {
     }
   };
 
-  if (loading) {
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this lot? This will affect all related barcodes.')) return;
+    
+    setActionLoading(id);
+    try {
+      await deleteDoc(doc(db, 'lots', id));
+    } catch (error) {
+      console.error('Error deleting lot:', error);
+      alert('Failed to delete lot. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
+  };
+
+  // Error state
+  if (error && !loading) {
     return (
+<<<<<<< Updated upstream
       <div className="p-6">
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -195,6 +328,21 @@ const LotManager = () => {
           <h3 className="text-red-800 font-medium">Error Loading Lots</h3>
           <p className="text-red-700 text-sm mt-1">{error.message}</p>
         </div>
+||||||| Stash base
+      <div className="flex items-center justify-center p-8">
+        <div className="text-lg">Loading lots...</div>
+=======
+      <div className="max-w-6xl mx-auto p-6">
+        <PageHeader 
+          title="Lots Management" 
+          subtitle="Manage lots (Items and Sizes managed via Barcodes)" 
+        />
+        <ErrorDisplay 
+          error={error} 
+          onRetry={handleRetry}
+          title="Failed to load lots data"
+        />
+>>>>>>> Stashed changes
       </div>
     );
   }
@@ -211,6 +359,7 @@ const LotManager = () => {
         </button>
       </div>
 
+<<<<<<< Updated upstream
       {lots && lots.length > 0 ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full">
@@ -237,7 +386,90 @@ const LotManager = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
+||||||| Stash base
+      <div className="bg-white shadow rounded overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="text-left px-4 py-2">Lot Number</th>
+              <th className="text-left px-4 py-2">Barge</th>
+              <th className="text-left px-4 py-2">Customer</th>
+              <th className="text-left px-4 py-2">Item</th>
+              <th className="text-left px-4 py-2">Size</th>
+              <th className="text-left px-4 py-2">Status</th>
+              <th className="text-right px-4 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lots.sort((a, b) => a.LotNumber.localeCompare(b.LotNumber)).map(l => (
+              <tr key={l.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-2 font-medium">{l.LotNumber}</td>
+                <td className="px-4 py-2">{getName(l.BargeId, 'barges', 'BargeName')}</td>
+                <td className="px-4 py-2">{getName(l.CustomerId, 'customers', 'CustomerName')}</td>
+                <td className="px-4 py-2 text-gray-500 italic">
+                  — 
+                  <span className="text-xs block">Via Barcodes</span>
+                </td>
+                <td className="px-4 py-2 text-gray-500 italic">
+                  — 
+                  <span className="text-xs block">Via Barcodes</span>
+                </td>
+                <td className="px-4 py-2">
+                  <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                    l.Status === 'Active' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {l.Status}
+                  </span>
+                </td>
+                <td className="px-4 py-2 text-right">
+                  <div className="flex justify-end gap-2">
+                    <button 
+                      className="text-green-700 hover:text-green-500"
+                      title="Edit functionality not available - lots are managed via data import"
+                      disabled
+                    >
+                      <EditIcon />
+                    </button>
+                    <button 
+                      onClick={async () => {
+                        if (window.confirm(`Are you sure you want to delete lot ${l.LotNumber}? This will affect all related barcodes.`)) {
+                          await deleteDoc(doc(db, 'lots', l.id));
+                        }
+                      }} 
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete lot"
+                    >
+                      <DeleteIcon />
+                    </button>
+                  </div>
+                </td>
+=======
+      {loading ? (
+        <TableSkeleton rows={6} columns={6} />
+      ) : lots.length === 0 ? (
+        <EmptyState
+          title="No lots found"
+          description="Import data via 'Data Import' to create lots."
+          actionText="Go to Data Import"
+          onAction={() => window.location.href = '/data-import'}
+        />
+      ) : (
+        <div className="bg-white shadow rounded overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <th className="text-left px-4 py-2">Lot Number</th>
+                <th className="text-left px-4 py-2">Barge</th>
+                <th className="text-left px-4 py-2">Customer</th>
+                <th className="text-left px-4 py-2">Item</th>
+                <th className="text-left px-4 py-2">Size</th>
+                <th className="text-left px-4 py-2">Status</th>
+                <th className="text-right px-4 py-2">Actions</th>
+>>>>>>> Stashed changes
               </tr>
+<<<<<<< Updated upstream
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {lots.map((lot) => (
@@ -435,6 +667,96 @@ const LotManager = () => {
           </div>
         </div>
       )}
+||||||| Stash base
+            ))}
+          </tbody>
+        </table>
+
+        {lots.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No lots found. Import data via "Data Import" to create lots.
+          </div>
+        )}
+      </div>
+
+      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h3 className="font-semibold text-blue-800 mb-2">ℹ️ About Lots Schema</h3>
+        <p className="text-sm text-blue-700">
+          Lots now use a <strong>clean schema</strong> containing only: LotNumber, BargeId, CustomerId, and Status.
+          Item and Size relationships are managed through the <strong>Barcodes collection</strong>, 
+          which provides the complete linking between Lots, Items, and Sizes.
+        </p>
+        <p className="text-sm text-blue-700 mt-2">
+          Use <strong>Data Import</strong> or <strong>Barcode Upload</strong> to create lots with proper relationships.
+        </p>
+      </div>
+=======
+            </thead>
+            <tbody>
+              {lots.sort((a, b) => a.LotNumber.localeCompare(b.LotNumber)).map(l => (
+                <tr key={l.id} className="border-t hover:bg-gray-50">
+                  <td className="px-4 py-2 font-medium">{l.LotNumber}</td>
+                  <td className="px-4 py-2">{getName(l.BargeId, 'barges', 'BargeName')}</td>
+                  <td className="px-4 py-2">{getName(l.CustomerId, 'customers', 'CustomerName')}</td>
+                  <td className="px-4 py-2 text-gray-500 italic">
+                    — 
+                    <span className="text-xs block">Via Barcodes</span>
+                  </td>
+                  <td className="px-4 py-2 text-gray-500 italic">
+                    — 
+                    <span className="text-xs block">Via Barcodes</span>
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                      l.Status === 'Active' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {l.Status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        className="text-green-700 hover:text-green-500 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Edit functionality not available - lots are managed via data import"
+                        disabled
+                      >
+                        <EditIcon />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(l.id)}
+                        disabled={actionLoading === l.id}
+                        className="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center"
+                        title="Delete lot"
+                      >
+                        {actionLoading === l.id ? (
+                          <LoadingSpinner size="sm" />
+                        ) : (
+                          <DeleteIcon />
+                        )}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h3 className="font-semibold text-blue-800 mb-2">ℹ️ About Lots Schema</h3>
+        <p className="text-sm text-blue-700">
+          Lots now use a <strong>clean schema</strong> containing only: LotNumber, BargeId, CustomerId, and Status.
+          Item and Size relationships are managed through the <strong>Barcodes collection</strong>, 
+          which provides the complete linking between Lots, Items, and Sizes.
+        </p>
+        <p className="text-sm text-blue-700 mt-2">
+          Use <strong>Data Import</strong> or <strong>Barcode Upload</strong> to create lots with proper relationships.
+        </p>
+      </div>
+>>>>>>> Stashed changes
     </div>
   );
 };

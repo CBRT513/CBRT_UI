@@ -4,12 +4,72 @@
 import React, { useState, useEffect } from 'react';
 import { addDoc, updateDoc, deleteDoc, collection, doc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
+<<<<<<< Updated upstream
+||||||| Stash base
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  orderBy,
+  query,
+} from 'firebase/firestore';
+=======
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  orderBy,
+  query,
+} from 'firebase/firestore';
+import PageHeader from '../components/PageHeader';
+import Modal from '../components/Modal';
+import { EditIcon, DeleteIcon } from '../components/Icons';
+import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+>>>>>>> Stashed changes
 
 // Direct Firebase fetch for sizes
 const useSizesDirect = () => {
   const [sizes, setSizes] = useState([]);
+<<<<<<< Updated upstream
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+||||||| Stash base
+  const [form, setForm] = useState({ SizeName: '', Status: 'Active' });
+  const [editingId, setEditingId] = useState(null);
+
+  const fetchSizes = async () => {
+    const q = query(collection(db, 'sizes'), orderBy('SizeName'));
+    const snap = await getDocs(q);
+    setSizes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  };
+=======
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+
+  const fetchSizes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const q = query(collection(db, 'sizes'), orderBy('SizeName'));
+      const snap = await getDocs(q);
+      setSizes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error('Error fetching sizes:', err);
+      setError(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+>>>>>>> Stashed changes
 
   useEffect(() => {
     const fetchSizes = async () => {
@@ -40,6 +100,7 @@ const useSizesDirect = () => {
     fetchSizes();
   }, []);
 
+<<<<<<< Updated upstream
   return { sizes, loading, error };
 };
 
@@ -154,8 +215,87 @@ const SizeManager = () => {
       </div>
     );
   }
+||||||| Stash base
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.SizeName.trim()) return;
+
+    if (editingId) {
+      await updateDoc(doc(db, 'sizes', editingId), {
+        SizeName: form.SizeName.trim(),
+        Status: form.Status,
+      });
+    } else {
+      await addDoc(collection(db, 'sizes'), {
+        SizeName: form.SizeName.trim(),
+        Status: form.Status,
+        SortOrder: 'ascending'
+      });
+    }
+    setForm({ SizeName: '', Status: 'Active' });
+    setEditingId(null);
+    fetchSizes();
+  };
+
+  const handleEdit = (size) => {
+    setForm({ SizeName: size.SizeName, Status: size.Status });
+    setEditingId(size.id);
+  };
+
+  const handleDelete = async (id) => {
+    await deleteDoc(doc(db, 'sizes', id));
+    fetchSizes();
+  };
+=======
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this size?')) return;
+    
+    setActionLoading(id);
+    try {
+      await deleteDoc(doc(db, 'sizes', id));
+      fetchSizes();
+    } catch (error) {
+      console.error('Error deleting size:', error);
+      alert('Failed to delete size. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRetry = () => {
+    fetchSizes();
+  };
+>>>>>>> Stashed changes
+
+  const fields = [
+    { name: 'SizeName', label: 'Size Name', type: 'text' },
+    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] },
+  ];
+
+  // Error state
+  if (error && !loading) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <PageHeader 
+          title="Sizes Management" 
+          subtitle="Manage sizes" 
+        />
+        <ErrorDisplay 
+          error={error} 
+          onRetry={handleRetry}
+          title="Failed to load sizes data"
+        />
+      </div>
+    );
+  }
 
   return (
+<<<<<<< Updated upstream
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Sizes</h1>
@@ -166,7 +306,108 @@ const SizeManager = () => {
           <span className="text-lg">+</span> Add Size
         </button>
       </div>
+||||||| Stash base
+    <div className="p-6">
+      <h2 className="text-2xl font-bold text-green-600 mb-2">Sizes Management</h2>
+      <p className="text-gray-600 mb-6">Manage sizes</p>
 
+      <form onSubmit={handleSubmit} className="flex flex-wrap gap-4 mb-6">
+        <input
+          name="SizeName"
+          value={form.SizeName}
+          onChange={handleChange}
+          placeholder="Size Name"
+          className="border px-3 py-2 rounded w-48"
+          required
+        />
+        <select
+          name="Status"
+          value={form.Status}
+          onChange={handleChange}
+          className="border px-3 py-2 rounded w-32"
+        >
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+        <button type="submit" className="bg-green-700 text-white px-4 py-2 rounded">
+          {editingId ? 'Update Size' : 'Add New Size'}
+        </button>
+      </form>
+=======
+    <>
+      <PageHeader
+        title="Sizes Management"
+        subtitle="Manage sizes"
+        buttonText="Add New Size"
+        onAdd={() => {
+          setCurrent(null);
+          setOpen(true);
+        }}
+        disabled={loading}
+      />
+
+      {loading ? (
+        <TableSkeleton rows={6} columns={2} />
+      ) : sizes.length === 0 ? (
+        <EmptyState
+          title="No sizes found"
+          description="Get started by adding a new size."
+          actionText="Add New Size"
+          onAction={() => { setCurrent(null); setOpen(true); }}
+        />
+      ) : (
+        <div className="bg-white shadow rounded overflow-x-auto">
+          <table className="w-full divide-y divide-gray-200">
+            <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+              <tr>
+                {fields.map(f => (
+                  <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
+                ))}
+                <th className="px-6 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sizes.map(size => (
+                <tr key={size.id} className="hover:bg-gray-50">
+                  {fields.map(f => (
+                    <td key={f.name} className="px-6 py-4">{size[f.name] ?? '—'}</td>
+                  ))}
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setCurrent(size);
+                          setOpen(true);
+                        }}
+                        disabled={actionLoading === size.id}
+                        className="text-green-800 hover:text-green-600 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Edit"
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(size.id)}
+                        disabled={actionLoading === size.id}
+                        className="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center"
+                        title="Delete"
+                      >
+                        {actionLoading === size.id ? (
+                          <LoadingSpinner size="sm" />
+                        ) : (
+                          <DeleteIcon />
+                        )}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+>>>>>>> Stashed changes
+
+<<<<<<< Updated upstream
       {sizes && sizes.length > 0 ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full">
@@ -302,6 +543,59 @@ const SizeManager = () => {
         </div>
       )}
     </div>
+||||||| Stash base
+      <table className="w-full text-sm border border-gray-300">
+        <thead className="bg-gray-800 text-white">
+          <tr>
+            <th className="p-2 text-left">Size Name</th>
+            <th className="p-2 text-left">Status</th>
+            <th className="p-2 text-left">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sizes.map(size => (
+            <tr key={size.id} className="border-t border-gray-200">
+              <td className="p-2">{size.SizeName}</td>
+              <td className="p-2">{size.Status}</td>
+              <td className="p-2">
+                <button onClick={() => handleEdit(size)} className="text-green-600 mr-2">✏️</button>
+                <button onClick={() => handleDelete(size.id)} className="text-red-600">🗑️</button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+=======
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Size`}
+          fields={fields}
+          initialData={current}
+          onClose={() => setOpen(false)}
+          onSave={async data => {
+            try {
+              const sizeData = {
+                ...data,
+                SortOrder: 'ascending'
+              };
+              
+              if (current?.id) {
+                await updateDoc(doc(db, 'sizes', current.id), sizeData);
+              } else {
+                await addDoc(collection(db, 'sizes'), sizeData);
+              }
+              setOpen(false);
+              fetchSizes();
+            } catch (error) {
+              console.error('Error saving size:', error);
+              alert('Failed to save size. Please try again.');
+            }
+          }}
+        />
+      )}
+    </>
+>>>>>>> Stashed changes
   );
 };
 

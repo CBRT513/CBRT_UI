@@ -1,4 +1,14 @@
+<<<<<<< Updated upstream
 import React, { useState, useEffect } from 'react';
+||||||| Stash base
+// src/routes/NewRelease.jsx - COMPLETE FIXED VERSION
+import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, addDoc } from 'firebase/firestore';
+=======
+// src/routes/NewRelease.jsx - FULLY OPTIMIZED with React Performance
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
+import { collection, onSnapshot, addDoc, query, where } from 'firebase/firestore';
+>>>>>>> Stashed changes
 import { db } from '../firebase/config';
 import { 
   collection, 
@@ -16,13 +26,129 @@ import {
 import releaseNotificationService from '../services/releaseNotificationService';
 import duplicateDetectionService from '../services/duplicateDetectionService';
 
+<<<<<<< Updated upstream
 const NewRelease = () => {
   // Core state
   const [suppliers, setSuppliers] = useState([]);
+||||||| Stash base
+export default function NewRelease() {
+=======
+// ✅ REACT OPTIMIZATION: Memoized Line Item Component
+const LineItem = memo(({ 
+  line, 
+  idx, 
+  availableItems, 
+  availableSizes, 
+  availableLots, 
+  updateLine, 
+  removeLine, 
+  isDataLoading 
+}) => {
+  const handleItemChange = useCallback((e) => {
+    updateLine(idx, 'itemId', e.target.value);
+  }, [idx, updateLine]);
+
+  const handleSizeChange = useCallback((e) => {
+    updateLine(idx, 'sizeId', e.target.value);
+  }, [idx, updateLine]);
+
+  const handleLotChange = useCallback((e) => {
+    updateLine(idx, 'lotId', e.target.value);
+  }, [idx, updateLine]);
+
+  const handleQtyChange = useCallback((e) => {
+    updateLine(idx, 'qty', parseInt(e.target.value, 10));
+  }, [idx, updateLine]);
+
+  const handleRemove = useCallback(() => {
+    removeLine(idx);
+  }, [idx, removeLine]);
+
+  return (
+    <div className="flex gap-2 items-center">
+      <select
+        value={line.itemId}
+        onChange={handleItemChange}
+        required
+        disabled={isDataLoading}
+        className="flex-1 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      >
+        <option value="">
+          {isDataLoading ? 'Loading...' : 'Select Item'}
+        </option>
+        {availableItems.map(i => (
+          <option key={i.id} value={i.id}>{i.code}</option>
+        ))}
+      </select>
+
+      <select
+        value={line.sizeId}
+        onChange={handleSizeChange}
+        disabled={!line.itemId || isDataLoading}
+        required
+        className="flex-1 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      >
+        <option value="">
+          {!line.itemId ? 'Select Item First' : isDataLoading ? 'Loading...' : 'Select Size'}
+        </option>
+        {availableSizes.map(s => (
+          <option key={s.id} value={s.id}>{s.name}</option>
+        ))}
+      </select>
+
+      <select
+        value={line.lotId}
+        onChange={handleLotChange}
+        disabled={!line.itemId || !line.sizeId || isDataLoading}
+        required
+        className="flex-1 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+      >
+        <option value="">
+          {!line.itemId || !line.sizeId ? 'Select Size First' : isDataLoading ? 'Loading...' : 'Select Lot'}
+        </option>
+        {availableLots.map(l => (
+          <option key={l.id} value={l.id}>{l.number}</option>
+        ))}
+      </select>
+
+      <input
+        type="number"
+        min="1"
+        value={line.qty}
+        onChange={handleQtyChange}
+        disabled={isDataLoading}
+        className="w-16 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+        required
+      />
+
+      <button
+        type="button"
+        onClick={handleRemove}
+        disabled={isDataLoading}
+        className="text-red-600 hover:text-red-800 font-bold text-xl w-8 h-8 flex items-center justify-center disabled:text-gray-400 disabled:cursor-not-allowed"
+        title="Remove line"
+      >×</button>
+    </div>
+  );
+});
+
+LineItem.displayName = 'LineItem';
+
+export default function NewRelease() {
+>>>>>>> Stashed changes
   const [customers, setCustomers] = useState([]);
+<<<<<<< Updated upstream
   const [filteredCustomers, setFilteredCustomers] = useState([]);
+||||||| Stash base
+  const [barcodes, setBarcodes] = useState([]);  // ✅ ADD: Barcodes collection
+  const [lots, setLots] = useState([]);
+=======
+  const [customerBarcodes, setCustomerBarcodes] = useState([]); // Only barcodes for selected customer
+  const [lots, setLots] = useState([]);
+>>>>>>> Stashed changes
   const [items, setItems] = useState([]);
   const [sizes, setSizes] = useState([]);
+<<<<<<< Updated upstream
   const [barcodes, setBarcodes] = useState([]);
   
   // Form state
@@ -56,9 +182,27 @@ const NewRelease = () => {
   // In-memory inventory cache for fast calculations
   const [inventoryCache, setInventoryCache] = useState(new Map());
   const [isInventoryLoaded, setIsInventoryLoaded] = useState(false);
+||||||| Stash base
+  const [form, setForm] = useState({ customerId: '', items: [] });
+=======
+  const [form, setForm] = useState({ customerId: '', items: [] });
+  const [loading, setLoading] = useState({
+    customers: true,
+    barcodes: false,
+    items: false,
+    sizes: false,
+    lots: false
+  });
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
   // Initialize draft release and activity tracking
+||||||| Stash base
+=======
+  // ✅ OPTIMIZATION 1: Only fetch active customers on mount
+>>>>>>> Stashed changes
   useEffect(() => {
+<<<<<<< Updated upstream
     const initializeDraftRelease = async () => {
       // Create a temporary draft release ID for allocation tracking
       const tempReleaseId = `draft_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -86,16 +230,271 @@ const NewRelease = () => {
         cleanupDraftAllocations(draftReleaseId);
       }
     };
+||||||| Stash base
+    const unsub = [
+      onSnapshot(collection(db, 'customers'), snap => setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(collection(db, 'barcodes'), snap => setBarcodes(snap.docs.map(d => ({ id: d.id, ...d.data() })))), // ✅ ADD: Barcodes subscription
+      onSnapshot(collection(db, 'lots'), snap => setLots(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(collection(db, 'items'), snap => setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(collection(db, 'sizes'), snap => setSizes(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    ];
+    return () => unsub.forEach(fn => fn());
+=======
+    const customersQuery = query(
+      collection(db, 'customers'),
+      where('Status', '==', 'Active')
+    );
+    
+    const unsubCustomers = onSnapshot(customersQuery, snap => {
+      setCustomers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(prev => ({ ...prev, customers: false }));
+    });
+
+    return () => unsubCustomers();
+>>>>>>> Stashed changes
   }, []);
 
+<<<<<<< Updated upstream
   // Check for duplicates when key fields change
   useEffect(() => {
     const checkForPotentialDuplicates = async () => {
       if (!selectedSupplier || !selectedCustomer || !releaseNumber) {
         setDuplicateWarning(null);
         return;
+||||||| Stash base
+  const updateLine = (idx, key, value) => {
+    setForm(f => {
+      const updated = [...f.items];
+      const currentLine = { ...updated[idx], [key]: value };
+      
+      // Auto-reset downstream selects when upstream changes
+      if (key === 'itemId') {
+        currentLine.sizeId = '';
+        currentLine.lotId = '';
+      } else if (key === 'sizeId') {
+        currentLine.lotId = '';
+=======
+  // ✅ OPTIMIZATION 2: Fetch data only when customer changes
+  useEffect(() => {
+    if (!form.customerId) {
+      setCustomerBarcodes([]);
+      setItems([]);
+      setSizes([]);
+      setLots([]);
+      return;
+    }
+
+    setLoading({
+      customers: false,
+      barcodes: true,
+      items: true,
+      sizes: true,
+      lots: true
+    });
+
+    // Query barcodes for selected customer only
+    const barcodesQuery = query(
+      collection(db, 'barcodes'),
+      where('CustomerId', '==', form.customerId)
+    );
+
+    // Query lots for selected customer only
+    const lotsQuery = query(
+      collection(db, 'lots'),
+      where('CustomerId', '==', form.customerId),
+      where('Status', '==', 'Active')
+    );
+
+    // Query active items and sizes (we'll filter these in memory for now)
+    const itemsQuery = query(
+      collection(db, 'items'),
+      where('Status', '==', 'Active')
+    );
+
+    const sizesQuery = query(
+      collection(db, 'sizes'),
+      where('Status', '==', 'Active')
+    );
+
+    const unsubscribers = [
+      onSnapshot(barcodesQuery, snap => {
+        setCustomerBarcodes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setLoading(prev => ({ ...prev, barcodes: false }));
+      }),
+      
+      onSnapshot(lotsQuery, snap => {
+        setLots(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setLoading(prev => ({ ...prev, lots: false }));
+      }),
+      
+      onSnapshot(itemsQuery, snap => {
+        setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setLoading(prev => ({ ...prev, items: false }));
+      }),
+      
+      onSnapshot(sizesQuery, snap => {
+        setSizes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setLoading(prev => ({ ...prev, sizes: false }));
+      })
+    ];
+
+    return () => unsubscribers.forEach(fn => fn());
+  }, [form.customerId]);
+
+  // ✅ OPTIMIZATION 3: useMemo for expensive filtering operations
+  const itemsForCustomer = useMemo(() => {
+    if (!form.customerId || !customerBarcodes.length) return [];
+    
+    // Get unique item IDs from customer's barcodes
+    const itemIds = new Set(
+      customerBarcodes
+        .map(b => b.ItemId)
+        .filter(Boolean)
+    );
+    
+    // Filter and deduplicate items
+    const itemMap = new Map();
+    items
+      .filter(i => itemIds.has(i.id))
+      .forEach(i => {
+        if (!itemMap.has(i.id)) {
+          itemMap.set(i.id, {
+            id: i.id,
+            code: i.ItemCode,
+            name: i.ItemName
+          });
+        }
+      });
+    
+    return Array.from(itemMap.values()).sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+  }, [form.customerId, customerBarcodes, items]);
+
+  // ✅ OPTIMIZATION: Create lookup maps for better performance
+  const sizeLookupByItem = useMemo(() => {
+    if (!form.customerId || !customerBarcodes.length) return new Map();
+    
+    const lookupMap = new Map();
+    
+    // Group barcodes by ItemId for faster lookups
+    const barcodesByItem = new Map();
+    customerBarcodes.forEach(b => {
+      if (!b.ItemId) return;
+      if (!barcodesByItem.has(b.ItemId)) {
+        barcodesByItem.set(b.ItemId, []);
+      }
+      barcodesByItem.get(b.ItemId).push(b);
+    });
+    
+    // Build size lookup for each item
+    barcodesByItem.forEach((itemBarcodes, itemId) => {
+      const sizeIds = new Set(
+        itemBarcodes
+          .map(b => b.SizeId)
+          .filter(Boolean)
+      );
+      
+      const sizeMap = new Map();
+      sizes
+        .filter(s => sizeIds.has(s.id))
+        .forEach(s => {
+          if (!sizeMap.has(s.id)) {
+            sizeMap.set(s.id, {
+              id: s.id,
+              name: s.SizeName,
+              sortOrder: s.SortOrder || 0
+            });
+          }
+        });
+      
+      const sortedSizes = Array.from(sizeMap.values()).sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) {
+          return a.sortOrder - b.sortOrder;
+        }
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      
+      lookupMap.set(itemId, sortedSizes);
+    });
+    
+    return lookupMap;
+  }, [form.customerId, customerBarcodes, sizes]);
+
+  const lotLookupByItemSize = useMemo(() => {
+    if (!form.customerId || !customerBarcodes.length) return new Map();
+    
+    const lookupMap = new Map();
+    
+    // Group barcodes by ItemId + SizeId for faster lookups
+    const barcodesByItemSize = new Map();
+    customerBarcodes.forEach(b => {
+      if (!b.ItemId || !b.SizeId) return;
+      const key = `${b.ItemId}_${b.SizeId}`;
+      if (!barcodesByItemSize.has(key)) {
+        barcodesByItemSize.set(key, []);
+      }
+      barcodesByItemSize.get(key).push(b);
+    });
+    
+    // Build lot lookup for each item+size combination
+    barcodesByItemSize.forEach((itemSizeBarcodes, key) => {
+      const lotIds = new Set(
+        itemSizeBarcodes
+          .map(b => b.LotId)
+          .filter(Boolean)
+      );
+      
+      const lotMap = new Map();
+      lots
+        .filter(l => lotIds.has(l.id))
+        .forEach(l => {
+          if (!lotMap.has(l.id)) {
+            lotMap.set(l.id, {
+              id: l.id,
+              number: l.LotNumber
+            });
+          }
+        });
+      
+      const sortedLots = Array.from(lotMap.values()).sort((a, b) => (a.number || '').localeCompare(b.number || ''));
+      lookupMap.set(key, sortedLots);
+    });
+    
+    return lookupMap;
+  }, [customerBarcodes, lots]);
+
+  // ✅ OPTIMIZATION: Fast lookup functions using memoized maps
+  const getSizesForItem = useCallback((itemId) => {
+    if (!itemId) return [];
+    return sizeLookupByItem.get(itemId) || [];
+  }, [sizeLookupByItem]);
+
+  const getLotsForItem = useCallback((customerId, itemId, sizeId) => {
+    if (!customerId || !itemId || !sizeId) return [];
+    const key = `${itemId}_${sizeId}`;
+    return lotLookupByItemSize.get(key) || [];
+  }, [lotLookupByItemSize]);
+
+  // ✅ OPTIMIZATION 4: Memoized customer list
+  const activeCustomers = useMemo(() => {
+    return customers.sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
+  }, [customers]);
+
+  // ✅ OPTIMIZATION 5: Optimized form handlers
+  const updateLine = useCallback((idx, key, value) => {
+    setForm(f => {
+      const updated = [...f.items];
+      const currentLine = { ...updated[idx], [key]: value };
+      
+      // Auto-reset downstream selects when upstream changes
+      if (key === 'itemId') {
+        currentLine.sizeId = '';
+        currentLine.lotId = '';
+      } else if (key === 'sizeId') {
+        currentLine.lotId = '';
+>>>>>>> Stashed changes
       }
       
+<<<<<<< Updated upstream
       try {
         const checkData = {
           supplierId: selectedSupplier,
@@ -163,7 +562,19 @@ const NewRelease = () => {
       console.error('❌ Error updating activity:', error);
     }
   };
+||||||| Stash base
+      updated[idx] = currentLine;
+      return { ...f, items: updated };
+    });
+  };
+=======
+      updated[idx] = currentLine;
+      return { ...f, items: updated };
+    });
+  }, []);
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
   // Cleanup draft allocations
   const cleanupDraftAllocations = async (releaseId) => {
     try {
@@ -580,12 +991,41 @@ const NewRelease = () => {
     const availableLots = Array.from(lotMap, ([lotNumber, availableQuantity]) => ({
       lotNumber,
       availableQuantity
+||||||| Stash base
+  const addLine = () => {
+    setForm(f => ({
+      ...f,
+      items: [...f.items, { id: uuid(), itemId: '', sizeId: '', lotId: '', qty: 1 }]
+=======
+  const addLine = useCallback(() => {
+    setForm(f => ({
+      ...f,
+      items: [...f.items, { id: uuid(), itemId: '', sizeId: '', lotId: '', qty: 1 }]
+>>>>>>> Stashed changes
     }));
+<<<<<<< Updated upstream
     
     console.log("🔍 Available lots debug:", availableLots);
     return availableLots;
   };
+||||||| Stash base
+  };
+=======
+  }, []);
 
+  const removeLine = useCallback((idx) => {
+    setForm(f => ({
+      ...f,
+      items: f.items.filter((_, i2) => i2 !== idx)
+    }));
+  }, []);
+
+  const handleCustomerChange = useCallback((customerId) => {
+    setForm({ customerId, items: [] });
+  }, []);
+>>>>>>> Stashed changes
+
+<<<<<<< Updated upstream
   // Update all line items when any change affects availability
   const updateAllLineItems = () => {
     if (!isInventoryLoaded) return;
@@ -837,6 +1277,136 @@ const NewRelease = () => {
       setIsLoadingCustomers(false);
     }
   };
+||||||| Stash base
+  const submit = async e => {
+    e.preventDefault();
+    await addDoc(collection(db, 'releases'), { ...form, status: 'open', createdAt: new Date() });
+    setForm({ customerId: '', items: [] });
+  };
+
+  // ✅ FIXED: Step 1 - Items for Customer (using barcodes)
+  const getItemsForCustomer = () => {
+    if (!form.customerId) return [];
+    
+    // Get unique item IDs from barcodes that match the customer
+    const itemIds = new Set(
+      barcodes
+        .filter(b => b.CustomerId === form.customerId)
+        .map(b => b.ItemId)
+        .filter(Boolean)
+    );
+    
+    // Get items that match these IDs and are active, then deduplicate
+    const itemMap = new Map();
+    items
+      .filter(i => itemIds.has(i.id) && i.Status === 'Active')
+      .forEach(i => {
+        if (!itemMap.has(i.id)) {
+          itemMap.set(i.id, {
+            id: i.id,
+            code: i.ItemCode,
+            name: i.ItemName
+          });
+        }
+      });
+    
+    // Return sorted array
+    return Array.from(itemMap.values()).sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+  };
+
+  // ✅ FIXED: Step 2 - Sizes for Customer + Item (using barcodes)
+  const getSizesForItem = itemId => {
+    if (!form.customerId || !itemId) return [];
+    
+    // Get unique size IDs from barcodes that match customer + item
+    const sizeIds = new Set(
+      barcodes
+        .filter(b => b.CustomerId === form.customerId && b.ItemId === itemId)
+        .map(b => b.SizeId)
+        .filter(Boolean)
+    );
+    
+    // Get sizes that match these IDs and are active, then deduplicate
+    const sizeMap = new Map();
+    sizes
+      .filter(s => sizeIds.has(s.id) && s.Status === 'Active')
+      .forEach(s => {
+        if (!sizeMap.has(s.id)) {
+          sizeMap.set(s.id, {
+            id: s.id,
+            name: s.SizeName,
+            sortOrder: s.SortOrder || 0
+          });
+        }
+      });
+    
+    // Return sorted array (by SortOrder, then by name)
+    return Array.from(sizeMap.values()).sort((a, b) => {
+      if (a.sortOrder !== b.sortOrder) {
+        return a.sortOrder - b.sortOrder;
+      }
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  };
+
+  // ✅ FIXED: Step 3 - Lots for Customer + Item + Size (using barcodes)
+  const getLotsForItem = (customerId, itemId, sizeId) => {
+    if (!customerId || !itemId || !sizeId) return [];
+    
+    // Get unique lot IDs from barcodes that match customer + item + size
+    const lotIds = new Set(
+      barcodes
+        .filter(b => 
+          b.CustomerId === customerId && 
+          b.ItemId === itemId && 
+          b.SizeId === sizeId
+        )
+        .map(b => b.LotId)
+        .filter(Boolean)
+    );
+    
+    // Get lots that match these IDs and are active, then deduplicate
+    const lotMap = new Map();
+    lots
+      .filter(l => lotIds.has(l.id) && l.Status === 'Active')
+      .forEach(l => {
+        if (!lotMap.has(l.id)) {
+          lotMap.set(l.id, {
+            id: l.id,
+            number: l.LotNumber
+          });
+        }
+      });
+    
+    // Return sorted array
+    return Array.from(lotMap.values()).sort((a, b) => (a.number || '').localeCompare(b.number || ''));
+  };
+
+  // Get active customers sorted alphabetically
+  const getActiveCustomers = () => {
+    return customers
+      .filter(c => c.Status === 'Active')
+      .sort((a, b) => (a.CustomerName || '').localeCompare(b.CustomerName || ''));
+  };
+=======
+  const submit = async e => {
+    e.preventDefault();
+    try {
+      await addDoc(collection(db, 'releases'), { 
+        ...form, 
+        status: 'open', 
+        createdAt: new Date() 
+      });
+      setForm({ customerId: '', items: [] });
+    } catch (error) {
+      console.error('Error creating release:', error);
+      alert('Failed to create release. Please try again.');
+    }
+  };
+
+  // ✅ OPTIMIZATION 6: Loading states for better UX
+  const isDataLoading = loading.barcodes || loading.items || loading.sizes || loading.lots;
+>>>>>>> Stashed changes
 
   // Customer change handler
   const handleCustomerChange = (e) => {
@@ -1334,6 +1904,7 @@ const NewRelease = () => {
 
 
   return (
+<<<<<<< Updated upstream
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Create New Release</h1>
@@ -1486,8 +2057,120 @@ const NewRelease = () => {
               >
                 Add Line Item
               </button>
-            </div>
+||||||| Stash base
+    <div className="max-w-2xl mx-auto">
+      <PageHeader title="Create New Release" subtitle="" />
+      <form onSubmit={submit} className="bg-white shadow rounded p-6 space-y-4">
+        <select
+          value={form.customerId}
+          onChange={e => setForm({ customerId: e.target.value, items: [] })}
+          required
+          className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="">Select Customer</option>
+          {getActiveCustomers().map(c => (
+            <option key={c.id} value={c.id}>{c.CustomerName}</option>
+          ))}
+        </select>
 
+        {form.items.map((line, idx) => {
+          const availableItems = getItemsForCustomer();
+          const availableSizes = getSizesForItem(line.itemId);
+          const availableLots = getLotsForItem(form.customerId, line.itemId, line.sizeId);
+
+          return (
+            <div key={line.id} className="flex gap-2 items-center">
+              <select
+                value={line.itemId}
+                onChange={e => updateLine(idx, 'itemId', e.target.value)}
+                required
+                className="flex-1 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Item</option>
+                {availableItems.map(i => (
+                  <option key={i.id} value={i.id}>{i.code}</option>
+                ))}
+              </select>
+
+              <select
+                value={line.sizeId}
+                onChange={e => updateLine(idx, 'sizeId', e.target.value)}
+                disabled={!line.itemId}
+                required
+                className="flex-1 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Select Size</option>
+                {availableSizes.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={line.lotId}
+                onChange={e => updateLine(idx, 'lotId', e.target.value)}
+                disabled={!line.itemId || !line.sizeId}
+                required
+                className="flex-1 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Select Lot</option>
+                {availableLots.map(l => (
+                  <option key={l.id} value={l.id}>{l.number}</option>
+                ))}
+              </select>
+
+              <input
+                type="number"
+                min="1"
+                value={line.qty}
+                onChange={e => updateLine(idx, 'qty', parseInt(e.target.value, 10))}
+                className="w-16 border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+
+              <button
+                type="button"
+                onClick={() => setForm(f => ({
+                  ...f,
+                  items: f.items.filter((_, i2) => i2 !== idx)
+                }))}
+                className="text-red-600 hover:text-red-800 font-bold text-xl w-8 h-8 flex items-center justify-center"
+                title="Remove line"
+              >×</button>
+=======
+    <div className="max-w-2xl mx-auto">
+      <PageHeader title="Create New Release" subtitle="" />
+      <form onSubmit={submit} className="bg-white shadow rounded p-6 space-y-4">
+        {/* Customer Selection */}
+        <div className="relative">
+          <select
+            value={form.customerId}
+            onChange={e => handleCustomerChange(e.target.value)}
+            required
+            disabled={loading.customers}
+            className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          >
+            <option value="">
+              {loading.customers ? 'Loading customers...' : 'Select Customer'}
+            </option>
+            {activeCustomers.map(c => (
+              <option key={c.id} value={c.id}>{c.CustomerName}</option>
+            ))}
+          </select>
+          {loading.customers && (
+            <div className="absolute right-3 top-3">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+>>>>>>> Stashed changes
+            </div>
+<<<<<<< Updated upstream
+||||||| Stash base
+          );
+        })}
+=======
+          )}
+        </div>
+>>>>>>> Stashed changes
+
+<<<<<<< Updated upstream
             {lineItems.map((lineItem, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
                 <div className="flex justify-between items-center mb-3">
@@ -1681,6 +2364,68 @@ const NewRelease = () => {
           </div>
         )}
       </div>
+||||||| Stash base
+        <div className="flex justify-between">
+          <button 
+            type="button" 
+            onClick={addLine} 
+            className="border border-gray-300 px-3 py-1 rounded hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            + Line
+          </button>
+          <button 
+            type="submit" 
+            disabled={!form.customerId || form.items.length === 0}
+            className="bg-green-800 text-white px-4 py-2 rounded hover:bg-green-900 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            Save
+          </button>
+        </div>
+      </form>
+=======
+        {/* Data Loading Indicator */}
+        {form.customerId && isDataLoading && (
+          <div className="bg-blue-50 border border-blue-200 rounded p-3 flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+            <span className="text-blue-700 text-sm">Loading inventory data...</span>
+          </div>
+        )}
+
+        {/* Line Items - Using Memoized Component */}
+        {form.items.map((line, idx) => (
+          <LineItem
+            key={line.id}
+            line={line}
+            idx={idx}
+            availableItems={itemsForCustomer}
+            availableSizes={getSizesForItem(line.itemId)}
+            availableLots={getLotsForItem(form.customerId, line.itemId, line.sizeId)}
+            updateLine={updateLine}
+            removeLine={removeLine}
+            isDataLoading={isDataLoading}
+          />
+        ))}
+
+        {/* Action Buttons */}
+        <div className="flex justify-between">
+          <button 
+            type="button" 
+            onClick={addLine} 
+            disabled={!form.customerId || isDataLoading}
+            className="border border-gray-300 px-3 py-1 rounded hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          >
+            + Line
+          </button>
+          <button 
+            type="submit" 
+            disabled={!form.customerId || form.items.length === 0 || isDataLoading}
+            className="bg-green-800 text-white px-4 py-2 rounded hover:bg-green-900 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            Save
+          </button>
+        </div>
+      </form>
+>>>>>>> Stashed changes
     </div>
   );
 };

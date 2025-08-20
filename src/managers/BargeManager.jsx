@@ -1,6 +1,24 @@
+<<<<<<< Updated upstream
 // Fixed BargeManager.jsx - Using direct Firebase fetch
 // Path: /Users/cerion/CBRT_UI/src/managers/BargeManager.jsx
+||||||| Stash base
+import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import PageHeader from '../components/PageHeader';
+import Modal from '../components/Modal';
+import { EditIcon, DeleteIcon } from '../components/Icons';
+=======
+import React, { useState, useEffect } from 'react';
+import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import PageHeader from '../components/PageHeader';
+import Modal from '../components/Modal';
+import { EditIcon, DeleteIcon } from '../components/Icons';
+import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
 import React, { useState, useEffect } from 'react';
 import { addDoc, updateDoc, deleteDoc, collection, doc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/config';
@@ -10,8 +28,25 @@ const useBargesDirect = () => {
   const [barges, setBarges] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+||||||| Stash base
+export default function BargeManager() {
+  const [rows, setRows] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+=======
+export default function BargeManager() {
+  const [rows, setRows] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+>>>>>>> Stashed changes
 
   useEffect(() => {
+<<<<<<< Updated upstream
     const fetchBarges = async () => {
       try {
         console.log('🔍 Fetching barges directly from Firestore...');
@@ -31,6 +66,27 @@ const useBargesDirect = () => {
     };
 
     fetchBarges();
+||||||| Stash base
+    return onSnapshot(collection(db, 'suppliers'), snap => {
+      setSuppliers(snap.docs.map(d => ({ id: d.id, name: d.data().SupplierName })));
+    });
+=======
+    return onSnapshot(
+      collection(db, 'suppliers'), 
+      (snap) => {
+        try {
+          setSuppliers(snap.docs.map(d => ({ id: d.id, name: d.data().SupplierName })));
+        } catch (err) {
+          console.error('Error processing suppliers:', err);
+          setError(err);
+        }
+      },
+      (error) => {
+        console.error('Error fetching suppliers:', error);
+        setError(error);
+      }
+    );
+>>>>>>> Stashed changes
   }, []);
 
   return { barges, loading, error };
@@ -41,6 +97,7 @@ const useSuppliersDirect = () => {
   const [suppliers, setSuppliers] = useState([]);
   
   useEffect(() => {
+<<<<<<< Updated upstream
     const fetchSuppliers = async () => {
       try {
         const snapshot = await getDocs(collection(db, 'suppliers'));
@@ -80,6 +137,59 @@ const BargeManager = () => {
     });
     setEditingBarge(null);
   };
+||||||| Stash base
+    if (!suppliers.length) return;
+    return onSnapshot(collection(db, 'barges'), snap => {
+      setRows(snap.docs.map(d => {
+        const data = { id: d.id, ...d.data() };
+        return {
+          ...data,
+          SupplierName: suppliers.find(s => s.id === data.SupplierId)?.name || 'Unknown',
+          ArrivalDateFormatted: data.ArrivalDate
+            ? (data.ArrivalDate.seconds
+                ? new Date(data.ArrivalDate.seconds * 1000)
+                : new Date(data.ArrivalDate)
+              ).toLocaleDateString()
+            : '—'
+        };
+      }));
+    });
+  }, [suppliers]);
+=======
+    if (!suppliers.length) return;
+    return onSnapshot(
+      collection(db, 'barges'), 
+      (snap) => {
+        try {
+          setRows(snap.docs.map(d => {
+            const data = { id: d.id, ...d.data() };
+            return {
+              ...data,
+              SupplierName: suppliers.find(s => s.id === data.SupplierId)?.name || 'Unknown',
+              ArrivalDateFormatted: data.ArrivalDate
+                ? (data.ArrivalDate.seconds
+                    ? new Date(data.ArrivalDate.seconds * 1000)
+                    : new Date(data.ArrivalDate)
+                  ).toLocaleDateString()
+                : '—'
+            };
+          }));
+          setLoading(false);
+          setError(null);
+        } catch (err) {
+          console.error('Error processing barges:', err);
+          setError(err);
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error('Error fetching barges:', error);
+        setError(error);
+        setLoading(false);
+      }
+    );
+  }, [suppliers]);
+>>>>>>> Stashed changes
 
   const closeModal = () => {
     setShowModal(false);
@@ -87,6 +197,7 @@ const BargeManager = () => {
     setIsSubmitting(false);
   };
 
+<<<<<<< Updated upstream
   const handleAddBarge = () => {
     resetForm();
     setShowModal(true);
@@ -181,9 +292,49 @@ const BargeManager = () => {
         </div>
       </div>
     );
+||||||| Stash base
+  if (!suppliers.length) {
+    return <div className="flex justify-center p-8">Loading barges...</div>;
+=======
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this barge?')) return;
+    
+    setActionLoading(id);
+    try {
+      await deleteDoc(doc(db, 'barges', id));
+    } catch (error) {
+      console.error('Error deleting barge:', error);
+      alert('Failed to delete barge. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
+  };
+
+  // Error state
+  if (error && !loading) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <PageHeader 
+          title="Barges Management" 
+          subtitle="Manage incoming barges" 
+        />
+        <ErrorDisplay 
+          error={error} 
+          onRetry={handleRetry}
+          title="Failed to load barges data"
+        />
+      </div>
+    );
+>>>>>>> Stashed changes
   }
 
   return (
+<<<<<<< Updated upstream
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Barges</h1>
@@ -261,6 +412,143 @@ const BargeManager = () => {
             Add First Barge
           </button>
         </div>
+||||||| Stash base
+    <>
+      <PageHeader
+        title="Barges Management"
+        subtitle="Manage incoming barges"
+        buttonText="Add New Barge"
+        onAdd={() => { setCurrent(null); setOpen(true); }}
+      />
+      <div className="bg-white shadow rounded overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+            <tr>
+              {fields.map(f => <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>)}
+              <th className="px-6 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.id} className="hover:bg-gray-50">
+                {fields.map(f => <td key={f.name} className="px-6 py-4">{r[f.name] ?? '—'}</td>)}
+                <td className="px-6 py-4 text-right">
+                  <button onClick={() => { setCurrent(r); setOpen(true); }} className="text-green-800 hover:text-green-600" title="Edit"><EditIcon /></button>
+                  <button onClick={async () => { if (confirm('Delete this barge?')) await deleteDoc(doc(db,'barges',r.id)); }} className="text-red-600 hover:text-red-800" title="Delete"><DeleteIcon /></button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Barge`}
+          fields={[
+            { name: 'BargeName', label: 'Barge Name', type: 'text' },
+            { name: 'SupplierId', label: 'Supplier', type: 'select', options: suppliers },
+            { name: 'ArrivalDate', label: 'Arrival Date', type: 'date' },
+            { name: 'Status', label: 'Status', type: 'select', options: ['Expected','Arrived','Processing','Complete'] },
+            { name: 'Notes', label: 'Notes', type: 'text' },
+          ]}
+          initialData={current}
+          onClose={() => setOpen(false)}
+          onSave={async data => {
+            if (data.ArrivalDate) data.ArrivalDate = new Date(data.ArrivalDate);
+            if (current?.id) await updateDoc(doc(db,'barges',current.id),data);
+            else await addDoc(collection(db,'barges'),data);
+            setOpen(false);
+          }}
+        />
+=======
+    <>
+      <PageHeader
+        title="Barges Management"
+        subtitle="Manage incoming barges"
+        buttonText="Add New Barge"
+        onAdd={() => { setCurrent(null); setOpen(true); }}
+        disabled={loading}
+      />
+      {loading ? (
+        <TableSkeleton rows={6} columns={4} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          title="No barges found"
+          description="Get started by adding a new barge."
+          actionText="Add New Barge"
+          onAction={() => { setCurrent(null); setOpen(true); }}
+        />
+      ) : (
+        <div className="bg-white shadow rounded overflow-x-auto">
+          <table className="w-full divide-y divide-gray-200">
+            <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+              <tr>
+                {fields.map(f => <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>)}
+                <th className="px-6 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(r => (
+                <tr key={r.id} className="hover:bg-gray-50">
+                  {fields.map(f => <td key={f.name} className="px-6 py-4">{r[f.name] ?? '—'}</td>)}
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={() => { setCurrent(r); setOpen(true); }} 
+                        disabled={actionLoading === r.id}
+                        className="text-green-800 hover:text-green-600 disabled:text-gray-400 disabled:cursor-not-allowed" 
+                        title="Edit"
+                      >
+                        <EditIcon />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(r.id)} 
+                        disabled={actionLoading === r.id}
+                        className="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center" 
+                        title="Delete"
+                      >
+                        {actionLoading === r.id ? (
+                          <LoadingSpinner size="sm" />
+                        ) : (
+                          <DeleteIcon />
+                        )}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {open && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Barge`}
+          fields={[
+            { name: 'BargeName', label: 'Barge Name', type: 'text' },
+            { name: 'SupplierId', label: 'Supplier', type: 'select', options: suppliers },
+            { name: 'ArrivalDate', label: 'Arrival Date', type: 'date' },
+            { name: 'Status', label: 'Status', type: 'select', options: ['Expected','Arrived','Processing','Complete'] },
+            { name: 'Notes', label: 'Notes', type: 'text' },
+          ]}
+          initialData={current}
+          onClose={() => setOpen(false)}
+          onSave={async data => {
+            try {
+              if (data.ArrivalDate) data.ArrivalDate = new Date(data.ArrivalDate);
+              if (current?.id) {
+                await updateDoc(doc(db,'barges',current.id),data);
+              } else {
+                await addDoc(collection(db,'barges'),data);
+              }
+              setOpen(false);
+            } catch (error) {
+              console.error('Error saving barge:', error);
+              alert('Failed to save barge. Please try again.');
+            }
+          }}
+        />
+>>>>>>> Stashed changes
       )}
 
       {/* Modal for Add/Edit */}

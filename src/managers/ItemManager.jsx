@@ -1,5 +1,26 @@
+<<<<<<< Updated upstream
 // Fixed ItemManager.jsx - Using direct Firebase fetch
 // Path: /Users/cerion/CBRT_UI/src/managers/ItemManager.jsx
+||||||| Stash base
+// src/managers/ItemManager.jsx - COMPLETE FIXED VERSION
+import React, { useState, useEffect } from 'react';
+import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import PageHeader from '../components/PageHeader';
+import Modal from '../components/Modal';
+import ItemUploadModal from '../modals/ItemUploadModal';
+import { EditIcon, DeleteIcon } from '../components/Icons';
+=======
+// src/managers/ItemManager.jsx - COMPLETE FIXED VERSION
+import React, { useState, useEffect } from 'react';
+import { collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import PageHeader from '../components/PageHeader';
+import Modal from '../components/Modal';
+import ItemUploadModal from '../modals/ItemUploadModal';
+import { EditIcon, DeleteIcon } from '../components/Icons';
+import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+>>>>>>> Stashed changes
 
 import React, { useState, useEffect } from 'react';
 import { addDoc, updateDoc, deleteDoc, collection, doc, getDocs } from 'firebase/firestore';
@@ -9,9 +30,16 @@ import { db } from '../firebase/config';
 const useItemsDirect = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+<<<<<<< Updated upstream
   const [error, setError] = useState(null);
+||||||| Stash base
+=======
+  const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+>>>>>>> Stashed changes
 
   useEffect(() => {
+<<<<<<< Updated upstream
     const fetchItems = async () => {
       try {
         console.log('🔍 Fetching items directly from Firestore...');
@@ -26,6 +54,33 @@ const useItemsDirect = () => {
       } catch (err) {
         console.error('❌ Error fetching items:', err);
         setError(err);
+||||||| Stash base
+    const unsubscribe = onSnapshot(
+      collection(db, 'items'),
+      (snapshot) => {
+        setItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching items:', error);
+=======
+    const unsubscribe = onSnapshot(
+      collection(db, 'items'),
+      (snapshot) => {
+        try {
+          setItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+          setLoading(false);
+          setError(null);
+        } catch (err) {
+          console.error('Error processing items:', err);
+          setError(err);
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error('Error fetching items:', error);
+        setError(error);
+>>>>>>> Stashed changes
         setLoading(false);
       }
     };
@@ -126,8 +181,29 @@ const ItemManager = () => {
     }
   };
 
-  if (loading) {
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this item?')) return;
+    
+    setActionLoading(id);
+    try {
+      await deleteDoc(doc(db, 'items', id));
+    } catch (error) {
+      console.error('Error deleting item:', error);
+      alert('Failed to delete item. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
+  };
+
+  // Error state
+  if (error && !loading) {
     return (
+<<<<<<< Updated upstream
       <div className="p-6">
         <div className="text-center py-8">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -144,11 +220,27 @@ const ItemManager = () => {
           <h3 className="text-red-800 font-medium">Error Loading Items</h3>
           <p className="text-red-700 text-sm mt-1">{error.message}</p>
         </div>
+||||||| Stash base
+      <div className="flex items-center justify-center p-8">
+        <div className="text-lg">Loading items...</div>
+=======
+      <div className="max-w-6xl mx-auto p-6">
+        <PageHeader 
+          title="Items Management" 
+          subtitle="Manage items" 
+        />
+        <ErrorDisplay 
+          error={error} 
+          onRetry={handleRetry}
+          title="Failed to load items data"
+        />
+>>>>>>> Stashed changes
       </div>
     );
   }
 
   return (
+<<<<<<< Updated upstream
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Items</h1>
@@ -159,7 +251,161 @@ const ItemManager = () => {
           <span className="text-lg">+</span> Add Item
         </button>
       </div>
+||||||| Stash base
+    <>
+      <PageHeader
+        title="Items Management"
+        subtitle="Manage items"
+        buttonText="Add New Item"
+        onAdd={() => {
+          setCurrent(null);
+          setModalOpen(true);
+        }}
+        extraButtons={
+          <button
+            onClick={() => setUploadOpen(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded shadow hover:opacity-90"
+          >
+            📁 Upload CSV
+          </button>
+        }
+      />
 
+      <div className="bg-white shadow rounded overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+            <tr>
+              {fields.map(f => (
+                <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
+              ))}
+              <th className="px-6 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map(item => (
+              <tr key={item.id} className="hover:bg-gray-50">
+                {fields.map(f => (
+                  <td key={f.name} className="px-6 py-4">{item[f.name] ?? '—'}</td>
+                ))}
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => { 
+                        setCurrent(item); 
+                        setModalOpen(true); 
+                      }}
+                      className="text-green-800 hover:text-green-600"
+                      title="Edit"
+                    >
+                      <EditIcon />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('Are you sure you want to delete this item?')) {
+                          await deleteDoc(doc(db, 'items', item.id));
+                        }
+                      }}
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete"
+                    >
+                      <DeleteIcon />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {items.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No items found. Click "Add New Item" or "Upload CSV" to get started.
+          </div>
+        )}
+      </div>
+=======
+    <>
+      <PageHeader
+        title="Items Management"
+        subtitle="Manage items"
+        buttonText="Add New Item"
+        onAdd={() => {
+          setCurrent(null);
+          setModalOpen(true);
+        }}
+        disabled={loading}
+        extraButtons={
+          <button
+            onClick={() => setUploadOpen(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded shadow hover:opacity-90"
+          >
+            📁 Upload CSV
+          </button>
+        }
+      />
+
+      {loading ? (
+        <TableSkeleton rows={6} columns={3} />
+      ) : items.length === 0 ? (
+        <EmptyState
+          title="No items found"
+          description="Get started by adding a new item or uploading a CSV file."
+          actionText="Add New Item"
+          onAction={() => { setCurrent(null); setModalOpen(true); }}
+        />
+      ) : (
+        <div className="bg-white shadow rounded overflow-x-auto">
+          <table className="w-full divide-y divide-gray-200">
+            <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+              <tr>
+                {fields.map(f => (
+                  <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
+                ))}
+                <th className="px-6 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item => (
+                <tr key={item.id} className="hover:bg-gray-50">
+                  {fields.map(f => (
+                    <td key={f.name} className="px-6 py-4">{item[f.name] ?? '—'}</td>
+                  ))}
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => { 
+                          setCurrent(item); 
+                          setModalOpen(true); 
+                        }}
+                        disabled={actionLoading === item.id}
+                        className="text-green-800 hover:text-green-600 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Edit"
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        disabled={actionLoading === item.id}
+                        className="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center"
+                        title="Delete"
+                      >
+                        {actionLoading === item.id ? (
+                          <LoadingSpinner size="sm" />
+                        ) : (
+                          <DeleteIcon />
+                        )}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+>>>>>>> Stashed changes
+
+<<<<<<< Updated upstream
       {items && items.length > 0 ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="min-w-full">
@@ -226,8 +472,47 @@ const ItemManager = () => {
             Add First Item
           </button>
         </div>
+||||||| Stash base
+      {modalOpen && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Item`}
+          fields={fields}
+          initialData={current}
+          onClose={() => setModalOpen(false)}
+          onSave={async data => {
+            if (current?.id) {
+              await updateDoc(doc(db, 'items', current.id), data);
+            } else {
+              await addDoc(collection(db, 'items'), data);
+            }
+            setModalOpen(false);
+          }}
+        />
+=======
+      {modalOpen && (
+        <Modal
+          title={`${current ? 'Edit' : 'Add'} Item`}
+          fields={fields}
+          initialData={current}
+          onClose={() => setModalOpen(false)}
+          onSave={async data => {
+            try {
+              if (current?.id) {
+                await updateDoc(doc(db, 'items', current.id), data);
+              } else {
+                await addDoc(collection(db, 'items'), data);
+              }
+              setModalOpen(false);
+            } catch (error) {
+              console.error('Error saving item:', error);
+              alert('Failed to save item. Please try again.');
+            }
+          }}
+        />
+>>>>>>> Stashed changes
       )}
 
+<<<<<<< Updated upstream
       {/* Modal for Add/Edit */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -297,6 +582,32 @@ const ItemManager = () => {
             </form>
           </div>
         </div>
+||||||| Stash base
+      {uploadOpen && (
+        <ItemUploadModal
+          onClose={() => setUploadOpen(false)}
+          onUpload={async (items) => {
+            const promises = items.map((item) => addDoc(collection(db, 'items'), item));
+            await Promise.all(promises);
+            setUploadOpen(false);
+          }}
+        />
+=======
+      {uploadOpen && (
+        <ItemUploadModal
+          onClose={() => setUploadOpen(false)}
+          onUpload={async (items) => {
+            try {
+              const promises = items.map((item) => addDoc(collection(db, 'items'), item));
+              await Promise.all(promises);
+              setUploadOpen(false);
+            } catch (error) {
+              console.error('Error uploading items:', error);
+              alert('Failed to upload items. Please try again.');
+            }
+          }}
+        />
+>>>>>>> Stashed changes
       )}
     </div>
   );

@@ -2,7 +2,19 @@ import React, { useState } from 'react';
 import { useFirestoreCollection } from '../hooks/useFirestore';
 import { addDoc, updateDoc, deleteDoc, collection, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+<<<<<<< Updated upstream
+||||||| Stash base
+import PageHeader from '../components/PageHeader';
+import ProductModal from '../modals/ProductModal';
+import { EditIcon, DeleteIcon } from '../components/Icons';
+=======
+import PageHeader from '../components/PageHeader';
+import ProductModal from '../modals/ProductModal';
+import { EditIcon, DeleteIcon } from '../components/Icons';
+import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
 const ProductManager = () => {
   const { data: products, loading, error } = useFirestoreCollection('products');
   const [showModal, setShowModal] = useState(false);
@@ -14,6 +26,25 @@ const ProductManager = () => {
     status: 'Active'
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+||||||| Stash base
+export default function ProductManager() {
+  const [products, setProducts] = useState([]);
+  const [items, setItems] = useState([]);
+  const [sizes, setSizes] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+  const [loading, setLoading] = useState(true);
+=======
+export default function ProductManager() {
+  const [products, setProducts] = useState([]);
+  const [items, setItems] = useState([]);
+  const [sizes, setSizes] = useState([]);
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+>>>>>>> Stashed changes
 
   const resetForm = () => {
     setFormData({
@@ -25,6 +56,7 @@ const ProductManager = () => {
     setEditingProduct(null);
   };
 
+<<<<<<< Updated upstream
   const closeModal = () => {
     setShowModal(false);
     resetForm();
@@ -69,6 +101,31 @@ const ProductManager = () => {
     const duplicate = products.find(product => 
       product.ProductName?.toLowerCase() === formData.productName.toLowerCase() &&
       (!editingProduct || product.id !== editingProduct.id)
+||||||| Stash base
+    // Subscribe to items
+    const itemsUnsub = onSnapshot(
+      collection(db, 'items'),
+      (snapshot) => {
+        setItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      (error) => console.error('Error fetching items:', error)
+=======
+    // Subscribe to items
+    const itemsUnsub = onSnapshot(
+      collection(db, 'items'),
+      (snapshot) => {
+        try {
+          setItems(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (err) {
+          console.error('Error processing items:', err);
+          setError(err);
+        }
+      },
+      (error) => {
+        console.error('Error fetching items:', error);
+        setError(error);
+      }
+>>>>>>> Stashed changes
     );
     
     if (duplicate) {
@@ -78,6 +135,7 @@ const ProductManager = () => {
     return false;
   };
 
+<<<<<<< Updated upstream
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -85,7 +143,37 @@ const ProductManager = () => {
     
     if (!validateForm()) return;
     if (checkForDuplicate()) return;
+||||||| Stash base
+    // Subscribe to sizes
+    const sizesUnsub = onSnapshot(
+      collection(db, 'sizes'),
+      (snapshot) => {
+        setSizes(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      },
+      (error) => console.error('Error fetching sizes:', error)
+    );
+    unsubscribes.push(sizesUnsub);
+=======
+    // Subscribe to sizes
+    const sizesUnsub = onSnapshot(
+      collection(db, 'sizes'),
+      (snapshot) => {
+        try {
+          setSizes(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        } catch (err) {
+          console.error('Error processing sizes:', err);
+          setError(err);
+        }
+      },
+      (error) => {
+        console.error('Error fetching sizes:', error);
+        setError(error);
+      }
+    );
+    unsubscribes.push(sizesUnsub);
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
     setIsSubmitting(true);
 
     try {
@@ -109,6 +197,39 @@ const ProductManager = () => {
           updatedAt: new Date()
         });
         console.log('Product added successfully');
+||||||| Stash base
+    // Subscribe to products
+    const productsUnsub = onSnapshot(
+      collection(db, 'products'),
+      (snapshot) => {
+        const productData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setProducts(productData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching products:', error);
+        setLoading(false);
+=======
+    // Subscribe to products
+    const productsUnsub = onSnapshot(
+      collection(db, 'products'),
+      (snapshot) => {
+        try {
+          const productData = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+          setProducts(productData);
+          setLoading(false);
+          setError(null);
+        } catch (err) {
+          console.error('Error processing products:', err);
+          setError(err);
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error('Error fetching products:', error);
+        setError(error);
+        setLoading(false);
+>>>>>>> Stashed changes
       }
       closeModal();
     } catch (error) {
@@ -131,10 +252,91 @@ const ProductManager = () => {
     }
   };
 
+<<<<<<< Updated upstream
   if (loading) return <div className="flex justify-center p-8">Loading products...</div>;
   if (error) return <div className="text-red-600 p-8">Error loading products: {error.message}</div>;
+||||||| Stash base
+  // Enhanced products with item and size names
+  const enhancedProducts = products.map(product => ({
+    ...product,
+    ItemName: getItemName(product.ItemId),
+    SizeName: getSizeName(product.SizeId),
+  }));
+
+  const fields = [
+    { name: 'ItemName', label: 'Item' },
+    { name: 'SizeName', label: 'Size' },
+    { name: 'ItemCodeDisplay', label: 'Item Code' },
+    { name: 'ItemNameDisplay', label: 'Item Name' },
+    { name: 'SizeNameDisplay', label: 'Size Display' },
+    { name: 'StandardWeight', label: 'Weight (lbs)' },
+    { name: 'Status', label: 'Status' },
+  ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-lg">Loading products...</div>
+      </div>
+    );
+  }
+=======
+  // Enhanced products with item and size names
+  const enhancedProducts = products.map(product => ({
+    ...product,
+    ItemName: getItemName(product.ItemId),
+    SizeName: getSizeName(product.SizeId),
+  }));
+
+  const fields = [
+    { name: 'ItemName', label: 'Item' },
+    { name: 'SizeName', label: 'Size' },
+    { name: 'ItemCodeDisplay', label: 'Item Code' },
+    { name: 'ItemNameDisplay', label: 'Item Name' },
+    { name: 'SizeNameDisplay', label: 'Size Display' },
+    { name: 'StandardWeight', label: 'Weight (lbs)' },
+    { name: 'Status', label: 'Status' },
+  ];
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this product?')) return;
+    
+    setActionLoading(id);
+    try {
+      await deleteDoc(doc(db, 'products', id));
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      alert('Failed to delete product. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
+  };
+
+  // Error state
+  if (error && !loading) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <PageHeader 
+          title="Products Management" 
+          subtitle="Manage product combinations of items and sizes" 
+        />
+        <ErrorDisplay 
+          error={error} 
+          onRetry={handleRetry}
+          title="Failed to load products data"
+        />
+      </div>
+    );
+  }
+>>>>>>> Stashed changes
 
   return (
+<<<<<<< Updated upstream
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Products</h1>
@@ -145,7 +347,32 @@ const ProductManager = () => {
           + Add Product
         </button>
       </div>
+||||||| Stash base
+    <>
+      <PageHeader
+        title="Products Management"
+        subtitle="Manage product combinations of items and sizes"
+        buttonText="Add New Product"
+        onAdd={() => {
+          setCurrent(null);
+          setOpen(true);
+        }}
+      />
+=======
+    <>
+      <PageHeader
+        title="Products Management"
+        subtitle="Manage product combinations of items and sizes"
+        buttonText="Add New Product"
+        onAdd={() => {
+          setCurrent(null);
+          setOpen(true);
+        }}
+        disabled={loading}
+      />
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -202,7 +429,72 @@ const ProductManager = () => {
                     🗑️
                   </button>
                 </td>
+||||||| Stash base
+      <div className="bg-white shadow rounded overflow-x-auto">
+        <table className="w-full divide-y divide-gray-200">
+          <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+            <tr>
+              {fields.map(f => (
+                <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
+              ))}
+              <th className="px-6 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {enhancedProducts.map(product => (
+              <tr key={product.id} className="hover:bg-gray-50">
+                {fields.map(f => (
+                  <td key={f.name} className="px-6 py-4 text-sm">
+                    {f.name === 'StandardWeight' ? `${product[f.name]} lbs` : product[f.name] ?? '—'}
+                  </td>
+                ))}
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => {
+                        setCurrent(product);
+                        setOpen(true);
+                      }}
+                      className="text-green-800 hover:text-green-600"
+                      title="Edit"
+                    >
+                      <EditIcon />
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm('Are you sure you want to delete this product?')) {
+                          await deleteDoc(doc(db, 'products', product.id));
+                        }
+                      }}
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete"
+                    >
+                      <DeleteIcon />
+                    </button>
+                  </div>
+                </td>
+=======
+      {loading ? (
+        <TableSkeleton rows={6} columns={7} />
+      ) : enhancedProducts.length === 0 ? (
+        <EmptyState
+          title="No products found"
+          description="Get started by adding a new product."
+          actionText="Add New Product"
+          onAction={() => { setCurrent(null); setOpen(true); }}
+        />
+      ) : (
+        <div className="bg-white shadow rounded overflow-x-auto">
+          <table className="w-full divide-y divide-gray-200">
+            <thead className="bg-gray-100 text-xs uppercase text-gray-600">
+              <tr>
+                {fields.map(f => (
+                  <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
+                ))}
+                <th className="px-6 py-3 text-right">Actions</th>
+>>>>>>> Stashed changes
               </tr>
+<<<<<<< Updated upstream
             ))}
           </tbody>
         </table>
@@ -213,6 +505,61 @@ const ProductManager = () => {
           </div>
         )}
       </div>
+||||||| Stash base
+            ))}
+          </tbody>
+        </table>
+
+        {enhancedProducts.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            No products found. Click "Add New Product" to get started.
+          </div>
+        )}
+      </div>
+=======
+            </thead>
+            <tbody>
+              {enhancedProducts.map(product => (
+                <tr key={product.id} className="hover:bg-gray-50">
+                  {fields.map(f => (
+                    <td key={f.name} className="px-6 py-4 text-sm">
+                      {f.name === 'StandardWeight' ? `${product[f.name]} lbs` : product[f.name] ?? '—'}
+                    </td>
+                  ))}
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setCurrent(product);
+                          setOpen(true);
+                        }}
+                        disabled={actionLoading === product.id}
+                        className="text-green-800 hover:text-green-600 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        title="Edit"
+                      >
+                        <EditIcon />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(product.id)}
+                        disabled={actionLoading === product.id}
+                        className="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center"
+                        title="Delete"
+                      >
+                        {actionLoading === product.id ? (
+                          <LoadingSpinner size="sm" />
+                        ) : (
+                          <DeleteIcon />
+                        )}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+>>>>>>> Stashed changes
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
