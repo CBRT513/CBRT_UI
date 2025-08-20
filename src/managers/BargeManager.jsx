@@ -1,291 +1,212 @@
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+// File: /Users/cerion/CBRT_UI/src/managers/BargeManager.jsx
+
+import React, { useState } from 'react';
+import { useFirestoreCollection } from '../hooks/useFirestore';
+import { addDoc, updateDoc, deleteDoc, collection, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import PageHeader from '../components/PageHeader';
-import Modal from '../components/Modal';
-import { EditIcon, DeleteIcon } from '../components/Icons';
-import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+import { TableSkeleton, ErrorDisplay, EmptyState } from '../components/LoadingStates';
+import BargeModal from '../modals/BargeModal';
 
 export default function BargeManager() {
-  const [rows, setRows] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [actionLoading, setActionLoading] = useState(null);
+  const { data: barges, loading, error } = useFirestoreCollection('barges');
+  const [showModal, setShowModal] = useState(false);
+  const [editingBarge, setEditingBarge] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
 
-  useEffect(() => {
-    return onSnapshot(
-      collection(db, 'suppliers'), 
-      (snap) => {
-        try {
-          setSuppliers(snap.docs.map(d => ({ id: d.id, name: d.data().SupplierName })));
-        } catch (err) {
-          console.error('Error processing suppliers:', err);
-          setError(err);
-        }
-      },
-      (error) => {
-        console.error('Error fetching suppliers:', error);
-        setError(error);
+  const handleAdd = () => {
+    setEditingBarge(null);
+    setShowModal(true);
+  };
+
+  const handleEdit = (barge) => {
+    setEditingBarge(barge);
+    setShowModal(true);
+  };
+
+  const handleSave = async (bargeData) => {
+    try {
+      if (editingBarge) {
+        await updateDoc(doc(db, 'barges', editingBarge.id), {
+          ...bargeData,
+          UpdatedAt: new Date()
+        });
+      } else {
+        await addDoc(collection(db, 'barges'), {
+          ...bargeData,
+          CreatedAt: new Date()
+        });
       }
-    );
-  }, []);
-
-  return { barges, loading, error };
-};
-
-// Direct Firebase fetch for suppliers
-const useSuppliersDirect = () => {
-  const [suppliers, setSuppliers] = useState([]);
-  
-  useEffect(() => {
-    if (!suppliers.length) return;
-    return onSnapshot(
-      collection(db, 'barges'), 
-      (snap) => {
-        try {
-          setRows(snap.docs.map(d => {
-            const data = { id: d.id, ...d.data() };
-            return {
-              ...data,
-              SupplierName: suppliers.find(s => s.id === data.SupplierId)?.name || 'Unknown',
-              ArrivalDateFormatted: data.ArrivalDate
-                ? (data.ArrivalDate.seconds
-                    ? new Date(data.ArrivalDate.seconds * 1000)
-                    : new Date(data.ArrivalDate)
-                  ).toLocaleDateString()
-                : '—'
-            };
-          }));
-          setLoading(false);
-          setError(null);
-        } catch (err) {
-          console.error('Error processing barges:', err);
-          setError(err);
-          setLoading(false);
-        }
-      },
-      (error) => {
-        console.error('Error fetching barges:', error);
-        setError(error);
-        setLoading(false);
-      }
-    );
-  }, [suppliers]);
-
-  const closeModal = () => {
-    setShowModal(false);
-    resetForm();
-    setIsSubmitting(false);
+      setShowModal(false);
+      setEditingBarge(null);
+    } catch (error) {
+      console.error('Error saving barge:', error);
+      throw error;
+    }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this barge?')) return;
+    if (!window.confirm('Delete this barge?')) return;
     
-    setActionLoading(id);
+    setLoadingId(id);
     try {
       await deleteDoc(doc(db, 'barges', id));
     } catch (error) {
       console.error('Error deleting barge:', error);
-      alert('Failed to delete barge. Please try again.');
+      alert('Failed to delete barge');
     } finally {
-      setActionLoading(null);
+      setLoadingId(null);
     }
   };
 
-  const handleRetry = () => {
-    setError(null);
-    setLoading(true);
-  };
-
-  // Error state
-  if (error && !loading) {
+  if (loading) {
     return (
       <div className="max-w-6xl mx-auto p-6">
-        <PageHeader 
-          title="Barges Management" 
-          subtitle="Manage incoming barges" 
-        />
-        <ErrorDisplay 
-          error={error} 
-          onRetry={handleRetry}
-          title="Failed to load barges data"
-        />
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Barges Management</h1>
+          <TableSkeleton rows={5} columns={5} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Barges Management</h1>
+          <ErrorDisplay message="Failed to load barges" />
+        </div>
       </div>
     );
   }
 
   return (
-    <>
-      <PageHeader
-        title="Barges Management"
-        subtitle="Manage incoming barges"
-        buttonText="Add New Barge"
-        onAdd={() => { setCurrent(null); setOpen(true); }}
-        disabled={loading}
-      />
-      {loading ? (
-        <TableSkeleton rows={6} columns={4} />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          title="No barges found"
-          description="Get started by adding a new barge."
-          actionText="Add New Barge"
-          onAction={() => { setCurrent(null); setOpen(true); }}
-        />
-      ) : (
-        <div className="bg-white shadow rounded overflow-x-auto">
-          <table className="w-full divide-y divide-gray-200">
-            <thead className="bg-gray-100 text-xs uppercase text-gray-600">
-              <tr>
-                {fields.map(f => <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>)}
-                <th className="px-6 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => (
-                <tr key={r.id} className="hover:bg-gray-50">
-                  {fields.map(f => <td key={f.name} className="px-6 py-4">{r[f.name] ?? '—'}</td>)}
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button 
-                        onClick={() => { setCurrent(r); setOpen(true); }} 
-                        disabled={actionLoading === r.id}
-                        className="text-green-800 hover:text-green-600 disabled:text-gray-400 disabled:cursor-not-allowed" 
+    <div className="max-w-6xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Barges Management</h1>
+          <button
+            onClick={handleAdd}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            + Add Barge
+          </button>
+        </div>
+
+        <div className="text-sm text-gray-600 mb-4">
+          Manage barges
+        </div>
+
+        {!barges || barges.length === 0 ? (
+          <EmptyState 
+            message="No barges found"
+            submessage="Start by adding new barges."
+            actionLabel="Add Barge"
+            onAction={handleAdd}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Barge Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Supplier
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Arrival Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {barges.map((barge, index) => (
+                  <tr key={barge.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {barge.BargeName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {barge.SupplierName || 'Unknown Supplier'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {barge.ArrivalDate ? new Date(barge.ArrivalDate).toLocaleDateString() : 'Not set'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        barge.Status === 'Expected' 
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : barge.Status === 'Working'
+                          ? 'bg-blue-100 text-blue-800' 
+                          : barge.Status === 'Completed'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {barge.Status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => handleEdit(barge)}
+                        className="text-green-600 hover:text-green-900 mr-3"
                         title="Edit"
                       >
-                        <EditIcon />
+                        ✏️
                       </button>
-                      <button 
-                        onClick={() => handleDelete(r.id)} 
-                        disabled={actionLoading === r.id}
-                        className="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center" 
+                      <button
+                        onClick={() => handleDelete(barge.id)}
+                        disabled={loadingId === barge.id}
+                        className="text-red-600 hover:text-red-900"
                         title="Delete"
                       >
-                        {actionLoading === r.id ? (
-                          <LoadingSpinner size="sm" />
-                        ) : (
-                          <DeleteIcon />
-                        )}
+                        {loadingId === barge.id ? '⏳' : '🗑️'}
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Barge`}
-          fields={[
-            { name: 'BargeName', label: 'Barge Name', type: 'text' },
-            { name: 'SupplierId', label: 'Supplier', type: 'select', options: suppliers },
-            { name: 'ArrivalDate', label: 'Arrival Date', type: 'date' },
-            { name: 'Status', label: 'Status', type: 'select', options: ['Expected','Arrived','Processing','Complete'] },
-            { name: 'Notes', label: 'Notes', type: 'text' },
-          ]}
-          initialData={current}
-          onClose={() => setOpen(false)}
-          onSave={async data => {
-            try {
-              if (data.ArrivalDate) data.ArrivalDate = new Date(data.ArrivalDate);
-              if (current?.id) {
-                await updateDoc(doc(db,'barges',current.id),data);
-              } else {
-                await addDoc(collection(db,'barges'),data);
-              }
-              setOpen(false);
-            } catch (error) {
-              console.error('Error saving barge:', error);
-              alert('Failed to save barge. Please try again.');
-            }
-          }}
-        />
-      )}
-
-      {/* Modal for Add/Edit */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">
-              {editingBarge ? 'Edit Barge' : 'Add New Barge'}
-            </h2>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Barge Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.bargeName}
-                  onChange={(e) => setFormData({ ...formData, bargeName: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="e.g., RF707X"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Supplier
-                </label>
-                <select
-                  value={formData.supplierId}
-                  onChange={(e) => handleSupplierChange(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select Supplier</option>
-                  {suppliers.map(supplier => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.supplierName || supplier.SupplierName || 'Unknown Supplier'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Saving...' : editingBarge ? 'Update' : 'Add'}
-                </button>
-              </div>
-            </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        )}
+
+        {barges && barges.length > 0 && (
+          <div className="mt-6 bg-gray-50 rounded-lg p-4">
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">{barges.length}</span> barge{barges.length !== 1 ? 's' : ''} total
+              {' | '}
+              <span className="font-medium">
+                {barges.filter(b => b.Status === 'Expected').length}
+              </span> expected
+              {' | '}
+              <span className="font-medium">
+                {barges.filter(b => b.Status === 'Working').length}
+              </span> working
+              {' | '}
+              <span className="font-medium">
+                {barges.filter(b => b.Status === 'Completed').length}
+              </span> completed
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showModal && (
+        <BargeModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            setEditingBarge(null);
+          }}
+          onSave={handleSave}
+          initialData={editingBarge}
+        />
       )}
     </div>
   );
-};
-
-export default BargeManager;
+}

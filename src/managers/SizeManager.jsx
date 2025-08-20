@@ -1,220 +1,94 @@
-// Fixed SizeManager.jsx - Using direct Firebase fetch
-// Path: /Users/cerion/CBRT_UI/src/managers/SizeManager.jsx
+// SizeManager.jsx
+// Manages size entries in Firestore
+// Aligned with CustomerManager structure: uses PageHeader, Edit/Delete icons, consistent table design
 
-import React, { useState, useEffect } from 'react';
-import { addDoc, updateDoc, deleteDoc, collection, doc, getDocs } from 'firebase/firestore';
-import { db } from '../firebase/config';
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  orderBy,
-  query,
-} from 'firebase/firestore';
-import PageHeader from '../components/PageHeader';
-import Modal from '../components/Modal';
-import { EditIcon, DeleteIcon } from '../components/Icons';
+import React, { useState } from 'react';
+import { useFirestoreCollection, useFirestoreActions } from '../hooks/useFirestore';
+import SizeModal from '../modals/SizeModal';
 import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
+import PageHeader from '../components/PageHeader';
+import { EditIcon, DeleteIcon } from '../components/Icons';
 
-// Direct Firebase fetch for sizes
-const useSizesDirect = () => {
-  const [sizes, setSizes] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [current, setCurrent] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [actionLoading, setActionLoading] = useState(null);
+export default function SizeManager() {
+  const { data: sizes, loading, error, retry } = useFirestoreCollection('sizes');
+  const { add, update, delete: deleteSize } = useFirestoreActions('sizes');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [loadingId, setLoadingId] = useState(null);
 
-  const fetchSizes = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const q = query(collection(db, 'sizes'), orderBy('SizeName'));
-      const snap = await getDocs(q);
-      setSizes(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (err) {
-      console.error('Error fetching sizes:', err);
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const fetchSizes = async () => {
-      try {
-        console.log('🔍 Fetching sizes directly from Firestore...');
-        const snapshot = await getDocs(collection(db, 'sizes'));
-        const sizesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Sort by sizeName (ascending) since sortOrder field might be missing
-        sizesData.sort((a, b) => {
-          const nameA = a.sizeName || '';
-          const nameB = b.sizeName || '';
-          return nameA.localeCompare(nameB);
-        });
-        
-        console.log('🔍 Sizes data:', sizesData);
-        console.log('🔍 Sizes count:', sizesData.length);
-        
-        setSizes(sizesData);
-        setLoading(false);
-      } catch (err) {
-        console.error('❌ Error fetching sizes:', err);
-        setError(err);
-        setLoading(false);
-      }
-    };
-
-    fetchSizes();
-  }, []);
+  const handleAdd = () => { setEditTarget(null); setModalOpen(true); };
+  const handleEdit = (item) => { setEditTarget(item); setModalOpen(true); };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this size?')) return;
-    
-    setActionLoading(id);
-    try {
-      await deleteDoc(doc(db, 'sizes', id));
-      fetchSizes();
-    } catch (error) {
-      console.error('Error deleting size:', error);
-      alert('Failed to delete size. Please try again.');
-    } finally {
-      setActionLoading(null);
+    if (window.confirm('Delete this size?')) {
+      setLoadingId(id);
+      await deleteSize(id);
+      setLoadingId(null);
     }
   };
 
-  const handleRetry = () => {
-    fetchSizes();
+  const handleSave = async (data) => {
+    try {
+      setLoadingId('save');
+      if (editTarget) {
+        await update(editTarget.id, data);
+      } else {
+        await add(data);
+      }
+      setModalOpen(false);
+    } catch (err) {
+      console.error('Failed to save size:', err);
+      alert('There was an error saving the size.');
+    } finally {
+      setLoadingId(null);
+    }
   };
 
-  const fields = [
-    { name: 'SizeName', label: 'Size Name', type: 'text' },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] },
-  ];
-
-  // Error state
-  if (error && !loading) {
-    return (
-      <div className="max-w-6xl mx-auto p-6">
-        <PageHeader 
-          title="Sizes Management" 
-          subtitle="Manage sizes" 
-        />
-        <ErrorDisplay 
-          error={error} 
-          onRetry={handleRetry}
-          title="Failed to load sizes data"
-        />
-      </div>
-    );
-  }
+  if (loading) return <TableSkeleton />;
+  if (error) return <ErrorDisplay error={error} onRetry={retry} />;
+  if (!sizes.length) return <EmptyState message="No sizes found." onAction={handleAdd} actionLabel="Add Size" />;
 
   return (
-    <>
+    <div className="p-4">
       <PageHeader
-        title="Sizes Management"
-        subtitle="Manage sizes"
-        buttonText="Add New Size"
-        onAdd={() => {
-          setCurrent(null);
-          setOpen(true);
-        }}
-        disabled={loading}
+        title="Size Manager"
+        subtitle="Manage all package sizes"
+        buttonText="Add Size"
+        onAdd={handleAdd}
+        disabled={loadingId === 'save'}
       />
-
-      {loading ? (
-        <TableSkeleton rows={6} columns={2} />
-      ) : sizes.length === 0 ? (
-        <EmptyState
-          title="No sizes found"
-          description="Get started by adding a new size."
-          actionText="Add New Size"
-          onAction={() => { setCurrent(null); setOpen(true); }}
-        />
-      ) : (
-        <div className="bg-white shadow rounded overflow-x-auto">
-          <table className="w-full divide-y divide-gray-200">
-            <thead className="bg-gray-100 text-xs uppercase text-gray-600">
-              <tr>
-                {fields.map(f => (
-                  <th key={f.name} className="px-6 py-3 text-left">{f.label}</th>
-                ))}
-                <th className="px-6 py-3 text-right">Actions</th>
+      <div className="bg-white shadow rounded overflow-x-auto">
+        <table className="min-w-full text-sm" aria-label="Sizes Table">
+          <thead className="bg-gray-100 text-gray-700">
+            <tr>
+              <th className="text-left px-4 py-2">Name</th>
+              <th className="text-left px-4 py-2">Status</th>
+              <th className="text-left px-4 py-2">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sizes.map(item => (
+              <tr key={item.id} className="border-t">
+                <td className="px-4 py-2">{item.SizeName}</td>
+                <td className="px-4 py-2">{item.Status}</td>
+                <td className="px-4 py-2 space-x-2">
+                  <EditIcon onClick={() => handleEdit(item)} disabled={loadingId === item.id || loadingId === 'save'} />
+                  <DeleteIcon onClick={() => handleDelete(item.id)} disabled={loadingId === item.id || loadingId === 'save'} />
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {sizes.map(size => (
-                <tr key={size.id} className="hover:bg-gray-50">
-                  {fields.map(f => (
-                    <td key={f.name} className="px-6 py-4">{size[f.name] ?? '—'}</td>
-                  ))}
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => {
-                          setCurrent(size);
-                          setOpen(true);
-                        }}
-                        disabled={actionLoading === size.id}
-                        className="text-green-800 hover:text-green-600 disabled:text-gray-400 disabled:cursor-not-allowed"
-                        title="Edit"
-                      >
-                        <EditIcon />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(size.id)}
-                        disabled={actionLoading === size.id}
-                        className="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center"
-                        title="Delete"
-                      >
-                        {actionLoading === size.id ? (
-                          <LoadingSpinner size="sm" />
-                        ) : (
-                          <DeleteIcon />
-                        )}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {open && (
-        <Modal
-          title={`${current ? 'Edit' : 'Add'} Size`}
-          fields={fields}
-          initialData={current}
-          onClose={() => setOpen(false)}
-          onSave={async data => {
-            try {
-              const sizeData = {
-                ...data,
-                SortOrder: 'ascending'
-              };
-              
-              if (current?.id) {
-                await updateDoc(doc(db, 'sizes', current.id), sizeData);
-              } else {
-                await addDoc(collection(db, 'sizes'), sizeData);
-              }
-              setOpen(false);
-              fetchSizes();
-            } catch (error) {
-              console.error('Error saving size:', error);
-              alert('Failed to save size. Please try again.');
-            }
-          }}
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {modalOpen && (
+        <SizeModal
+          title={editTarget ? 'Edit Size' : 'Add Size'}
+          initialData={editTarget}
+          onClose={() => setModalOpen(false)}
+          onSave={handleSave}
         />
       )}
-    </>
+      {loadingId === 'save' && <LoadingSpinner />}
+    </div>
   );
-};
-
-export default SizeManager;
+}
