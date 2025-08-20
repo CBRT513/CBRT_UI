@@ -22,18 +22,19 @@ export default function CustomerManager() {
   };
 
   const handleSave = async (customerData) => {
-  if (editingCustomer) {
-    await updateDoc(doc(db, 'customers', editingCustomer.id), {
-      ...customerData,
-      UpdatedAt: new Date()
-    });
-  } else {
-    await addDoc(collection(db, 'customers'), {
-      ...customerData,
-      CreatedAt: new Date()
-    });
-  }
-};
+    if (editingCustomer) {
+      await updateDoc(doc(db, 'customers', editingCustomer.id), {
+        ...customerData,
+        UpdatedAt: new Date()
+      });
+    } else {
+      await addDoc(collection(db, 'customers'), {
+        ...customerData,
+        CreatedAt: new Date()
+      });
+    }
+    // Don't close modal here - let the Modal component handle it via onClose
+  };
 
   const handleDelete = async (customer) => {
     if (!window.confirm(`Delete customer ${customer.CustomerName}?`)) return;
