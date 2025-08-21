@@ -28,12 +28,12 @@ export default function BargeManager() {
       if (editingBarge) {
         await updateDoc(doc(db, 'barges', editingBarge.id), {
           ...bargeData,
-          UpdatedAt: new Date()
+          updatedAt: new Date()
         });
       } else {
         await addDoc(collection(db, 'barges'), {
           ...bargeData,
-          CreatedAt: new Date()
+          createdAt: new Date()
         });
       }
       setShowModal(false);
@@ -130,25 +130,25 @@ export default function BargeManager() {
                 {barges.map((barge, index) => (
                   <tr key={barge.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {barge.BargeName}
+                      {barge.bargeName || barge.BargeName || barge.bargeNumber || barge.name}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {barge.SupplierName || 'Unknown Supplier'}
+                      {barge.supplierName || barge.SupplierName || barge.bolPrefix || 'Unknown Supplier'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {barge.ArrivalDate ? new Date(barge.ArrivalDate).toLocaleDateString() : 'Not set'}
+                      {(barge.arrivalDate || barge.ArrivalDate) ? new Date(barge.arrivalDate || barge.ArrivalDate).toLocaleDateString() : 'Not set'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        barge.Status === 'Expected' 
+                        (barge.status || barge.Status) === 'Expected' 
                           ? 'bg-yellow-100 text-yellow-800'
-                          : barge.Status === 'Working'
+                          : (barge.status || barge.Status) === 'Working'
                           ? 'bg-blue-100 text-blue-800' 
-                          : barge.Status === 'Completed'
+                          : (barge.status || barge.Status) === 'Completed'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {barge.Status}
+                        {barge.status || barge.Status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

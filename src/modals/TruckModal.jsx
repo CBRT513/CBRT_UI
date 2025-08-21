@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import Modal from './Modal';
 
 const fields = [
-  { name: 'CarrierId', label: 'Carrier', type: 'select', required: true, collection: 'carriers', displayField: 'CarrierName' },
-  { name: 'TruckNumber', label: 'Truck Number', type: 'text', required: true },
-  { name: 'TrailerNumber', label: 'Trailer Number', type: 'text', required: false },
-  { name: 'Status', label: 'Status', type: 'select', required: true, options: [
+  { name: 'carrierId', label: 'Carrier', type: 'select', required: true, collection: 'carriers', displayField: 'carrierName' },
+  { name: 'truckNumber', label: 'Truck Number', type: 'text', required: true },
+  { name: 'trailerNumber', label: 'Trailer Number', type: 'text', required: false },
+  { name: 'status', label: 'Status', type: 'select', required: true, options: [
     { value: 'Active', label: 'Active' },
     { value: 'Inactive', label: 'Inactive' }
   ], defaultValue: 'Active' }

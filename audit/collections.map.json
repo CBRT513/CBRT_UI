@@ -1,0 +1,1013 @@
+{
+  "timestamp": "2025-08-20T22:41:04.972Z",
+  "collections": [
+    {
+      "path": "allocations",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/utils/workflowMonitor.js",
+          "line": 308
+        }
+      ],
+      "queryFields": []
+    },
+    {
+      "path": "audit_logs",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/services/systemMonitoringService.js",
+          "line": 71
+        },
+        {
+          "file": "src/services/systemMonitoringService.js",
+          "line": 86
+        }
+      ],
+      "queryFields": [
+        "audit_logs",
+        "releases",
+        "system_alerts",
+        "level",
+        "lockedBy",
+        "id",
+        "timestamp"
+      ]
+    },
+    {
+      "path": "auditLogs",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/components/AnalysisHistory.jsx",
+          "line": 43
+        },
+        {
+          "file": "src/services/releaseWorkflowService.js",
+          "line": 289
+        },
+        {
+          "file": "src/services/releaseWorkflowService.js",
+          "line": 331
+        },
+        {
+          "file": "src/services/releaseWorkflowService.js",
+          "line": 392
+        },
+        {
+          "file": "src/services/releaseWorkflowService.js",
+          "line": 454
+        },
+        {
+          "file": "src/services/releaseWorkflowService.js",
+          "line": 521
+        },
+        {
+          "file": "src/tests/WorkflowAutomatedTest.jsx",
+          "line": 496
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 514
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 689
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 896
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 964
+        }
+      ],
+      "queryFields": [
+        "test_analyses",
+        "auditLogs",
+        "timestamp",
+        "users",
+        "receiveNewRelease",
+        "releaseId",
+        "emailQueue",
+        "notifications",
+        "data.releaseNumber",
+        "action",
+        "type"
+      ]
+    },
+    {
+      "path": "barcodes",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/managers/BarcodeManager.jsx",
+          "line": 32
+        },
+        {
+          "file": "src/pages/DataImportManager.jsx",
+          "line": 255
+        },
+        {
+          "file": "src/routes/WarehouseStaging.jsx",
+          "line": 68
+        },
+        {
+          "file": "src/services/inventoryAvailabilityService.js",
+          "line": 75
+        },
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 103
+        },
+        {
+          "file": "src/tests/WorkflowAutomatedTest.jsx",
+          "line": 130
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 266
+        }
+      ],
+      "queryFields": [
+        "staging",
+        "barcodes",
+        "releaseId",
+        "Barcode",
+        "releases",
+        "ItemId",
+        "SizeId",
+        "LotId",
+        "Status",
+        "__name__",
+        "users",
+        "receiveNewRelease",
+        "role",
+        "auditLogs",
+        "emailQueue",
+        "notifications",
+        "data.releaseNumber",
+        "action",
+        "type"
+      ]
+    },
+    {
+      "path": "barges",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/managers/BargeManager.jsx",
+          "line": 34
+        },
+        {
+          "file": "src/pages/DataImportManager.jsx",
+          "line": 180
+        }
+      ],
+      "queryFields": []
+    },
+    {
+      "path": "bols",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/services/bolService.js",
+          "line": 11
+        },
+        {
+          "file": "src/services/bolService.js",
+          "line": 36
+        },
+        {
+          "file": "src/services/inventoryAvailabilityService.js",
+          "line": 157
+        },
+        {
+          "file": "src/features/bol-generation/BOLGenerator.jsx",
+          "line": 60
+        },
+        {
+          "file": "src/features/bol-generation/BOLGenerator.jsx",
+          "line": 219
+        }
+      ],
+      "queryFields": [
+        "bols",
+        "bolPrefix",
+        "bolNumber",
+        "releases",
+        "ItemId",
+        "SizeId",
+        "LotId",
+        "Status",
+        "__name__",
+        "staging",
+        "verifications",
+        "SupplierId",
+        "releaseId",
+        "status"
+      ]
+    },
+    {
+      "path": "carriers",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/hooks/useTrucksWithCarriers.js",
+          "line": 26
+        },
+        {
+          "file": "src/managers/CarrierManager.jsx",
+          "line": 126
+        }
+      ],
+      "queryFields": []
+    },
+    {
+      "path": "customers",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/managers/CustomerManager.jsx",
+          "line": 31
+        },
+        {
+          "file": "src/pages/DataImportManager.jsx",
+          "line": 72
+        },
+        {
+          "file": "src/tests/WorkflowAutomatedTest.jsx",
+          "line": 112
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 205
+        }
+      ],
+      "queryFields": [
+        "auditLogs",
+        "releaseId",
+        "emailQueue",
+        "notifications",
+        "data.releaseNumber",
+        "action",
+        "type"
+      ]
+    },
+    {
+      "path": "emailQueue",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 215
+        },
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 277
+        },
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 342
+        },
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 408
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 413
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 980
+        }
+      ],
+      "queryFields": [
+        "users",
+        "receiveNewRelease",
+        "role",
+        "emailQueue",
+        "auditLogs",
+        "notifications",
+        "data.releaseNumber",
+        "releaseId",
+        "action",
+        "type"
+      ]
+    },
+    {
+      "path": "items",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/pages/DataImportManager.jsx",
+          "line": 197
+        },
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 101
+        },
+        {
+          "file": "src/tests/WorkflowAutomatedTest.jsx",
+          "line": 116
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 233
+        }
+      ],
+      "queryFields": [
+        "users",
+        "receiveNewRelease",
+        "role",
+        "auditLogs",
+        "releaseId",
+        "emailQueue",
+        "notifications",
+        "data.releaseNumber",
+        "action",
+        "type"
+      ]
+    },
+    {
+      "path": "logs",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/utils/logger.js",
+          "line": 10
+        }
+      ],
+      "queryFields": []
+    },
+    {
+      "path": "lots",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/pages/DataImportManager.jsx",
+          "line": 217
+        }
+      ],
+      "queryFields": []
+    },
+    {
+      "path": "notifications",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/services/releaseWorkflowService.js",
+          "line": 578
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 571
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 972
+        }
+      ],
+      "queryFields": [
+        "users",
+        "receiveNewRelease",
+        "emailQueue",
+        "auditLogs",
+        "notifications",
+        "data.releaseNumber",
+        "releaseId",
+        "action",
+        "type"
+      ]
+    },
+    {
+      "path": "releases",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/components/QuickSystemCheck.jsx",
+          "line": 31
+        },
+        {
+          "file": "src/components/QuickSystemCheck.jsx",
+          "line": 40
+        },
+        {
+          "file": "src/components/QuickSystemCheck.jsx",
+          "line": 74
+        },
+        {
+          "file": "src/routes/NewRelease.jsx",
+          "line": 350
+        },
+        {
+          "file": "src/services/duplicateDetectionService.js",
+          "line": 33
+        },
+        {
+          "file": "src/services/duplicateDetectionService.js",
+          "line": 149
+        },
+        {
+          "file": "src/services/duplicateDetectionService.js",
+          "line": 288
+        },
+        {
+          "file": "src/services/inventoryAvailabilityService.js",
+          "line": 112
+        },
+        {
+          "file": "src/services/inventoryAvailabilityService.js",
+          "line": 172
+        },
+        {
+          "file": "src/services/releaseWorkflowService.js",
+          "line": 62
+        },
+        {
+          "file": "src/services/systemMonitoringService.js",
+          "line": 162
+        },
+        {
+          "file": "src/services/systemMonitoringService.js",
+          "line": 216
+        },
+        {
+          "file": "src/services/testAnalysisService.js",
+          "line": 136
+        },
+        {
+          "file": "src/services/testAnalysisService.js",
+          "line": 153
+        },
+        {
+          "file": "src/services/testAnalysisService.js",
+          "line": 558
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 83
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 113
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 124
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 156
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 186
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 230
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 275
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 311
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 346
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 379
+        },
+        {
+          "file": "src/tests/ContinuousChaosTest.jsx",
+          "line": 406
+        },
+        {
+          "file": "src/tests/WorkflowAutomatedTest.jsx",
+          "line": 162
+        },
+        {
+          "file": "src/tests/WorkflowAutomatedTest.jsx",
+          "line": 435
+        },
+        {
+          "file": "src/tests/WorkflowAutomatedTest.jsx",
+          "line": 601
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 330
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 543
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 867
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 110
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 139
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 174
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 188
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 225
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 250
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 275
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 293
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 308
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 316
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 350
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 399
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 441
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 486
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 518
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 553
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 571
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 633
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 683
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 710
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 777
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 794
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 847
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 862
+        },
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 829
+        },
+        {
+          "file": "src/utils/workflowMonitor.js",
+          "line": 193
+        },
+        {
+          "file": "src/utils/workflowMonitor.js",
+          "line": 244
+        },
+        {
+          "file": "src/utils/workflowMonitor.js",
+          "line": 309
+        },
+        {
+          "file": "src/utils/workflowMonitor.js",
+          "line": 371
+        },
+        {
+          "file": "src/utils/workflowMonitor.js",
+          "line": 415
+        },
+        {
+          "file": "src/utils/workflowMonitor.js",
+          "line": 478
+        }
+      ],
+      "queryFields": [
+        "releases",
+        "lockedBy",
+        "supplierId",
+        "SupplierId",
+        "customerId",
+        "CustomerId",
+        "releaseNumber",
+        "ReleaseNumber",
+        "createdBy",
+        "createdAt",
+        "ItemId",
+        "SizeId",
+        "LotId",
+        "Status",
+        "__name__",
+        "users",
+        "receiveNewRelease",
+        "audit_logs",
+        "system_alerts",
+        "level",
+        "id",
+        "timestamp",
+        "auditLogs",
+        "releaseId",
+        "emailQueue",
+        "notifications",
+        "data.releaseNumber",
+        "action",
+        "type",
+        "status"
+      ]
+    },
+    {
+      "path": "releases/non-existent-id",
+      "type": "doc",
+      "files": [
+        {
+          "file": "src/tests/WorkflowStressTest.jsx",
+          "line": 411
+        }
+      ],
+      "queryFields": [
+        "releases",
+        "lockedBy",
+        "releaseNumber",
+        "status"
+      ]
+    },
+    {
+      "path": "sizes",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/pages/DataImportManager.jsx",
+          "line": 163
+        },
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 102
+        },
+        {
+          "file": "src/tests/WorkflowAutomatedTest.jsx",
+          "line": 120
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 239
+        }
+      ],
+      "queryFields": [
+        "users",
+        "receiveNewRelease",
+        "role",
+        "auditLogs",
+        "releaseId",
+        "emailQueue",
+        "notifications",
+        "data.releaseNumber",
+        "action",
+        "type"
+      ]
+    },
+    {
+      "path": "staff",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/managers/StaffManager.jsx",
+          "line": 34
+        }
+      ],
+      "queryFields": []
+    },
+    {
+      "path": "staging",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/routes/WarehouseStaging.jsx",
+          "line": 52
+        },
+        {
+          "file": "src/routes/WarehouseStaging.jsx",
+          "line": 183
+        },
+        {
+          "file": "src/routes/WarehouseVerification.jsx",
+          "line": 42
+        },
+        {
+          "file": "src/features/bol-generation/BOLGenerator.jsx",
+          "line": 92
+        }
+      ],
+      "queryFields": [
+        "staging",
+        "barcodes",
+        "releaseId",
+        "Barcode",
+        "bols",
+        "verifications",
+        "SupplierId",
+        "status"
+      ]
+    },
+    {
+      "path": "suppliers",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/managers/SupplierManager.jsx",
+          "line": 134
+        },
+        {
+          "file": "src/pages/DataImportManager.jsx",
+          "line": 71
+        },
+        {
+          "file": "src/tests/WorkflowAutomatedTest.jsx",
+          "line": 108
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 201
+        }
+      ],
+      "queryFields": [
+        "auditLogs",
+        "releaseId",
+        "emailQueue",
+        "notifications",
+        "data.releaseNumber",
+        "action",
+        "type"
+      ]
+    },
+    {
+      "path": "system_alerts",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/services/systemMonitoringService.js",
+          "line": 299
+        },
+        {
+          "file": "src/services/systemMonitoringService.js",
+          "line": 358
+        }
+      ],
+      "queryFields": [
+        "audit_logs",
+        "releases",
+        "system_alerts",
+        "level",
+        "lockedBy",
+        "id",
+        "timestamp"
+      ]
+    },
+    {
+      "path": "test_analyses",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/components/AnalysisHistory.jsx",
+          "line": 27
+        },
+        {
+          "file": "src/services/testAnalysisService.js",
+          "line": 677
+        }
+      ],
+      "queryFields": [
+        "test_analyses",
+        "auditLogs",
+        "timestamp",
+        "releases",
+        "supplierId",
+        "customerId",
+        "releaseNumber"
+      ]
+    },
+    {
+      "path": "trucks",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/hooks/useTrucksWithCarriers.js",
+          "line": 32
+        },
+        {
+          "file": "src/managers/TruckManager.jsx",
+          "line": 52
+        }
+      ],
+      "queryFields": []
+    },
+    {
+      "path": "users",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 171
+        },
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 267
+        },
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 331
+        },
+        {
+          "file": "src/services/releaseNotificationService.js",
+          "line": 397
+        },
+        {
+          "file": "src/services/releaseWorkflowService.js",
+          "line": 550
+        },
+        {
+          "file": "src/tests/WorkflowCompleteE2ETest.jsx",
+          "line": 176
+        },
+        {
+          "file": "src/utils/mvpSMSTest.js",
+          "line": 64
+        },
+        {
+          "file": "src/utils/mvpSMSTest.js",
+          "line": 354
+        },
+        {
+          "file": "src/utils/quickWarehouseSetup.js",
+          "line": 46
+        },
+        {
+          "file": "src/utils/quickWarehouseSetup.js",
+          "line": 63
+        },
+        {
+          "file": "src/utils/testSMSSetup.js",
+          "line": 13
+        }
+      ],
+      "queryFields": [
+        "users",
+        "receiveNewRelease",
+        "role",
+        "emailQueue",
+        "auditLogs",
+        "notifications",
+        "data.releaseNumber",
+        "releaseId",
+        "action",
+        "type"
+      ]
+    },
+    {
+      "path": "verifications",
+      "type": "collection",
+      "files": [
+        {
+          "file": "src/routes/WarehouseVerification.jsx",
+          "line": 107
+        },
+        {
+          "file": "src/routes/WarehouseVerification.jsx",
+          "line": 179
+        },
+        {
+          "file": "src/features/bol-generation/BOLGenerator.jsx",
+          "line": 104
+        }
+      ],
+      "queryFields": [
+        "staging",
+        "releaseId",
+        "bols",
+        "verifications",
+        "SupplierId",
+        "status"
+      ]
+    }
+  ],
+  "expectedFields": {
+    "barcodes": [
+      "data"
+    ],
+    "barges": [
+      "data"
+    ],
+    "carriers": [
+      "data",
+      "carrierName",
+      "CarrierName"
+    ],
+    "customers": [
+      "data"
+    ],
+    "items": [
+      "id",
+      "ItemCode",
+      "ItemName",
+      "Status",
+      "data"
+    ],
+    "lots": [
+      "id",
+      "LotNumber",
+      "Status",
+      "data"
+    ],
+    "products": [
+      "id",
+      "ItemCodeDisplay",
+      "ItemCode",
+      "ItemNameDisplay",
+      "ItemName",
+      "SizeNameDisplay",
+      "SizeName",
+      "StandardWeight",
+      "Status",
+      "data"
+    ],
+    "sizes": [
+      "id",
+      "SizeName",
+      "Status",
+      "data"
+    ],
+    "staff": [
+      "data"
+    ],
+    "suppliers": [
+      "data",
+      "supplierName",
+      "SupplierName"
+    ],
+    "trucks": [
+      "data"
+    ]
+  },
+  "summary": {
+    "totalCollections": 23,
+    "totalDocRefs": 1,
+    "totalFiles": 87
+  }
+}

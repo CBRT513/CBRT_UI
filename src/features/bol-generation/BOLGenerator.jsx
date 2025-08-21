@@ -27,9 +27,9 @@ export default function BOLGenerator() {
   const [showPreview, setShowPreview] = useState(false);
   const [bolPreviewData, setBolPreviewData] = useState(null);
 
-  // Get available releases (only verified releases can generate BOLs)
+  // Get available releases (only loaded releases can generate BOLs)
   const availableReleases = releases?.filter(r => 
-    r.Status === 'Verified' && !r.BOLNumber 
+    (r.Status === 'Loaded' || r.status === 'Loaded') && !r.BOLNumber 
   ) || [];
 
   // Get selected release

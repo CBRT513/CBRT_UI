@@ -1,393 +1,440 @@
-// File: /Users/cerion/CBRT_UI/src/routes/DataImportManager.jsx
-
 import React, { useState } from 'react';
-import { addDoc, collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import Papa from 'papaparse';
+import { collection, addDoc, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 
-export default function DataImportManager() {
-  const [csvFile, setCsvFile] = useState(null);
-  const [stagedData, setStagedData] = useState([]);
-  const [generating, setGenerating] = useState(false);
-  const [clearing, setClearing] = useState(false);
+const DataImportManager = () => {
+  const [csvData, setCsvData] = useState([]);
+  const [importResults, setImportResults] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
     if (file && file.type === 'text/csv') {
-      setCsvFile(file);
-      parseCSV(file);
-    } else {
-      alert('Please select a valid CSV file');
+      Papa.parse(file, {
+        complete: (results) => {
+          console.log('CSV parsed successfully:', results.data);
+          setCsvData(results.data);
+        },
+        header: true,
+        skipEmptyLines: true,
+      });
     }
   };
 
-  const parseCSV = (file) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target.result;
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-
-      const data = [];
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim()) {
-          const values = lines[i].split(',').map(v => v.trim());
-          const row = {};
-          headers.forEach((header, index) => {
-            row[header] = values[index];
-          });
-          data.push(row);
-        }
+  const clearCollections = async () => {
+    setIsClearing(true);
+    try {
+      const collections = ['barcodes', 'barges', 'items', 'lots', 'sizes'];
+      
+      for (const collectionName of collections) {
+        const querySnapshot = await getDocs(collection(db, collectionName));
+        const deletePromises = querySnapshot.docs.map(document => 
+          deleteDoc(doc(db, collectionName, document.id))
+        );
+        await Promise.all(deletePromises);
+        console.log(`✅ Cleared ${collectionName}: ${querySnapshot.docs.length} documents deleted`);
       }
-      setStagedData(data);
-    };
-    reader.readAsText(file);
-  };
 
-  const clearTestingCollections = async () => {
-    const collectionsToClear = ['barcodes', 'barges', 'items', 'lots', 'products', 'sizes'];
-    const results = {};
-
-    for (const collectionName of collectionsTolear) {
-      const snapshot = await getDocs(collection(db, collectionName));
-      const deletePromises = snapshot.docs.map(docSnapshot =>
-        deleteDoc(doc(db, collectionName, docSnapshot.id))
-      );
-      await Promise.all(deletePromises);
-      results[collectionName] = snapshot.docs.length;
+      setImportResults({ cleared: true });
+      console.log('✅ All collections cleared successfully');
+    } catch (error) {
+      console.error('❌ Error clearing collections:', error);
+      setImportResults({ 
+        errors: [`Failed to clear collections: ${error.message}`] 
+      });
+    } finally {
+      setIsClearing(false);
     }
-
-    return results;
   };
 
-  const generateFromStaged = async () => {
-    console.log("Sample row:", stagedData[0]);    if (!stagedData || stagedData.length === 0) {
-      alert('No staged data to process');
+  const processImport = async () => {
+    if (csvData.length === 0) {
+      alert('Please upload a CSV file first');
       return;
     }
 
-    setGenerating(true);
+    setIsProcessing(true);
+    setImportResults(null);
+
+    // Clear existing data first
+    await clearCollections();
+
     try {
-      // Fetch existing data to check for duplicates
-      const [existingItems, existingSizes, existingBarges, existingLots, existingBarcodes] = await Promise.all([
-        getDocs(collection(db, 'items')),
-        getDocs(collection(db, 'sizes')),
-        getDocs(collection(db, 'barges')),
-        getDocs(collection(db, 'lots')),
-        getDocs(collection(db, 'barcodes'))
-      ]);
-
-      // Create lookup maps for existing data
-      const existingItemCodes = new Set(existingItems.docs.map(doc => doc.data().ItemCode));
-      const existingSizeNames = new Set(existingSizes.docs.map(doc => doc.data().SizeName));
-      const existingBargeNames = new Set(existingBarges.docs.map(doc => doc.data().BargeName));
-      const existingLotNumbers = new Set(existingLots.docs.map(doc => doc.data().LotNumber));
-      const existingBarcodeStrings = new Set(existingBarcodes.docs.map(doc => doc.data().Barcode));
-
-      // Create maps for new data to avoid duplicates within this import
-      const itemMap = new Map();
-      const sizeMap = new Map();
-      const bargeMap = new Map();
-      const lotMap = new Map();
+      // First pass: Get unique suppliers and customers
       const supplierMap = new Map();
       const customerMap = new Map();
-
-      // Load existing suppliers and customers (these are created manually, not from CSV)
-      const [suppliers, customers] = await Promise.all([
+      
+      // Get existing suppliers and customers from database
+      const [suppliersSnapshot, customersSnapshot] = await Promise.all([
         getDocs(collection(db, 'suppliers')),
         getDocs(collection(db, 'customers'))
       ]);
 
-      suppliers.docs.forEach(doc => {
-        supplierMap.set(doc.data().SupplierName, doc.id);
-      });
-      customers.docs.forEach(doc => {
-        customerMap.set(doc.data().CustomerName, doc.id);
+      // Map existing suppliers by BOL prefix
+      suppliersSnapshot.docs.forEach(doc => {
+        const supplier = doc.data();
+        if (supplier.BOLPrefix) {
+          supplierMap.set(supplier.BOLPrefix, { id: doc.id, name: supplier.companyName });
+        }
       });
 
-      const results = {
-        items: 0,
+      // Map existing customers by company name
+      customersSnapshot.docs.forEach(doc => {
+        const customer = doc.data();
+        customerMap.set(customer.companyName, { id: doc.id, name: customer.companyName });
+      });
+
+      console.log('📊 Found suppliers:', supplierMap);
+      console.log('📊 Found customers:', customerMap);
+
+      // Initialize counters
+      const counters = {
         sizes: 0,
         barges: 0,
+        items: 0,
         lots: 0,
-        barcodes: 0,
-        skipped: {
-          items: 0,
-          sizes: 0,
-          barges: 0,
-          lots: 0,
-          barcodes: 0
-        }
+        barcodes: 0
       };
 
-      // Process each staged row
-      for (const row of stagedData) {
-        // Check if supplier and customer exist
-        const supplierId = supplierMap.get(row.BOLPrefix);
-        const customerId = customerMap.get(row.CustomerName);
+      const errors = [];
+      const processedEntities = {
+        sizes: new Set(),
+        barges: new Set(),
+        items: new Set(),
+        lots: new Set(),
+        barcodes: new Set()
+      };
 
-        if (!supplierId || !customerId) {
-          continue;
-        }
+      // Process each row
+      for (const row of csvData) {
+        try {
+          // Skip rows with empty required fields (only itemCode is truly required)
+          if (!row.itemCode) {
+            console.log('⚠️ Skipping row with missing itemCode:', row);
+            continue;
+          }
 
-        // Create Item (if not exists)
-        let itemId;
-        if (existingItemCodes.has(row.ItemCode) || itemMap.has(row.ItemCode)) {
-          results.skipped.items++;
-          // Find existing item ID
-          const existingItem = existingItems.docs.find(doc => doc.data().ItemCode === row.ItemCode);
-          itemId = existingItem ? existingItem.id : itemMap.get(row.ItemCode);
-        } else {
-          const itemDoc = await addDoc(collection(db, 'items'), {
-            ItemCode: row.ItemCode,
-            ItemName: row.ItemName,
-            StandardWeight: parseInt(row.StandardWeight) || 2200,
-            Status: 'Active',
-            CreatedAt: new Date()
+          // ✅ NORMALIZE all key fields FIRST (before any duplicate checking)
+          const normalizedSizeName = (row.sizeName || '')
+            .replace(/\s+/g, '')  // Remove all spaces
+            .replace(/\\/g, '/')  // Convert backslashes to forward slashes
+            .toUpperCase()         // Convert to uppercase
+            .trim();
+
+          const normalizedItemCode = (row.itemCode || '')
+            .replace(/\s+/g, '')  // Remove all spaces
+            .replace(/\\/g, '/')  // Convert backslashes to forward slashes
+            .toUpperCase()         // Convert to uppercase
+            .trim();
+
+          const normalizedItemName = (row.itemName || '')
+            .replace(/\s+/g, ' ') // Single spaces only
+            .replace(/\\/g, '/')  // Convert backslashes to forward slashes
+            .toUpperCase()         // Convert to uppercase
+            .trim();
+
+          const normalizedBargeName = (row.bargeName || '')
+            .replace(/\s+/g, '')  // Remove all spaces
+            .replace(/\\/g, '/')  // Convert backslashes to forward slashes
+            .toUpperCase()         // Convert to uppercase
+            .trim();
+
+          const normalizedLotNumber = (row.lotNumber || '')
+            .replace(/\s+/g, '')  // Remove all spaces
+            .replace(/\\/g, '/')  // Convert backslashes to forward slashes
+            .toUpperCase()         // Convert to uppercase
+            .trim();
+
+          const normalizedBarcodeIdentifier = (row.barcodeIdentifier || '')
+            .replace(/\s+/g, '')  // Remove all spaces
+            .toUpperCase()         // Convert to uppercase
+            .trim();
+
+          console.log(`Normalizing row data:`);
+          console.log(`  Size: "${row.sizeName}" → "${normalizedSizeName}"`);
+          console.log(`  Item: "${row.itemCode}" → "${normalizedItemCode}"`);
+          console.log(`  Barge: "${row.bargeName}" → "${normalizedBargeName}"`);
+          console.log(`  Lot: "${row.lotNumber}" → "${normalizedLotNumber}"`);
+
+          // 1. Process Size (with sortOrder field) - using NORMALIZED values
+          if (normalizedSizeName && !processedEntities.sizes.has(normalizedSizeName)) {
+            const sizeDoc = await addDoc(collection(db, 'sizes'), {
+              sizeName: normalizedSizeName,  // Store normalized version
+              originalSizeName: row.sizeName || '',  // Keep original for reference
+              sortOrder: 'ascending',
+              status: 'Active',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+            processedEntities.sizes.add(normalizedSizeName);
+            counters.sizes++;
+            console.log(`✅ Created size: ${normalizedSizeName} (original: ${row.sizeName})`);
+          } else if (normalizedSizeName && processedEntities.sizes.has(normalizedSizeName)) {
+            console.log(`⚠️ Skipping duplicate size: ${normalizedSizeName}`);
+          }
+
+          // 2. Process Barge (only if bargeName exists and not empty) - using NORMALIZED values
+          // Get supplier info based on BOLPrefix from the CSV
+          const bargeSupplierInfo = supplierMap.get(row.BOLPrefix);
+          
+          if (normalizedBargeName && !processedEntities.barges.has(normalizedBargeName)) {
+            const bargeDoc = await addDoc(collection(db, 'barges'), {
+              bargeName: normalizedBargeName,  // Store normalized version
+              originalBargeName: row.bargeName || '',  // Keep original for reference
+              supplierName: bargeSupplierInfo?.name || row.BOLPrefix || '',  // Add supplier name
+              supplierId: bargeSupplierInfo?.id || '',  // Add supplier ID if found
+              bolPrefix: row.BOLPrefix || '',  // Store the BOL prefix for reference
+              status: 'Active',
+              arrivalDate: '',  // Optional - can be updated later
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+            processedEntities.barges.add(normalizedBargeName);
+            counters.barges++;
+            console.log(`✅ Created barge: ${normalizedBargeName} with supplier: ${bargeSupplierInfo?.name || row.BOLPrefix || 'Unknown'}`);
+          } else if (normalizedBargeName && processedEntities.barges.has(normalizedBargeName)) {
+            console.log(`⚠️ Skipping duplicate barge: ${normalizedBargeName}`);
+          }
+
+          // 3. Process Item - using NORMALIZED values
+          const itemKey = `${normalizedItemCode}|||${normalizedItemName}`; // Use ||| separator to avoid false matches
+          if (normalizedItemCode && normalizedItemName && !processedEntities.items.has(itemKey)) {
+            const itemDoc = await addDoc(collection(db, 'items'), {
+              itemCode: normalizedItemCode,  // Store normalized version
+              itemName: normalizedItemName,  // Store normalized version
+              originalItemCode: row.itemCode || '',  // Keep original for reference
+              originalItemName: row.itemName || '',  // Keep original for reference
+              status: 'Active',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+            processedEntities.items.add(itemKey);
+            counters.items++;
+            console.log(`✅ Created item: ${normalizedItemCode} - ${normalizedItemName}`);
+          } else if (normalizedItemCode && normalizedItemName && processedEntities.items.has(itemKey)) {
+            console.log(`⚠️ Skipping duplicate item: ${normalizedItemCode} - ${normalizedItemName}`);
+          }
+
+          // 4. Process Lot (only if lotNumber exists) - using NORMALIZED values
+          if (normalizedLotNumber) {
+            const lotKey = `${normalizedLotNumber}|||${normalizedItemCode}`;
+            if (!processedEntities.lots.has(lotKey)) {
+              const lotDoc = await addDoc(collection(db, 'lots'), {
+                lotNumber: normalizedLotNumber,  // Store normalized version
+                itemCode: normalizedItemCode,    // Store normalized version
+                originalLotNumber: row.lotNumber || '',  // Keep original for reference
+                status: 'Active',
+                createdAt: new Date(),
+                updatedAt: new Date()
+              });
+              processedEntities.lots.add(lotKey);
+              counters.lots++;
+              console.log(`✅ Created lot: ${normalizedLotNumber} for item ${normalizedItemCode}`);
+            } else {
+              console.log(`⚠️ Skipping duplicate lot: ${normalizedLotNumber}`);
+            }
+          }
+
+          // 5. Process Barcode with CORRECT assembly order using NORMALIZED values
+          const barcodeValue = `${normalizedBargeName}${normalizedItemCode}${normalizedLotNumber}${normalizedBarcodeIdentifier}${normalizedSizeName}`;
+          
+          console.log('🔧 Barcode Assembly Debug (ALL NORMALIZED):', {
+            part1_bargeName: `"${normalizedBargeName}"`,
+            part2_itemCode: `"${normalizedItemCode}"`,
+            part3_lotNumber: `"${normalizedLotNumber}"`,
+            part4_barcodeIdentifier: `"${normalizedBarcodeIdentifier}"`,
+            part5_sizeName: `"${normalizedSizeName}"`,
+            FINAL_BARCODE: `"${barcodeValue}"`
           });
-          itemMap.set(row.ItemCode, itemDoc.id);
-          itemId = itemDoc.id;
-          results.items++;
-        }
 
-        // Create Size (if not exists)
-        let sizeId;
-        if (existingSizeNames.has(row.SizeName) || sizeMap.has(row.SizeName)) {
-          results.skipped.sizes++;
-          // Find existing size ID
-          const existingSize = existingSizes.docs.find(doc => doc.data().SizeName === row.SizeName);
-          sizeId = existingSize ? existingSize.id : sizeMap.get(row.SizeName);
-        } else {
-          const sizeDoc = await addDoc(collection(db, 'sizes'), {
-            SizeName: row.SizeName,
-            Status: 'Active',
-            CreatedAt: new Date()
+          // Check for duplicate barcodes
+          if (processedEntities.barcodes.has(barcodeValue)) {
+            console.log(`⚠️ Skipping duplicate barcode: ${barcodeValue}`);
+            continue;
+          }
+
+          // Get customer info (supplier info already fetched above as bargeSupplierInfo)
+          const customerInfo = customerMap.get(row.customerName);
+
+          const barcodeDoc = await addDoc(collection(db, 'barcodes'), {
+            barcode: barcodeValue,
+            // Normalized values for consistency
+            bargeName: normalizedBargeName,
+            itemCode: normalizedItemCode,
+            itemName: normalizedItemName,
+            lotNumber: normalizedLotNumber,
+            sizeName: normalizedSizeName,
+            barcodeIdentifier: normalizedBarcodeIdentifier,
+            // Original values for reference
+            originalBargeName: row.bargeName || '',
+            originalItemCode: row.itemCode || '',
+            originalItemName: row.itemName || '',
+            originalLotNumber: row.lotNumber || '',
+            originalSizeName: row.sizeName || '',
+            originalBarcodeIdentifier: row.barcodeIdentifier || '',
+            // Other fields
+            customerName: (row.customerName || '').trim(),
+            supplierId: bargeSupplierInfo?.id || '',
+            supplierName: bargeSupplierInfo?.name || row.BOLPrefix || '',
+            customerId: customerInfo?.id || '',
+            BOLPrefix: row.BOLPrefix || '',
+            standardWeight: parseFloat(row.standardWeight) || 0,
+            quantity: parseInt(row.quantity) || 1,
+            status: 'Active',
+            createdAt: new Date(),
+            updatedAt: new Date()
           });
-          sizeMap.set(row.SizeName, sizeDoc.id);
-          sizeId = sizeDoc.id;
-          results.sizes++;
-        }
 
-        // File: /Users/cerion/CBRT_UI/src/pages/DataImportManager.jsx
-        // Find the "Create Barge (if not exists)" section around line 130 and replace with this:
+          processedEntities.barcodes.add(barcodeValue);
+          counters.barcodes++;
+          console.log(`✅ Created barcode: ${barcodeValue}`);
 
-        // Create Barge (if not exists)
-        let bargeId;
-        if (existingBargeNames.has(row.BargeName) || bargeMap.has(row.BargeName)) {
-          results.skipped.barges++;
-          // Find existing barge ID
-          const existingBarge = existingBarges.docs.find(doc => doc.data().BargeName === row.BargeName);
-          bargeId = existingBarge ? existingBarge.id : bargeMap.get(row.BargeName);
-        } else {
-          const bargeDoc = await addDoc(collection(db, 'barges'), {
-            BargeName: row.BargeName,
-            SupplierId: supplierId,
-            SupplierName: row.BOLPrefix, // Store supplier name for easy display
-            ArrivalDate: null, // Can be set later manually
-            Status: 'Expected', // Default status for new barges
-            CreatedAt: new Date()
-          });
-          bargeMap.set(row.BargeName, bargeDoc.id);
-          bargeId = bargeDoc.id;
-          results.barges++;
-        }
-
-        // Create Lot (if not exists) - Check by LotNumber only
-        let lotId;
-        const lotKey = row.LotNumber;
-        if (existingLotNumbers.has(row.LotNumber) || lotMap.has(lotKey)) {
-          results.skipped.lots++;
-          // Find existing lot ID
-          const existingLot = existingLots.docs.find(doc => doc.data().LotNumber === row.LotNumber);
-          lotId = existingLot ? existingLot.id : lotMap.get(lotKey);
-        } else {
-          const lotDoc = await addDoc(collection(db, 'lots'), {
-            LotNumber: row.LotNumber,
-            BargeId: bargeId,
-            CustomerId: customerId,
-            Status: 'Active',
-            CreatedAt: new Date()
-          });
-          lotMap.set(lotKey, lotDoc.id);
-          lotId = lotDoc.id;
-          results.lots++;
-        }
-
-        // Generate barcode string
-        const barcodeString = `${row.BargeName}${row.ItemCode}${row.LotNumber}${row.CustomerName}${row.ItemName}${row.SizeName}`.replace(/\s+/g, '');
-
-        // Create Barcode (if not exists)
-        if (existingBarcodeStrings.has(barcodeString)) {
-          results.skipped.barcodes++;
-        } else {
-          await addDoc(collection(db, 'barcodes'), {
-            Barcode: barcodeString,
-            BargeId: bargeId,
-            LotId: lotId,
-            CustomerId: customerId,
-            ItemId: itemId,
-            SizeId: sizeId,
-            Quantity: parseInt(row.Quantity) || 1,
-            StandardWeight: parseInt(row.StandardWeight) || 2200,
-            TotalWeight: (parseInt(row.Quantity) || 1) * (parseInt(row.StandardWeight) || 2200),
-            Status: 'Available',
-            CreatedAt: new Date(),
-            // Display fields for easy reference
-            ItemCode: row.ItemCode,
-            ItemName: row.ItemName,
-            SizeName: row.SizeName,
-            LotNumber: row.LotNumber,
-            BargeName: row.BargeName,
-            CustomerName: row.CustomerName,
-            SupplierName: row.BOLPrefix
-          });
-          results.barcodes++;
+        } catch (rowError) {
+          console.error('❌ Error processing row:', rowError, row);
+          errors.push(`Row error: ${rowError.message}`);
         }
       }
 
-      // Show results
-      const message = `Import completed!\n\nCreated:\n- Items: ${results.items}\n- Sizes: ${results.sizes}\n- Barges: ${results.barges}\n- Lots: ${results.lots}\n- Barcodes: ${results.barcodes}\n\nSkipped (already exist):\n- Items: ${results.skipped.items}\n- Sizes: ${results.skipped.sizes}\n- Barges: ${results.skipped.barges}\n- Lots: ${results.skipped.lots}\n- Barcodes: ${results.skipped.barcodes}`;
+      // ✅ FIX: Use different variable name to avoid duplicate declaration
+      const finalResults = {
+        sizes: counters.sizes,
+        barges: counters.barges,
+        items: counters.items,
+        lots: counters.lots,
+        barcodes: counters.barcodes,
+        errors: errors.length > 0 ? errors : null
+      };
 
-      alert(message);
-      setStagedData([]);
+      setImportResults(finalResults);
+      console.log('✅ Import completed:', finalResults);
 
     } catch (error) {
-      console.error('Error importing data:', error);
-      alert(`Failed to import data: ${error.message}`);
+      console.error('❌ Import failed:', error);
+      setImportResults({
+        sizes: 0,
+        barges: 0,
+        items: 0,
+        lots: 0,
+        barcodes: 0,
+        errors: [`Import failed: ${error.message}`]
+      });
     } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleClearTestingData = async () => {
-    if (!window.confirm('Clear all testing data? This will remove barcodes, barges, items, lots, products, and sizes.')) {
-      return;
-    }
-
-    setClearing(true);
-    try {
-      const results = await clearTestingCollections();
-      console.log('Clear results:', results);
-      alert('Testing data cleared successfully!');
-    } catch (error) {
-      console.error('Error clearing data:', error);
-      alert('Failed to clear testing data');
-    } finally {
-      setClearing(false);
+      setIsProcessing(false);
     }
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Data Import Manager</h1>
-
-        {/* File Upload Section */}
-        <div className="mb-8">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Upload CSV File</h2>
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-            <div className="text-center">
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                className="hidden"
-                id="csv-upload"
-              />
-              <label
-                htmlFor="csv-upload"
-                className="cursor-pointer bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                Choose File
-              </label>
-              {csvFile && (
-                <p className="mt-2 text-sm text-gray-600">
-                  Selected: {csvFile.name}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Staged Data Section */}
-        {stagedData.length > 0 && (
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-medium text-gray-900">
-                Staged Data ({stagedData.length} rows)
-              </h2>
-              <button
-                onClick={generateFromStaged}
-                disabled={generating}
-                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
-              >
-                {generating ? 'Generating...' : 'Generate Barcodes'}
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Barcode</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lot</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Size</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantity</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {stagedData.slice(0, 10).map((row, index) => {
-                    const barcode = `${row.BargeName}${row.ItemCode}${row.LotNumber}${row.CustomerName}${row.ItemName}${row.SizeName}`.replace(/\s+/g, '');
-                    return (
-                      <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-green-600">
-                          {barcode}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {row.ItemCode}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {row.LotNumber}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {row.CustomerName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {row.SizeName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {row.Quantity}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {stagedData.length > 10 && (
-                <div className="text-center py-4 text-gray-500">
-                  ... and {stagedData.length - 10} more rows
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Clear Data Section */}
-        <div className="border-t pt-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-4">Data Management</h2>
-          <button
-            onClick={handleClearTestingData}
-            disabled={clearing}
-            className="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50"
-          >
-            {clearing ? 'Clearing...' : 'Clear Testing Data'}
-          </button>
-          <p className="text-sm text-gray-600 mt-2">
-            Clears: barcodes, barges, items, lots, products, sizes
+    <div className="p-6 max-w-4xl mx-auto">
+      <h2 className="text-2xl font-bold mb-6">Data Import Manager</h2>
+      
+      {/* File Upload Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4">Upload CSV File</h3>
+        <input
+          type="file"
+          accept=".csv"
+          onChange={handleFileUpload}
+          className="w-full p-2 border border-gray-300 rounded"
+        />
+        {csvData.length > 0 && (
+          <p className="mt-2 text-sm text-gray-600">
+            ✅ Loaded {csvData.length} rows from CSV
           </p>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex gap-4 mb-6">
+        <button
+          onClick={processImport}
+          disabled={isProcessing || csvData.length === 0}
+          className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-6 py-2 rounded font-medium"
+        >
+          {isProcessing ? 'Processing...' : 'Import Data'}
+        </button>
+
+        <button
+          onClick={clearCollections}
+          disabled={isClearing}
+          className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white px-6 py-2 rounded font-medium"
+        >
+          {isClearing ? 'Clearing...' : 'Clear Testing Data'}
+        </button>
+      </div>
+
+      {/* Clear Data Info */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded p-4 mb-6">
+        <div className="flex items-start">
+          <div className="flex-shrink-0">
+            <svg className="h-5 w-5 text-yellow-400 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="ml-3">
+            <h3 className="text-sm font-medium text-yellow-800">Testing Data Management</h3>
+            <div className="mt-2 text-sm text-yellow-700">
+              <p>The import process automatically clears existing data before importing new records.</p>
+              <p className="font-medium">Collections cleared: barcodes, barges, items, lots, sizes</p>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Results Section */}
+      {importResults && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold mb-4">
+            {importResults.cleared && !importResults.barcodes ? 'Collections Cleared' : 'Import Results'}
+          </h3>
+          
+          {importResults.cleared && !importResults.barcodes ? (
+            <div className="bg-green-50 border border-green-200 rounded p-3 mb-4">
+              <p className="text-green-800 font-medium">✅ Collections successfully cleared!</p>
+              <p className="text-green-700 text-sm mt-1">
+                All data has been removed from: barcodes, barges, items, lots, and sizes collections.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{importResults.sizes}</div>
+                <div className="text-sm text-gray-600">Sizes</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{importResults.barges}</div>
+                <div className="text-sm text-gray-600">Barges</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">{importResults.items}</div>
+                <div className="text-sm text-gray-600">Items</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">{importResults.lots}</div>
+                <div className="text-sm text-gray-600">Lots</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{importResults.barcodes}</div>
+                <div className="text-sm text-gray-600">Barcodes</div>
+              </div>
+            </div>
+          )}
+
+          {importResults.errors && importResults.errors.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded p-3">
+              <h4 className="font-medium text-red-800 mb-2">Errors:</h4>
+              <ul className="text-sm text-red-700 list-disc list-inside">
+                {importResults.errors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default DataImportManager;

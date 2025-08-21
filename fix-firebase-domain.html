@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Firebase Domain Authorization</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 { color: #1a73e8; }
+        h2 { color: #5f6368; margin-top: 30px; }
+        .step {
+            background: #f8f9fa;
+            border-left: 4px solid #1a73e8;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .code {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            overflow-x: auto;
+        }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #28a745;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 15px 0;
+        }
+        button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #1557b0; }
+        a { color: #1a73e8; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Fix Firebase Domain Authorization Error</h1>
+    
+    <div class="warning">
+        <strong>Error:</strong> Firebase: Error (auth/requests-from-referer-https://cbrt-ui.test-are-blocked.)
+    </div>
+
+    <h2>Quick Fix: Use localhost</h2>
+    <div class="success">
+        <strong>Immediate Solution:</strong> Access your app at 
+        <a href="http://localhost:5173" target="_blank">http://localhost:5173</a>
+        <br>This should work immediately since localhost is pre-authorized.
+    </div>
+
+    <h2>Permanent Fix: Add Domain to Firebase</h2>
+    
+    <div class="step">
+        <h3>Step 1: Open Firebase Console</h3>
+        <button onclick="window.open('https://console.firebase.google.com/project/cbrt-app-ui-dev/authentication/settings', '_blank')">
+            Open Firebase Auth Settings
+        </button>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Navigate to Authorized Domains</h3>
+        <ul>
+            <li>Click on the "Settings" tab</li>
+            <li>Scroll down to "Authorized domains"</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Add Your Domain</h3>
+        <ul>
+            <li>Click "Add domain"</li>
+            <li>Add: <code>cbrt-ui.test</code></li>
+            <li>Also ensure these are added:
+                <ul>
+                    <li><code>localhost</code></li>
+                    <li><code>127.0.0.1</code></li>
+                    <li><code>cbrt-app-ui-dev.firebaseapp.com</code></li>
+                    <li><code>cbrt-app-ui-dev.web.app</code></li>
+                </ul>
+            </li>
+            <li>Click "Save"</li>
+        </ul>
+    </div>
+
+    <h2>Alternative: Update Your Hosts File</h2>
+    <p>If you need to use a custom domain locally, you can also update your hosts file:</p>
+    <div class="code">
+# Add to /etc/hosts (Mac/Linux) or C:\Windows\System32\drivers\etc\hosts (Windows)
+127.0.0.1   cbrt-ui.test
+    </div>
+
+    <h2>Testing the Fix</h2>
+    <div class="step">
+        <h3>After adding the domain:</h3>
+        <ol>
+            <li>Clear your browser cache</li>
+            <li>Restart your development server:
+                <div class="code">npm run dev</div>
+            </li>
+            <li>Try accessing the app again</li>
+        </ol>
+    </div>
+
+    <h2>Current Authorized Domains (Expected)</h2>
+    <ul>
+        <li>cbrt-app-ui-dev.firebaseapp.com</li>
+        <li>cbrt-app-ui-dev.web.app</li>
+        <li>localhost</li>
+        <li>127.0.0.1</li>
+        <li class="warning" style="display: inline-block;">cbrt-ui.test (MISSING - needs to be added)</li>
+    </ul>
+
+    <script>
+        // Check current domain
+        const currentDomain = window.location.hostname;
+        if (currentDomain === 'localhost' || currentDomain === '127.0.0.1') {
+            document.body.insertAdjacentHTML('afterbegin', 
+                '<div class="success"><strong>✅ Good!</strong> You\'re already on an authorized domain: ' + currentDomain + '</div>'
+            );
+        }
+    </script>
+</body>
+</html>

@@ -14,8 +14,8 @@ export default function ReleaseDetails() {
   const { data: sizes } = useFirestoreCollection('sizes');
 
   const release = releases?.find(r => r.id === id);
-  const supplier = suppliers?.find(s => s.id === release?.SupplierId);
-  const customer = customers?.find(c => c.id === release?.CustomerId);
+  const supplier = suppliers?.find(s => s.id === (release?.SupplierId || release?.supplierId));
+  const customer = customers?.find(c => c.id === (release?.CustomerId || release?.customerId));
 
   if (!release) {
     return (
@@ -33,8 +33,18 @@ export default function ReleaseDetails() {
     );
   }
 
-  const getItemName = (itemId) => items?.find(i => i.id === itemId)?.ItemName || 'Unknown';
-  const getSizeName = (sizeId) => sizes?.find(s => s.id === sizeId)?.SizeName || 'Unknown';
+  const getItemName = (itemId) => {
+    const item = items?.find(i => i.id === itemId);
+    return item?.ItemName || item?.itemName || 'Unknown';
+  };
+  const getItemCode = (itemId) => {
+    const item = items?.find(i => i.id === itemId);
+    return item?.ItemCode || item?.itemCode || '';
+  };
+  const getSizeName = (sizeId) => {
+    const size = sizes?.find(s => s.id === sizeId);
+    return size?.SizeName || size?.sizeName || 'Unknown';
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -53,18 +63,18 @@ export default function ReleaseDetails() {
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Release Information</h3>
             <div className="space-y-2">
-              <p><span className="font-medium">Release #:</span> {release.ReleaseNumber}</p>
-              <p><span className="font-medium">Status:</span> <span className="bg-green-100 text-green-800 px-2 py-1 rounded">{release.Status}</span></p>
-              <p><span className="font-medium">Pickup Date:</span> {release.PickupDate ? formatDate(release.PickupDate) : 'Not scheduled'}</p>
-              <p><span className="font-medium">Created:</span> {formatDate(release.CreatedAt)}</p>
+              <p><span className="font-medium">Release #:</span> {release.ReleaseNumber || release.releaseNumber}</p>
+              <p><span className="font-medium">Status:</span> <span className="bg-green-100 text-green-800 px-2 py-1 rounded">{release.Status || release.status}</span></p>
+              <p><span className="font-medium">Pickup Date:</span> {(release.PickupDate || release.pickupDate) ? formatDate(release.PickupDate || release.pickupDate) : 'Not scheduled'}</p>
+              <p><span className="font-medium">Created:</span> {release.CreatedAt || release.createdAt ? formatDate(release.CreatedAt || release.createdAt) : '-'}</p>
             </div>
           </div>
 
           <div>
             <h3 className="text-lg font-medium text-gray-900 mb-4">Parties</h3>
             <div className="space-y-2">
-              <p><span className="font-medium">Supplier:</span> {supplier?.SupplierName || 'Unknown'}</p>
-              <p><span className="font-medium">Customer:</span> {customer?.CustomerName || 'Unknown'}</p>
+              <p><span className="font-medium">Supplier:</span> {supplier?.SupplierName || supplier?.supplierName || 'Unknown'}</p>
+              <p><span className="font-medium">Customer:</span> {customer?.CustomerName || customer?.customerName || 'Unknown'}</p>
             </div>
           </div>
         </div>
@@ -81,16 +91,16 @@ export default function ReleaseDetails() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {release.LineItems?.map((item, index) => (
+                {(release.LineItems || release.lineItems)?.map((item, index) => (
                   <tr key={index}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getItemName(item.ItemId)}
+                      {getItemCode(item.ItemId || item.itemId)} - {getItemName(item.ItemId || item.itemId)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getSizeName(item.SizeId)}
+                      {getSizeName(item.SizeId || item.sizeId)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {item.Quantity}
+                      {item.Quantity || item.requestedQuantity || item.quantity}
                     </td>
                   </tr>
                 ))}

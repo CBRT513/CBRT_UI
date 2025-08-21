@@ -1,0 +1,1378 @@
+{
+  "timestamp": "2025-08-20T23:11:56.368Z",
+  "project": "client-sdk",
+  "results": [
+    {
+      "path": "allocations",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "xllYY1XBebjKT5lIj9jK",
+          "customer": "Sample Customer",
+          "quantity": 50,
+          "status": "pending",
+          "createdAt": "2025-08-20T23:01:41.936Z",
+          "itemCode": "ITEM-001"
+        }
+      ],
+      "schema": {
+        "customer": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "quantity": {
+          "types": [
+            "number"
+          ],
+          "coverage": 100
+        },
+        "status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "createdAt": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "itemCode": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "audit_logs",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "ME154oTINobx5nuKfIEa",
+          "action": "create",
+          "documentId": "ITEM-001",
+          "changes": {},
+          "timestamp": "2025-08-20T23:01:41.937Z",
+          "userId": "system",
+          "collection": "items"
+        }
+      ],
+      "schema": {
+        "action": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "documentId": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "changes": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "timestamp": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "userId": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "collection": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "auditLogs",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "XoJY4anCFXHMdtOOzadx",
+          "collection": "items",
+          "userId": "system",
+          "changes": {},
+          "action": "create",
+          "timestamp": "2025-08-20T23:01:41.937Z",
+          "documentId": "ITEM-001"
+        }
+      ],
+      "schema": {
+        "collection": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "userId": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "changes": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "action": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "timestamp": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "documentId": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "barcodes",
+      "exists": false,
+      "count": 0,
+      "sampleDocs": [],
+      "schema": {},
+      "missingFields": [
+        "barcode",
+        "itemCode",
+        "status",
+        "createdAt"
+      ],
+      "fieldCoverage": {
+        "barcode": 0,
+        "itemCode": 0,
+        "status": 0,
+        "createdAt": 0
+      },
+      "errors": []
+    },
+    {
+      "path": "barges",
+      "exists": false,
+      "count": 0,
+      "sampleDocs": [],
+      "schema": {},
+      "missingFields": [
+        "bargeNumber",
+        "name",
+        "status",
+        "capacity"
+      ],
+      "fieldCoverage": {
+        "bargeNumber": 0,
+        "name": 0,
+        "status": 0,
+        "capacity": 0
+      },
+      "errors": []
+    },
+    {
+      "path": "bols",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "QPmuzdnE2NticHHrks9Q",
+          "items": [],
+          "supplier": "Sample Supplier LLC",
+          "carrier": "Sample Carrier Transport",
+          "status": "draft",
+          "createdAt": "2025-08-20T23:01:41.937Z",
+          "bolNumber": "BOL-001",
+          "customer": "Sample Customer Inc"
+        }
+      ],
+      "schema": {
+        "items": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "supplier": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "carrier": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "createdAt": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "bolNumber": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "customer": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "carriers",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "lp1kCUqiz8M84BStvzPh",
+          "ContactName": "",
+          "CarrierName": "Mo Transport",
+          "Status": "Active",
+          "Address": "",
+          "createdAt": {
+            "seconds": 1754860905,
+            "nanoseconds": 33000000
+          },
+          "updatedAt": {
+            "seconds": 1754860905,
+            "nanoseconds": 33000000
+          },
+          "State": "",
+          "Phone": "",
+          "ZipCode": "",
+          "Email": "",
+          "City": ""
+        }
+      ],
+      "schema": {
+        "ContactName": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "CarrierName": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "Status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "Address": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "createdAt": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "updatedAt": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "State": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "Phone": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "ZipCode": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "Email": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "City": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [
+        "name",
+        "contactName",
+        "phone",
+        "status"
+      ],
+      "fieldCoverage": {
+        "name": 0,
+        "contactName": 0,
+        "phone": 0,
+        "status": 0
+      },
+      "errors": []
+    },
+    {
+      "path": "customers",
+      "exists": true,
+      "count": 3,
+      "sampleDocs": [
+        {
+          "id": "PKQTvI1cPWCD9yvH3Z9T",
+          "contactName": "Michelle Ritzie",
+          "supplierBOLPrefix": "YAS",
+          "phone": "",
+          "zipCode": "",
+          "createdAt": {
+            "seconds": 1754859295,
+            "nanoseconds": 764000000
+          },
+          "city": "",
+          "customerName": "URC",
+          "state": "",
+          "status": "Active",
+          "supplierId": "LhNpMZtQS5enywWlcwUY",
+          "address": "",
+          "supplierName": "YAS",
+          "updatedAt": {
+            "seconds": 1754931331,
+            "nanoseconds": 466000000
+          }
+        },
+        {
+          "id": "ciIiHe8X88SMRiwSGmA8",
+          "updatedAt": {
+            "seconds": 1754931329,
+            "nanoseconds": 642000000
+          },
+          "supplierBOLPrefix": "YAS",
+          "zipCode": "",
+          "supplierId": "LhNpMZtQS5enywWlcwUY",
+          "customerName": "AJF",
+          "status": "Active",
+          "phone": "",
+          "createdAt": {
+            "seconds": 1754922718,
+            "nanoseconds": 693000000
+          },
+          "address": "",
+          "contactName": "Unsure",
+          "state": "",
+          "supplierName": "YAS",
+          "city": ""
+        },
+        {
+          "id": "o5CrYJjjYmU7t4CYwCmA",
+          "customerName": "GNP",
+          "address": "",
+          "zipCode": "",
+          "status": "Active",
+          "phone": "",
+          "state": "",
+          "city": "",
+          "updatedAt": {
+            "seconds": 1754922701,
+            "nanoseconds": 967000000
+          },
+          "contactName": "Kelli Sondel",
+          "createdAt": {
+            "seconds": 1754922701,
+            "nanoseconds": 967000000
+          }
+        }
+      ],
+      "schema": {
+        "contactName": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "supplierBOLPrefix": {
+          "types": [
+            "string"
+          ],
+          "coverage": 67
+        },
+        "phone": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "zipCode": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "createdAt": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "city": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "customerName": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "state": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "supplierId": {
+          "types": [
+            "string"
+          ],
+          "coverage": 67
+        },
+        "address": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "supplierName": {
+          "types": [
+            "string"
+          ],
+          "coverage": 67
+        },
+        "updatedAt": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [
+        "name"
+      ],
+      "fieldCoverage": {
+        "name": 0,
+        "contactName": 100,
+        "phone": 100,
+        "address": 100,
+        "city": 100,
+        "state": 100,
+        "status": 100
+      },
+      "errors": []
+    },
+    {
+      "path": "emailQueue",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "1BPlKRn0UBqrheXZOmzG",
+          "body": "This is a test email",
+          "status": "pending",
+          "subject": "Test Email",
+          "createdAt": "2025-08-20T23:01:41.937Z",
+          "to": "test@example.com"
+        }
+      ],
+      "schema": {
+        "body": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "subject": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "createdAt": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "to": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "items",
+      "exists": false,
+      "count": 0,
+      "sampleDocs": [],
+      "schema": {},
+      "missingFields": [
+        "itemCode",
+        "name",
+        "status",
+        "quantity"
+      ],
+      "fieldCoverage": {
+        "itemCode": 0,
+        "name": 0,
+        "status": 0,
+        "quantity": 0
+      },
+      "errors": []
+    },
+    {
+      "path": "logs",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "LUMgDGTNxNeVXSweyo1H",
+          "timestamp": "2025-08-20T23:01:41.937Z",
+          "source": "audit",
+          "message": "System initialized",
+          "level": "info"
+        }
+      ],
+      "schema": {
+        "timestamp": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "source": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "message": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "level": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "lots",
+      "exists": false,
+      "count": 0,
+      "sampleDocs": [],
+      "schema": {},
+      "missingFields": [
+        "lotNumber",
+        "itemCode",
+        "quantity",
+        "status"
+      ],
+      "fieldCoverage": {
+        "lotNumber": 0,
+        "itemCode": 0,
+        "quantity": 0,
+        "status": 0
+      },
+      "errors": []
+    },
+    {
+      "path": "notifications",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "nrNUbhZwxKsQfSUl1CeY",
+          "createdAt": "2025-08-20T23:01:41.937Z",
+          "userId": "test-user",
+          "type": "info",
+          "message": "Welcome to CBRT",
+          "read": false
+        }
+      ],
+      "schema": {
+        "createdAt": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "userId": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "type": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "message": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "read": {
+          "types": [
+            "boolean"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "releases",
+      "exists": false,
+      "count": 0,
+      "sampleDocs": [],
+      "schema": {},
+      "missingFields": [
+        "releaseNumber",
+        "customer",
+        "status",
+        "items",
+        "createdAt"
+      ],
+      "fieldCoverage": {
+        "releaseNumber": 0,
+        "customer": 0,
+        "status": 0,
+        "items": 0,
+        "createdAt": 0
+      },
+      "errors": []
+    },
+    {
+      "path": "sizes",
+      "exists": false,
+      "count": 0,
+      "sampleDocs": [],
+      "schema": {},
+      "missingFields": [
+        "sizeCode",
+        "description",
+        "dimensions"
+      ],
+      "fieldCoverage": {
+        "sizeCode": 0,
+        "description": 0,
+        "dimensions": 0
+      },
+      "errors": []
+    },
+    {
+      "path": "staff",
+      "exists": true,
+      "count": 4,
+      "sampleDocs": [
+        {
+          "id": "hu3Ll1KQOuVmNPkLTJmb",
+          "authType": "Google",
+          "email": "rwhite@barge2rail.com",
+          "name": "Roniesha",
+          "receivesNewRelease": false,
+          "CreatedAt": {
+            "seconds": 1754855658,
+            "nanoseconds": 705000000
+          },
+          "phone": "",
+          "role": "Office",
+          "status": "Active"
+        },
+        {
+          "id": "jSJvl7wE79HGe7444V4a",
+          "name": "Clif",
+          "email": "clif@barge2rail.com",
+          "phone": "+15134980231",
+          "receivesNewRelease": true,
+          "role": "Admin",
+          "status": "Active",
+          "CreatedAt": {
+            "seconds": 1754855607,
+            "nanoseconds": 705000000
+          },
+          "authType": "Google"
+        },
+        {
+          "id": "yIeV4PtkemYswkeFp9Ez",
+          "role": "Warehouse",
+          "status": "Active",
+          "pinHash": null,
+          "CreatedAt": {
+            "seconds": 1754855633,
+            "nanoseconds": 460000000
+          },
+          "name": "Thing 2",
+          "receivesNewRelease": false,
+          "phone": "",
+          "pinSetup": false,
+          "authType": "PIN"
+        },
+        {
+          "id": "zpQj0mxoyqpIuF4eiIaQ",
+          "status": "Active",
+          "pinHash": null,
+          "phone": "",
+          "receivesNewRelease": false,
+          "CreatedAt": {
+            "seconds": 1754855623,
+            "nanoseconds": 603000000
+          },
+          "role": "Warehouse",
+          "pinSetup": false,
+          "authType": "PIN",
+          "name": "Thing 1"
+        }
+      ],
+      "schema": {
+        "authType": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "email": {
+          "types": [
+            "string"
+          ],
+          "coverage": 50
+        },
+        "name": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "receivesNewRelease": {
+          "types": [
+            "boolean"
+          ],
+          "coverage": 100
+        },
+        "CreatedAt": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "phone": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "role": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "pinHash": {
+          "types": [
+            "object"
+          ],
+          "coverage": 50
+        },
+        "pinSetup": {
+          "types": [
+            "boolean"
+          ],
+          "coverage": 50
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {
+        "name": 100,
+        "email": 50,
+        "role": 100,
+        "status": 100
+      },
+      "errors": []
+    },
+    {
+      "path": "staging",
+      "exists": false,
+      "count": 0,
+      "sampleDocs": [],
+      "schema": {},
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "suppliers",
+      "exists": true,
+      "count": 3,
+      "sampleDocs": [
+        {
+          "id": "LhNpMZtQS5enywWlcwUY",
+          "Email": "",
+          "Status": "Active",
+          "Phone": "",
+          "SupplierName": "YAS",
+          "CreatedAt": {
+            "seconds": 1754859959,
+            "nanoseconds": 31000000
+          },
+          "ContactName": "",
+          "State": "",
+          "Address": "",
+          "ZipCode": "",
+          "BOLPrefix": "YAS",
+          "City": ""
+        },
+        {
+          "id": "vWQjm9HhBzGoP5sZpkxF",
+          "ZipCode": "",
+          "Address": "",
+          "Email": "",
+          "BOLPrefix": "TRX",
+          "SupplierName": "Traxys",
+          "ContactName": "",
+          "Status": "Active",
+          "City": "",
+          "State": "",
+          "CreatedAt": {
+            "seconds": 1754859948,
+            "nanoseconds": 10000000
+          },
+          "Phone": ""
+        },
+        {
+          "id": "yInFVswh9idZp4UPlCoR",
+          "ZipCode": "",
+          "BOLPrefix": "GNP",
+          "SupplierName": "GNP",
+          "City": "",
+          "State": "",
+          "Status": "Active",
+          "ContactName": "",
+          "CreatedAt": {
+            "seconds": 1754922682,
+            "nanoseconds": 65000000
+          },
+          "Email": "",
+          "Address": "",
+          "Phone": ""
+        }
+      ],
+      "schema": {
+        "Email": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "Status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "Phone": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "SupplierName": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "CreatedAt": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "ContactName": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "State": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "Address": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "ZipCode": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "BOLPrefix": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "City": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [
+        "name",
+        "contactName",
+        "phone",
+        "address",
+        "city",
+        "state",
+        "status"
+      ],
+      "fieldCoverage": {
+        "name": 0,
+        "contactName": 0,
+        "phone": 0,
+        "address": 0,
+        "city": 0,
+        "state": 0,
+        "status": 0
+      },
+      "errors": []
+    },
+    {
+      "path": "system_alerts",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "eQqCi4nkE9gCDMOyVoLe",
+          "timestamp": "2025-08-20T23:01:41.937Z",
+          "message": "System running normally",
+          "severity": "low",
+          "type": "info"
+        }
+      ],
+      "schema": {
+        "timestamp": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "message": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "severity": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "type": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "test_analyses",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "eQy7dUJWN4yXHDYNoFXJ",
+          "itemCode": "ITEM-001",
+          "results": {},
+          "testId": "TEST-001",
+          "createdAt": "2025-08-20T23:01:41.937Z",
+          "status": "completed"
+        }
+      ],
+      "schema": {
+        "itemCode": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "results": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "testId": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "createdAt": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "trucks",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "R1F4MYNt7C4yQiw2Mrjm",
+          "CreatedAt": {
+            "seconds": 1754915560,
+            "nanoseconds": 11000000
+          },
+          "Status": "Active",
+          "CarrierId": "lp1kCUqiz8M84BStvzPh",
+          "TrailerNumber": "204B",
+          "TruckNumber": "397A",
+          "CarrierName": "Mo Transport"
+        }
+      ],
+      "schema": {
+        "CreatedAt": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "Status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "CarrierId": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "TrailerNumber": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "TruckNumber": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "CarrierName": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [
+        "truckNumber",
+        "carrier",
+        "status",
+        "capacity"
+      ],
+      "fieldCoverage": {
+        "truckNumber": 0,
+        "carrier": 0,
+        "status": 0,
+        "capacity": 0
+      },
+      "errors": []
+    },
+    {
+      "path": "users",
+      "exists": true,
+      "count": 2,
+      "sampleDocs": [
+        {
+          "id": "0e45R7CazffcnRGrDy89QvtHUuv1",
+          "lastLogin": {
+            "seconds": 1755614206,
+            "nanoseconds": 615000000
+          },
+          "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocL0UccQ-ZYzCuJNjeGh_IdRJQmk46uYezuWQjqSMzU2j6KyTn4=s96-c",
+          "createdAt": {
+            "seconds": 1755614206,
+            "nanoseconds": 615000000
+          },
+          "email": "clif@barge2rail.com",
+          "role": "operator",
+          "isActive": true,
+          "permissions": [
+            "read"
+          ],
+          "displayName": "Clif Erion"
+        },
+        {
+          "id": "7YTqlcfGuSWNNKyC4Mnx5TkCaQY2",
+          "createdAt": {
+            "seconds": 1755614196,
+            "nanoseconds": 429000000
+          },
+          "displayName": null,
+          "isActive": true,
+          "lastLogin": {
+            "seconds": 1755614196,
+            "nanoseconds": 429000000
+          },
+          "email": null,
+          "role": "operator",
+          "photoURL": null,
+          "permissions": [
+            "read"
+          ]
+        }
+      ],
+      "schema": {
+        "lastLogin": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "photoURL": {
+          "types": [
+            "string",
+            "object"
+          ],
+          "coverage": 100
+        },
+        "createdAt": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "email": {
+          "types": [
+            "string",
+            "object"
+          ],
+          "coverage": 100
+        },
+        "role": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "isActive": {
+          "types": [
+            "boolean"
+          ],
+          "coverage": 100
+        },
+        "permissions": {
+          "types": [
+            "object"
+          ],
+          "coverage": 100
+        },
+        "displayName": {
+          "types": [
+            "string",
+            "object"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    },
+    {
+      "path": "verifications",
+      "exists": true,
+      "count": 1,
+      "sampleDocs": [
+        {
+          "id": "eRGfLQM71pwIc3b2JeNw",
+          "createdAt": "2025-08-20T23:01:41.937Z",
+          "verificationId": "VER-001",
+          "verifiedBy": "system",
+          "itemCode": "ITEM-001",
+          "status": "verified"
+        }
+      ],
+      "schema": {
+        "createdAt": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "verificationId": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "verifiedBy": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "itemCode": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        },
+        "status": {
+          "types": [
+            "string"
+          ],
+          "coverage": 100
+        }
+      },
+      "missingFields": [],
+      "fieldCoverage": {},
+      "errors": []
+    }
+  ],
+  "summary": {
+    "totalCollections": 23,
+    "emptyCollections": 7,
+    "collectionsWithErrors": 0,
+    "collectionsWithMissingFields": 10
+  }
+}

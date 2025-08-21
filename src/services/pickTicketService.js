@@ -7,10 +7,10 @@ export class PickTicketService {
   static generatePickTicket(releaseData, supplierData, customerData, lineItemsWithBarcodes) {
     return logger.wrapSync(() => {
       logger.info('Starting pick ticket generation', {
-        releaseNumber: releaseData?.ReleaseNumber,
+        releaseNumber: releaseData?.releaseNumber,
         lineItemCount: lineItemsWithBarcodes?.length,
-        supplier: supplierData?.SupplierName,
-        customer: customerData?.CustomerName
+        supplier: supplierData?.supplierName,
+        customer: customerData?.customerName
       });
 
       const doc = new jsPDF();
@@ -53,7 +53,7 @@ export class PickTicketService {
       doc.setFontSize(10);
       doc.text('Release #:', rightX, rightY);
       doc.setFont('helvetica', 'normal');
-      doc.text(releaseData?.ReleaseNumber || 'N/A', rightX + 30, rightY);
+      doc.text(releaseData?.releaseNumber || 'N/A', rightX + 30, rightY);
       
       rightY += 5;
       doc.setFont('helvetica', 'bold');
@@ -61,12 +61,12 @@ export class PickTicketService {
       doc.setFont('helvetica', 'normal');
       doc.text(new Date().toLocaleDateString(), rightX + 30, rightY);
       
-      if (releaseData?.PickupDate) {
+      if (releaseData?.pickupDate) {
         rightY += 5;
         doc.setFont('helvetica', 'bold');
         doc.text('Expected Pickup:', rightX, rightY);
         doc.setFont('helvetica', 'normal');
-        doc.text(new Date(releaseData.PickupDate).toLocaleDateString(), rightX + 30, rightY);
+        doc.text(new Date(releaseData.pickupDate).toLocaleDateString(), rightX + 30, rightY);
       }
       
       yPos = 75;
@@ -78,7 +78,7 @@ export class PickTicketService {
       yPos += 5;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
-      doc.text(supplierData?.SupplierName || 'Unknown Supplier', margin, yPos);
+      doc.text(supplierData?.supplierName || 'Unknown Supplier', margin, yPos);
       
       yPos += 15;
       
@@ -89,19 +89,19 @@ export class PickTicketService {
       yPos += 5;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
-      doc.text(customerData?.CustomerName || 'Unknown Customer', margin, yPos);
+      doc.text(customerData?.customerName || 'Unknown Customer', margin, yPos);
       yPos += 4;
       
-      if (customerData?.ContactName) {
-        doc.text(`Attn: ${customerData.ContactName}`, margin, yPos);
+      if (customerData?.contactName) {
+        doc.text(`Attn: ${customerData.contactName}`, margin, yPos);
         yPos += 4;
       }
-      if (customerData?.Address) {
-        doc.text(customerData.Address, margin, yPos);
+      if (customerData?.address) {
+        doc.text(customerData.address, margin, yPos);
         yPos += 4;
       }
-      if (customerData?.City && customerData?.State) {
-        doc.text(`${customerData.City}, ${customerData.State} ${customerData.ZipCode || ''}`, margin, yPos);
+      if (customerData?.city && customerData?.state) {
+        doc.text(`${customerData.city}, ${customerData.state} ${customerData.zipCode || ''}`, margin, yPos);
         yPos += 4;
       }
       
@@ -140,7 +140,7 @@ export class PickTicketService {
           itemName: item.itemName,
           sizeName: item.sizeName,
           lotNumber: item.lotNumber,
-          quantity: item.Quantity
+          quantity: item.quantity
         });
         
         return [
@@ -148,7 +148,7 @@ export class PickTicketService {
           truncateText(`${item.itemCode || ''} ${item.itemName || ''}`.trim() || 'Unknown Item', 30),
           truncateText(item.sizeName || item.Size || '', 12),
           truncateText(item.lotNumber || item.Lot || '', 15),
-          (item.Quantity || '1').toString(),
+          (item.quantity || '1').toString(),
           '___'
         ];
       });
@@ -201,7 +201,7 @@ export class PickTicketService {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.text(`Total Items: ${lineItemsWithBarcodes.length}`, margin, finalY);
-      doc.text(`Total Quantity: ${lineItemsWithBarcodes.reduce((sum, item) => sum + (parseInt(item.Quantity) || 0), 0)}`, pageWidth - 80, finalY);
+      doc.text(`Total Quantity: ${lineItemsWithBarcodes.reduce((sum, item) => sum + (parseInt(item.quantity) || 0), 0)}`, pageWidth - 80, finalY);
       
       // Signature lines
       const sigY = finalY + 20;
@@ -222,7 +222,7 @@ export class PickTicketService {
       doc.line(margin + 100, verifyY + 2, margin + 135, verifyY + 2);
       
       logger.info('Pick ticket generation completed successfully', {
-        releaseNumber: releaseData?.ReleaseNumber,
+        releaseNumber: releaseData?.releaseNumber,
         finalY: finalY
       });
       

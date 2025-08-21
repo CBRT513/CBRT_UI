@@ -6,7 +6,7 @@ export default function ExpectedShipments() {
   const { data: releases } = useFirestoreCollection("releases");
   
   const expectedShipments = releases.filter(r => 
-    r.Status === "Available" && 
+    (r.Status === "Entered" || r.status === "Entered") && 
     r.PickupDate && 
     new Date(r.PickupDate) >= new Date()
   ).sort((a, b) => new Date(a.PickupDate) - new Date(b.PickupDate));

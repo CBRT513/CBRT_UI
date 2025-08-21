@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Firestore Connection</title>
+</head>
+<body>
+    <h1>Firestore Connection Test</h1>
+    <button onclick="testConnection()">Test Firestore</button>
+    <div id="result"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAfFS_p_a_tZNTzoFZN7u7k4pA8FYdVkLk",
+            authDomain: "cbrt-app-ui-dev.firebaseapp.com",
+            projectId: "cbrt-app-ui-dev",
+            storageBucket: "cbrt-app-ui-dev.firebasestorage.app",
+            messagingSenderId: "1087116999170",
+            appId: "1:1087116999170:web:e99afb7f4d076f8d75051b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        window.testConnection = async function() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                // Test customers collection
+                const customersSnap = await getDocs(collection(db, 'customers'));
+                const customerCount = customersSnap.size;
+                
+                // Test releases collection
+                const releasesSnap = await getDocs(collection(db, 'releases'));
+                const releaseCount = releasesSnap.size;
+                
+                resultDiv.innerHTML = `
+                    <h3>✅ Connection Successful!</h3>
+                    <p>Customers: ${customerCount} records</p>
+                    <p>Releases: ${releaseCount} records</p>
+                    <h4>Sample Customer Data:</h4>
+                    <pre>${JSON.stringify(customersSnap.docs[0]?.data() || {}, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h3>❌ Connection Failed</h3>
+                    <p>Error: ${error.message}</p>
+                    <p>Make sure you're connected to the internet and Firebase is configured correctly.</p>
+                `;
+                console.error('Firestore error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

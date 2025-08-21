@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Firebase Auth Domain Error</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .error-box {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #f5c6cb;
+        }
+        .steps {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .step {
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
+            background: white;
+        }
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: #667eea;
+            color: white;
+            text-align: center;
+            line-height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        code {
+            background: #f1f1f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', monospace;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 2px solid #e1e4e8;
+        }
+        .success-box {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Firebase Auth Domain Error</h1>
+        
+        <div class="error-box">
+            <strong>Error:</strong> Firebase: Error (auth/requests-from-referer-http://localhost:3001-are-blocked.)
+        </div>
+        
+        <p style="margin-bottom: 20px;">This error occurs because Firebase needs to whitelist the domain. Here's how to fix it:</p>
+        
+        <div class="steps">
+            <h2 style="color: #667eea; margin-bottom: 15px;">Quick Fix Steps:</h2>
+            
+            <div class="step">
+                <span class="step-number">1</span>
+                <strong>Go to Firebase Console</strong><br>
+                <a href="https://console.firebase.google.com/project/cbrt-app-ui-dev/authentication/settings" target="_blank" style="color: #667eea;">
+                    Open Firebase Auth Settings →
+                </a>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">2</span>
+                <strong>Navigate to Settings</strong><br>
+                Click on "Settings" tab in Authentication
+            </div>
+            
+            <div class="step">
+                <span class="step-number">3</span>
+                <strong>Find "Authorized domains"</strong><br>
+                Scroll down to the "Authorized domains" section
+            </div>
+            
+            <div class="step">
+                <span class="step-number">4</span>
+                <strong>Add these domains:</strong><br>
+                Click "Add domain" and add:<br>
+                • <code>localhost</code><br>
+                • <code>localhost:3000</code><br>
+                • <code>localhost:3001</code><br>
+                • <code>localhost:5173</code>
+            </div>
+            
+            <div class="step">
+                <span class="step-number">5</span>
+                <strong>Save Changes</strong><br>
+                Click "Save" at the bottom of the page
+            </div>
+        </div>
+        
+        <div class="steps" style="background: #f0f3ff;">
+            <h2 style="color: #667eea; margin-bottom: 15px;">Alternative: Use Port 3000</h2>
+            
+            <p>If you can't access Firebase Console, run Machine Maintenance on port 3000 (which might already be authorized):</p>
+            
+            <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 10px;">
+                <code style="display: block; padding: 10px; background: #2d2d2d; color: #fff; border-radius: 4px;">
+                    # Kill current process<br>
+                    # Then restart on port 3000:<br>
+                    cd ~/Projects/Machine_Maintenance_App/frontend<br>
+                    PORT=3000 npm start
+                </code>
+            </div>
+        </div>
+        
+        <div class="success-box">
+            <strong>After Adding Domains:</strong><br>
+            • Refresh the Machine Maintenance app<br>
+            • The login should work immediately<br>
+            • Both apps will share the same authentication<br>
+            • SSO will be fully functional! 🎉
+        </div>
+        
+        <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h3 style="color: #333; margin-bottom: 10px;">Why This Happens:</h3>
+            <p style="line-height: 1.6;">
+                Firebase Authentication has security measures to prevent unauthorized domains from using your auth system. 
+                Each domain/port combination needs to be explicitly whitelisted. This is a one-time setup that protects 
+                your authentication from being used by malicious sites.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
