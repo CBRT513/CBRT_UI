@@ -99,6 +99,26 @@ export default function ReleaseDetails() {
           </div>
         </div>
 
+        {release.attachments?.releaseDocUrl && (
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Attachments</h3>
+            <a 
+              href={release.attachments.releaseDocUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              View Release Document
+            </a>
+          </div>
+        )}
+        
+        {release.carrierMode === 'CustomerArranged' && release.status === 'Loaded' && !release.attachments?.adjunctBolUrl && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-yellow-800">Adjunct BOL pending - Customer arranged carrier</p>
+          </div>
+        )}
+        
         <div className="mt-6 flex space-x-4">
           <button
             onClick={() => navigate('/bolgenerator', { state: { selectedRelease: release } })}

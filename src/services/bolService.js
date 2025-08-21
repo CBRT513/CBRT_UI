@@ -432,26 +432,19 @@ class BOLService {
    * Log BOL generation for audit trail
    */
   async logBOLGeneration(releaseId, user, type, metadata = {}) {
-    try {
-      // Import audit service dynamically to avoid circular dependencies
-      const { auditService } = await import('./auditService.js');
-      
-      await auditService.logEvent({
-        action: type === 'bulk' ? 'bulk_bol_generated' : 'bol_generated',
-        resource: type === 'bulk' ? 'bulk_releases' : 'release',
-        resourceId: releaseId,
-        changes: {},
-        metadata: {
-          ...metadata,
-          generationType: type,
-          timestamp: new Date().toISOString()
-        },
-        user
-      });
-    } catch (error) {
-      // Don't fail BOL generation if audit logging fails
-      logger.error('Failed to log BOL generation', error, { releaseId, type });
-    }
+    // Audit logging commented out - auditService not yet implemented
+    // TODO: Implement audit logging in future phase
+    console.log('BOL generation audit log:', {
+      action: type === 'bulk' ? 'bulk_bol_generated' : 'bol_generated',
+      resource: type === 'bulk' ? 'bulk_releases' : 'release',
+      resourceId: releaseId,
+      metadata: {
+        ...metadata,
+        generationType: type,
+        timestamp: new Date().toISOString()
+      },
+      user
+    });
   }
 
   /**
