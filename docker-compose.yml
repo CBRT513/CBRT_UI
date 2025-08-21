@@ -1,0 +1,114 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for UMS (Identity & Schema Plane)
+  postgres:
+    image: postgres:14-alpine
+    container_name: cbrt-postgres
+    environment:
+      POSTGRES_DB: ums
+      POSTGRES_USER: ums
+      POSTGRES_PASSWORD: ums_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ums"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for sessions and caching
+  redis:
+    image: redis:7-alpine
+    container_name: cbrt-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+  # Firebase Emulators
+  firebase-emulators:
+    image: andreysenov/firebase-tools:latest
+    container_name: cbrt-firebase
+    working_dir: /app
+    volumes:
+      - .:/app
+      - firebase_data:/app/.firebase
+    ports:
+      - "9099:9099"  # Auth
+      - "5001:5001"  # Functions
+      - "8081:8081"  # Firestore
+      - "4000:4000"  # Emulator UI
+    command: firebase emulators:start --project cbrt-local --host 0.0.0.0
+    environment:
+      FIREBASE_PROJECT: cbrt-local
+
+  # CBRT Frontend (Vite React App)
+  frontend:
+    image: node:18-alpine
+    container_name: cbrt-frontend
+    working_dir: /app
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+    ports:
+      - "5173:5173"
+    command: >
+      sh -c "
+        npm install &&
+        npm run dev -- --host 0.0.0.0
+      "
+    environment:
+      VITE_FIREBASE_AUTH_EMULATOR_URL: http://localhost:9099
+      VITE_FIRESTORE_EMULATOR_HOST: localhost:8081
+      VITE_FUNCTIONS_EMULATOR_URL: http://localhost:5001
+    depends_on:
+      - firebase-emulators
+
+  # Grafana for observability
+  grafana:
+    image: grafana/grafana:latest
+    container_name: cbrt-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: redis-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: cbrt-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  # Jaeger for tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: cbrt-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # HTTP collector
+      - "6831:6831/udp" # Compact thrift protocol
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  firebase_data:
+  node_modules:
+  grafana_data:
+  prometheus_data:
