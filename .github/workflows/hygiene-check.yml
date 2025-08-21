@@ -1,0 +1,57 @@
+name: Repository Hygiene Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  hygiene-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Check for foreign framework files
+      run: |
+        echo "Checking for foreign framework files..."
+        
+        # Check for Next.js
+        if [ -f "next.config.js" ] || [ -f "next.config.ts" ]; then
+          echo "❌ Found Next.js configuration files"
+          exit 1
+        fi
+        
+        # Check for Angular
+        if [ -f "angular.json" ]; then
+          echo "❌ Found Angular configuration"
+          exit 1
+        fi
+        
+        # Check for unwanted directories
+        if [ -d "apps/" ] || [ -d "packages/" ] || [ -d "functions/" ] || [ -d "staging/" ]; then
+          echo "❌ Found foreign project directories"
+          exit 1
+        fi
+        
+        # Check for multiple package.json files
+        count=$(find . -name "package.json" -not -path "./node_modules/*" -not -path "./_foreign/*" | wc -l)
+        if [ "$count" -gt 1 ]; then
+          echo "❌ Found multiple package.json files (expected only 1 at root)"
+          find . -name "package.json" -not -path "./node_modules/*" -not -path "./_foreign/*"
+          exit 1
+        fi
+        
+        echo "✅ Repository hygiene check passed"
+    
+    - name: Check for single Firebase initialization
+      run: |
+        echo "Checking Firebase initialization..."
+        count=$(grep -r "initializeApp" src/ --exclude-dir=node_modules | wc -l)
+        if [ "$count" -gt 1 ]; then
+          echo "❌ Found multiple Firebase initializations (expected 1)"
+          grep -r "initializeApp" src/ --exclude-dir=node_modules
+          exit 1
+        fi
+        echo "✅ Single Firebase initialization confirmed"
