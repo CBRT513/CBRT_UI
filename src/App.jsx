@@ -22,6 +22,7 @@ import PDFTestPage from './routes/PDFTestPage';
 import WarehouseStaging from './routes/WarehouseStaging';
 import WarehouseApp from './routes/WarehouseApp';
 import WarehouseVerification from './routes/WarehouseVerification';
+import CustomerPortal from './routes/CustomerPortal';
 
 // Managers
 import StaffManager from './managers/StaffManager';
@@ -62,7 +63,8 @@ export default function App() {
     "BOL Generator",
     "BOL Manager",
     "PDF Test",
-    "Warehouse App"
+    "Warehouse App",
+    "Portal"
   ];
 
   return (
@@ -107,6 +109,7 @@ export default function App() {
             <Route path="/release-details/:id" element={<ReleaseDetails />} />
             <Route path="/pdftest" element={<PDFTestPage />} />
             <Route path="/warehouseapp" element={<WarehouseApp />} />
+            <Route path="/portal" element={<CustomerPortal />} />
           </Routes>
         </main>
       </div>

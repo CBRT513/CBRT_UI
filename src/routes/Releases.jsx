@@ -1,16 +1,22 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFirestoreCollection } from '../hooks/useFirestore';
 import { useNavigate } from 'react-router-dom';
 import { TableSkeleton } from '../components/LoadingStates';
 import { formatDate } from '../utils';
 import { updateDoc, doc } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { SelectableTable, TableHeaders, TableHeader, TableCell } from '../components/SelectableTable';
+import { generateBulkBOLs, generateSingleBOL } from '../services/bolService';
+import { auth } from '../firebase/config';
 
 export default function Releases() {
   const navigate = useNavigate();
+  const user = auth.currentUser || { id: 'anonymous', displayName: 'Anonymous User' };
   const { data: releases, loading: releasesLoading } = useFirestoreCollection('releases');
   const { data: suppliers } = useFirestoreCollection('suppliers');
   const { data: customers } = useFirestoreCollection('customers');
+  const [bulkOperationsLoading, setBulkOperationsLoading] = useState(false);
+  const [selectedReleases, setSelectedReleases] = useState([]);
 
   const getSupplierName = (supplierId) => {
     if (!suppliers || !supplierId) return 'Unknown';
@@ -28,8 +34,38 @@ export default function Releases() {
     navigate(`/release-details/${release.id}`);
   };
 
-  const handleGenerateBOL = (release) => {
-    navigate('/bolgenerator', { state: { selectedRelease: release } });
+  const handleGenerateBOL = async (release) => {
+    try {
+      await generateSingleBOL(release.id, user);
+    } catch (error) {
+      console.error('Error generating BOL:', error);
+      alert('Failed to generate BOL: ' + error.message);
+    }
+  };
+
+  const handleBulkGenerateBOL = async (selectedIds) => {
+    if (selectedIds.length === 0) {
+      alert('Please select releases to generate BOLs for');
+      return;
+    }
+
+    if (!window.confirm(`Generate BOLs for ${selectedIds.length} release${selectedIds.length === 1 ? '' : 's'}?`)) {
+      return;
+    }
+
+    setBulkOperationsLoading(true);
+    try {
+      await generateBulkBOLs(selectedIds, user);
+    } catch (error) {
+      console.error('Error generating bulk BOLs:', error);
+      alert('Failed to generate bulk BOLs: ' + error.message);
+    } finally {
+      setBulkOperationsLoading(false);
+    }
+  };
+
+  const handleSelectionChange = (selectedIds, selectedItems) => {
+    setSelectedReleases(selectedItems);
   };
 
   const handleCancelRelease = async (release) => {
@@ -85,66 +121,77 @@ export default function Releases() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Release #</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pickup Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Line Items</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+          <SelectableTable
+            data={openReleases}
+            onSelectionChange={handleSelectionChange}
+            entityType="releases"
+            batchActions={[
+              {
+                label: 'Generate BOLs',
+                icon: '📄',
+                action: handleBulkGenerateBOL,
+                disabled: bulkOperationsLoading,
+                variant: 'primary'
+              }
+            ]}
+          >
+            <TableHeaders>
+              <TableHeader>Release #</TableHeader>
+              <TableHeader>Supplier</TableHeader>
+              <TableHeader>Customer</TableHeader>
+              <TableHeader>Pickup Date</TableHeader>
+              <TableHeader>Line Items</TableHeader>
+              <TableHeader>Actions</TableHeader>
+            </TableHeaders>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {openReleases.map((release, index) => (
+                <tr key={release.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <TableCell>
+                    <button
+                      onClick={() => handleReleaseClick(release)}
+                      className="text-green-600 hover:text-green-800 font-medium underline"
+                    >
+                      {release.ReleaseNumber}
+                    </button>
+                  </TableCell>
+                  <TableCell>
+                    {getSupplierName(release.SupplierId)}
+                  </TableCell>
+                  <TableCell>
+                    {getCustomerName(release.CustomerId)}
+                  </TableCell>
+                  <TableCell>
+                    {release.PickupDate ? formatDate(release.PickupDate) : 'Not scheduled'}
+                  </TableCell>
+                  <TableCell>
+                    {release.TotalItems || release.LineItems?.length || 0} items
+                  </TableCell>
+                  <TableCell className="space-x-2">
+                    <button
+                      onClick={() => handleGenerateBOL(release)}
+                      disabled={bulkOperationsLoading}
+                      className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    >
+                      Generate BOL
+                    </button>
+                    <button
+                      onClick={() => handleCancelRelease(release)}
+                      disabled={bulkOperationsLoading}
+                      className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleReleaseClick(release)}
+                      className="text-green-600 hover:text-green-800"
+                    >
+                      View Details
+                    </button>
+                  </TableCell>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {openReleases.map((release, index) => (
-                  <tr key={release.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <button
-                        onClick={() => handleReleaseClick(release)}
-                        className="text-green-600 hover:text-green-800 font-medium underline"
-                      >
-                        {release.ReleaseNumber}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getSupplierName(release.SupplierId)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getCustomerName(release.CustomerId)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {release.PickupDate ? formatDate(release.PickupDate) : 'Not scheduled'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {release.TotalItems || release.LineItems?.length || 0} items
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                      <button
-                        onClick={() => handleGenerateBOL(release)}
-                        className="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        Generate BOL
-                      </button>
-                      <button
-                        onClick={() => handleCancelRelease(release)}
-                        className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={() => handleReleaseClick(release)}
-                        className="text-green-600 hover:text-green-800"
-                      >
-                        View Details
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </SelectableTable>
         )}
 
         {openReleases.length > 0 && (
