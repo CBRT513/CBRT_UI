@@ -1,8 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import StateBadge from './StateBadge';
 import AgingChip from './AgingChip';
 
-const QueueTable = ({ rows, onOpenRelease, columnsOverride }) => {
+const QueueTable = ({ rows, onOpenRelease, columnsOverride, queueType }) => {
+  const navigate = useNavigate();
   const defaultColumns = [
     { key: 'number', label: 'Release #', render: (row) => row.number || row.id },
     { key: 'customerName', label: 'Customer', render: (row) => row.customerName || 'N/A' },
@@ -20,14 +22,53 @@ const QueueTable = ({ rows, onOpenRelease, columnsOverride }) => {
     { 
       key: 'actions', 
       label: 'Actions', 
-      render: (row) => (
-        <button
-          onClick={() => onOpenRelease(row.id)}
-          className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-        >
-          View
-        </button>
-      )
+      render: (row) => {
+        const getActionButton = () => {
+          switch (queueType) {
+            case 'pick':
+              return (
+                <button
+                  onClick={() => navigate(`/stage/${row.id}`)}
+                  className="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700"
+                >
+                  Stage
+                </button>
+              );
+            case 'verify':
+              return (
+                <button
+                  onClick={() => navigate(`/verify/${row.id}`)}
+                  className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                >
+                  Verify
+                </button>
+              );
+            case 'bol':
+              return (
+                <button
+                  onClick={() => navigate(`/load/${row.id}`)}
+                  className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
+                >
+                  Load
+                </button>
+              );
+            default:
+              return null;
+          }
+        };
+
+        return (
+          <div className="flex space-x-2">
+            {getActionButton()}
+            <button
+              onClick={() => onOpenRelease(row.id)}
+              className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+            >
+              View
+            </button>
+          </div>
+        );
+      }
     }
   ];
   

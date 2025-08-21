@@ -24,6 +24,9 @@ import WarehouseApp from './routes/WarehouseApp';
 import WarehouseVerification from './routes/WarehouseVerification';
 import CustomerPortal from './routes/CustomerPortal';
 import OpsQueues from './routes/OpsQueues';
+import StageRelease from './routes/StageRelease';
+import VerifyRelease from './routes/VerifyRelease';
+import LoadRelease from './routes/LoadRelease';
 
 // Managers
 import StaffManager from './managers/StaffManager';
@@ -122,6 +125,9 @@ export default function App() {
             <Route path="/portal" element={<CustomerPortal />} />
             <Route path="/ops/queues" element={<OpsQueues />} />
             <Route path="/releases/:id" element={<ReleaseDetails />} />
+            <Route path="/stage/:id" element={<StageRelease />} />
+            <Route path="/verify/:id" element={<VerifyRelease />} />
+            <Route path="/load/:id" element={<LoadRelease />} />
           </Routes>
         </main>
       </div>

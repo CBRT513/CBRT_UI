@@ -103,6 +103,7 @@ const OpsQueues = () => {
           <QueueTable
             rows={releases}
             onOpenRelease={handleOpenRelease}
+            queueType={activeTab}
           />
         )}
       </div>

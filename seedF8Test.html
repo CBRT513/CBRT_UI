@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F8 Test Data Seeder</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1000px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 24px;
+    }
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    button {
+      background: #4F46E5;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #4338CA;
+    }
+    button:disabled {
+      background: #9CA3AF;
+      cursor: not-allowed;
+    }
+    button.danger {
+      background: #DC2626;
+    }
+    button.danger:hover {
+      background: #B91C1C;
+    }
+    button.secondary {
+      background: #10B981;
+    }
+    button.secondary:hover {
+      background: #059669;
+    }
+    .log {
+      background: #1f2937;
+      color: #e5e7eb;
+      border-radius: 6px;
+      padding: 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      max-height: 400px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+    .success { color: #34d399; }
+    .error { color: #f87171; }
+    .info { color: #60a5fa; }
+    .warning { color: #fbbf24; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      padding: 16px;
+    }
+    .card h3 {
+      margin: 0 0 12px 0;
+      color: #374151;
+      font-size: 16px;
+    }
+    .card p {
+      margin: 4px 0;
+      font-size: 14px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🚀 F8 Test Data Seeder</h1>
+    <p class="subtitle">Create releases with line items and inventory for testing Stage → Verify → Load workflow</p>
+    
+    <div class="grid">
+      <div class="card">
+        <h3>📦 What this creates:</h3>
+        <p>• 3 releases with status "Entered"</p>
+        <p>• 1 release with status "Staged"</p>
+        <p>• 1 release with status "Verified"</p>
+        <p>• Line items with quantities</p>
+        <p>• Inventory lots with reservations</p>
+      </div>
+      <div class="card">
+        <h3>👤 Staff permissions:</h3>
+        <p>• Creates test staff with permissions</p>
+        <p>• Stager: can stage releases</p>
+        <p>• Verifier: can verify releases</p>
+        <p>• Loader: can load releases</p>
+      </div>
+    </div>
+    
+    <div class="button-group">
+      <button id="seedBtn">🌱 Seed Test Data</button>
+      <button id="staffBtn" class="secondary">👥 Create Staff Only</button>
+      <button id="clearBtn" class="danger">🗑️ Clear All Data</button>
+    </div>
+    
+    <div id="log" class="log">Ready to seed test data...</div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+    import { 
+      getFirestore, 
+      collection, 
+      addDoc, 
+      setDoc,
+      doc,
+      serverTimestamp,
+      getDocs,
+      deleteDoc,
+      Timestamp
+    } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+    import {
+      getAuth,
+      signInAnonymously
+    } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    
+    const firebaseConfig = {
+      apiKey: "demo-api-key",
+      authDomain: "cbrt-local.firebaseapp.com",
+      projectId: "cbrt-local",
+      storageBucket: "cbrt-local.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "demo-app-id"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    
+    // Connect to emulator
+    if (!window.firestoreEmulatorConnected) {
+      const { connectFirestoreEmulator } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js');
+      const { connectAuthEmulator } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+      connectFirestoreEmulator(db, 'localhost', 8081);
+      connectAuthEmulator(auth, 'http://localhost:9099');
+      window.firestoreEmulatorConnected = true;
+    }
+    
+    // Sign in anonymously
+    await signInAnonymously(auth);
+    
+    const log = document.getElementById('log');
+    const seedBtn = document.getElementById('seedBtn');
+    const staffBtn = document.getElementById('staffBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    
+    const addLog = (msg, type = '') => {
+      const timestamp = new Date().toLocaleTimeString();
+      log.innerHTML += `<span class="${type}">[${timestamp}] ${msg}</span>\n`;
+      log.scrollTop = log.scrollHeight;
+    };
+    
+    const createStaff = async () => {
+      addLog('Creating staff members...', 'info');
+      
+      const staffMembers = [
+        {
+          id: 'stager-001',
+          name: 'John Stager',
+          email: 'stager@cbrt.com',
+          isVerifier: false,
+          perms: { canStage: true, canVerify: false, canLoad: false }
+        },
+        {
+          id: 'verifier-001',
+          name: 'Jane Verifier',
+          email: 'verifier@cbrt.com',
+          isVerifier: true,
+          perms: { canStage: false, canVerify: true, canLoad: false }
+        },
+        {
+          id: 'loader-001',
+          name: 'Bob Loader',
+          email: 'loader@cbrt.com',
+          isVerifier: false,
+          perms: { canStage: false, canVerify: false, canLoad: true }
+        },
+        {
+          id: 'admin-001',
+          name: 'Admin User',
+          email: 'admin@cbrt.com',
+          isVerifier: true,
+          perms: { canStage: true, canVerify: true, canLoad: true }
+        }
+      ];
+      
+      for (const staff of staffMembers) {
+        try {
+          await setDoc(doc(db, 'staff', staff.id), {
+            ...staff,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          addLog(`✓ Created staff: ${staff.name} (${staff.id})`, 'success');
+        } catch (error) {
+          addLog(`✗ Failed to create staff ${staff.name}: ${error.message}`, 'error');
+        }
+      }
+    };
+    
+    const createInventory = async () => {
+      addLog('Creating inventory lots...', 'info');
+      
+      const lots = [
+        {
+          id: 'LOT-001',
+          itemName: 'Widget A',
+          onHandQty: 1000,
+          committedQty: 0,
+          availableQty: 1000
+        },
+        {
+          id: 'LOT-002',
+          itemName: 'Widget B',
+          onHandQty: 500,
+          committedQty: 0,
+          availableQty: 500
+        },
+        {
+          id: 'LOT-003',
+          itemName: 'Widget C',
+          onHandQty: 750,
+          committedQty: 0,
+          availableQty: 750
+        }
+      ];
+      
+      for (const lot of lots) {
+        try {
+          await setDoc(doc(db, 'inventoryLots', lot.id), {
+            ...lot,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          addLog(`✓ Created lot: ${lot.id} - ${lot.itemName} (${lot.onHandQty} units)`, 'success');
+        } catch (error) {
+          addLog(`✗ Failed to create lot ${lot.id}: ${error.message}`, 'error');
+        }
+      }
+      
+      return lots;
+    };
+    
+    seedBtn.addEventListener('click', async () => {
+      seedBtn.disabled = true;
+      log.innerHTML = '';
+      addLog('Starting F8 test data seed...', 'info');
+      
+      // Create staff first
+      await createStaff();
+      
+      // Create inventory
+      const lots = await createInventory();
+      
+      // Create test releases
+      const releases = [
+        {
+          ReleaseNumber: 'F8-REL-001',
+          number: 'F8-REL-001',
+          customerName: 'Acme Corp',
+          shipToName: 'Warehouse Alpha',
+          status: 'Entered',
+          statusChangedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+          LineItems: [
+            { ItemName: 'Widget A', Quantity: 50, lotId: 'LOT-001' },
+            { ItemName: 'Widget B', Quantity: 25, lotId: 'LOT-002' }
+          ]
+        },
+        {
+          ReleaseNumber: 'F8-REL-002',
+          number: 'F8-REL-002',
+          customerName: 'Beta Industries',
+          shipToName: 'Distribution Center',
+          status: 'Entered',
+          statusChangedAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
+          LineItems: [
+            { ItemName: 'Widget C', Quantity: 100, lotId: 'LOT-003' }
+          ]
+        },
+        {
+          ReleaseNumber: 'F8-REL-003',
+          number: 'F8-REL-003',
+          customerName: 'Gamma Tech',
+          shipToName: 'Store #42',
+          status: 'Entered',
+          statusChangedAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+          LineItems: [
+            { ItemName: 'Widget A', Quantity: 75, lotId: 'LOT-001' },
+            { ItemName: 'Widget C', Quantity: 50, lotId: 'LOT-003' }
+          ]
+        },
+        {
+          ReleaseNumber: 'F8-REL-004',
+          number: 'F8-REL-004',
+          customerName: 'Delta Corp',
+          stagingLocation: 'Allied',
+          status: 'Staged',
+          statusChangedAt: new Date(Date.now() - 45 * 60 * 1000), // 45 minutes ago
+          stagedBy: 'stager-001',
+          stagedAt: Timestamp.fromDate(new Date(Date.now() - 45 * 60 * 1000)),
+          LineItems: [
+            { ItemName: 'Widget B', Quantity: 40, qtyStaged: 40, lotId: 'LOT-002' }
+          ]
+        },
+        {
+          ReleaseNumber: 'F8-REL-005',
+          number: 'F8-REL-005',
+          customerName: 'Epsilon LLC',
+          stagingLocation: 'Warehouse',
+          status: 'Verified',
+          statusChangedAt: new Date(Date.now() - 15 * 60 * 1000), // 15 minutes ago
+          stagedBy: 'stager-001',
+          stagedAt: Timestamp.fromDate(new Date(Date.now() - 60 * 60 * 1000)),
+          verifiedBy: 'verifier-001',
+          verifiedAt: Timestamp.fromDate(new Date(Date.now() - 15 * 60 * 1000)),
+          LineItems: [
+            { ItemName: 'Widget A', Quantity: 30, qtyStaged: 30, lotId: 'LOT-001' },
+            { ItemName: 'Widget B', Quantity: 20, qtyStaged: 20, lotId: 'LOT-002' },
+            { ItemName: 'Widget C', Quantity: 15, qtyStaged: 15, lotId: 'LOT-003' }
+          ]
+        }
+      ];
+      
+      addLog('Creating test releases...', 'info');
+      
+      for (const release of releases) {
+        try {
+          // Update inventory commitments for Entered releases
+          if (release.status === 'Entered') {
+            for (const item of release.LineItems) {
+              if (item.lotId) {
+                const lotRef = doc(db, 'inventoryLots', item.lotId);
+                const lot = lots.find(l => l.id === item.lotId);
+                if (lot) {
+                  await setDoc(lotRef, {
+                    committedQty: (lot.committedQty || 0) + item.Quantity,
+                    availableQty: lot.onHandQty - ((lot.committedQty || 0) + item.Quantity)
+                  }, { merge: true });
+                }
+              }
+            }
+          }
+          
+          await addDoc(collection(db, 'releases'), {
+            ...release,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          });
+          addLog(`✓ Created ${release.ReleaseNumber} (${release.status}) for ${release.customerName}`, 'success');
+        } catch (error) {
+          addLog(`✗ Failed to create ${release.ReleaseNumber}: ${error.message}`, 'error');
+        }
+      }
+      
+      addLog('', '');
+      addLog('=== F8 TEST DATA READY ===', 'success');
+      addLog('1. Go to /ops/queues to see the queues', 'info');
+      addLog('2. Pick tab: Stage releases', 'info');
+      addLog('3. Verify tab: Approve/Reject staged releases', 'info');
+      addLog('4. BOL tab: Load verified releases', 'info');
+      seedBtn.disabled = false;
+    });
+    
+    staffBtn.addEventListener('click', async () => {
+      staffBtn.disabled = true;
+      log.innerHTML = '';
+      await createStaff();
+      addLog('Staff creation complete!', 'success');
+      staffBtn.disabled = false;
+    });
+    
+    clearBtn.addEventListener('click', async () => {
+      clearBtn.disabled = true;
+      log.innerHTML = '';
+      addLog('Clearing all test data...', 'warning');
+      
+      const collections = ['releases', 'staff', 'inventoryLots', 'auditLogs', 'releaseLines'];
+      
+      for (const collName of collections) {
+        try {
+          const snapshot = await getDocs(collection(db, collName));
+          let count = 0;
+          for (const docSnap of snapshot.docs) {
+            await deleteDoc(doc(db, collName, docSnap.id));
+            count++;
+          }
+          if (count > 0) {
+            addLog(`✓ Cleared ${count} documents from ${collName}`, 'success');
+          }
+        } catch (error) {
+          addLog(`✗ Error clearing ${collName}: ${error.message}`, 'error');
+        }
+      }
+      
+      addLog('All test data cleared!', 'success');
+      clearBtn.disabled = false;
+    });
+  </script>
+</body>
+</html>
