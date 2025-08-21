@@ -1,9 +1,216 @@
+// Firestore Security Rules for CBRT UI
+// Production-tight role-based access control
+// Deny all writes by default, open specific paths by role
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper functions for role checking
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.role;
+    }
+    
+    function hasRole(role) {
+      return getUserRole() == role;
+    }
+    
+    function hasAnyRole(roles) {
+      return getUserRole() in roles;
+    }
+    
+    function isAdmin() {
+      return hasRole('admin');
+    }
+    
+    function isOffice() {
+      return hasRole('office');
+    }
+    
+    function isLoader() {
+      return hasRole('loader');
+    }
+    
+    function isViewer() {
+      return hasRole('viewer');
+    }
+    
+    function canCrudMasters() {
+      return hasAnyRole(['admin', 'office']);
+    }
+    
+    function canCrudReleases() {
+      return hasAnyRole(['admin', 'office']);
+    }
+    
+    function canAdvanceStaged() {
+      return hasAnyRole(['admin', 'office', 'loader']);
+    }
+    
+    function canVerifyReleases() {
+      return hasAnyRole(['admin', 'office']);
+    }
+    
+    function canViewBarcodes() {
+      return hasAnyRole(['admin', 'office', 'loader', 'viewer']);
+    }
+    
+    function canEditBarcodes() {
+      return hasRole('admin');
+    }
+    
+    function canViewUmsEvents() {
+      return hasAnyRole(['admin', 'office']);
+    }
+    
+    function canManageStaff() {
+      return hasRole('admin');
+    }
+    
+    // Check if date is within last 48 hours (for loader restrictions)
+    function isRecentDate(date) {
+      return date != null && 
+             date > (timestamp.date(request.time) - duration.value(2, 'd'));
+    }
+    
+    // ===================== COLLECTION RULES =====================
+    
+    // Staff collection - source of truth for roles
+    match /staff/{userId} {
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || // Users can read their own profile
+        canManageStaff() // Admins can read all staff
+      );
+      allow write: if canManageStaff();
+    }
+    
+    // Customers collection
+    match /customers/{customerId} {
+      allow read: if isAuthenticated() && canViewBarcodes();
+      allow write: if canCrudMasters();
+    }
+    
+    // Suppliers collection  
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated() && canViewBarcodes();
+      allow write: if canCrudMasters();
+    }
+    
+    // Items collection
+    match /items/{itemId} {
+      allow read: if isAuthenticated() && canViewBarcodes();
+      allow write: if canCrudMasters();
+    }
+    
+    // Sizes collection
+    match /sizes/{sizeId} {
+      allow read: if isAuthenticated() && canViewBarcodes();
+      allow write: if canCrudMasters();
+    }
+    
+    // Lots collection
+    match /lots/{lotId} {
+      allow read: if isAuthenticated() && canViewBarcodes();
+      allow write: if canCrudMasters();
+    }
+    
+    // Carriers collection
+    match /carriers/{carrierId} {
+      allow read: if isAuthenticated() && canViewBarcodes();
+      allow write: if canCrudMasters();
+    }
+    
+    // Trucks collection
+    match /trucks/{truckId} {
+      allow read: if isAuthenticated() && canViewBarcodes();
+      allow write: if canCrudMasters();
+    }
+    
+    // Barges collection
+    match /barges/{bargeId} {
+      allow read: if isAuthenticated() && canViewBarcodes();
+      allow write: if canCrudMasters();
+    }
+    
+    // Releases collection - complex rules based on role and date
+    match /releases/{releaseId} {
+      allow read: if isAuthenticated() && (
+        canViewBarcodes() && (
+          // Admin/Office can see all releases
+          canCrudReleases() ||
+          // Loaders only see releases for today/yesterday pickup dates
+          (isLoader() && isRecentDate(resource.data.pickupDate))
+        )
+      );
+      
+      allow create: if canCrudReleases();
+      
+      allow update: if isAuthenticated() && (
+        canCrudReleases() || // Admin/Office can update all fields
+        (canAdvanceStaged() && 
+         // Loaders can only update status and related workflow fields
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['status', 'loadedBy', 'loadedByName', 'loadedAt', 'truckNumber',
+                    'stagedBy', 'stagedByName', 'stagedAt', 'stagedLocation',
+                    'verifiedBy', 'verifiedByName', 'verifiedAt'])
+        )
+      );
+      
+      allow delete: if canCrudReleases();
+    }
+    
+    // Barcodes collection - filtered access for loaders
+    match /barcodes/{barcodeId} {
+      allow read: if isAuthenticated() && canViewBarcodes() && (
+        canEditBarcodes() || // Admin sees all
+        canCrudReleases() || // Office sees all
+        (isLoader() && (
+          // Loaders only see barcodes for recent releases
+          resource.data.get('status', '') == 'Available' ||
+          isRecentDate(resource.data.get('createdAt', null))
+        )) ||
+        isViewer() // Viewers see all (read-only)
+      );
+      
+      allow write: if canEditBarcodes();
+    }
+    
+    // BOLs collection
+    match /bols/{bolId} {
+      allow read: if isAuthenticated() && canViewBarcodes();
+      allow write: if canCrudReleases();
+    }
+    
+    // UMS Events collection
+    match /umsEvents/{eventId} {
+      allow read: if canViewUmsEvents();
+      allow write: if canViewUmsEvents(); // System-generated events
+    }
+    
+    // Audit Logs collection
+    match /auditLogs/{logId} {
+      allow read: if canViewUmsEvents();
+      allow write: if isAuthenticated(); // All authenticated users can create audit logs
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        resource.data.recipientId == request.auth.uid ||
+        canManageStaff()
+      );
+      allow write: if canCrudReleases(); // System notifications
+    }
+    
+    // ===================== DENY ALL OTHER COLLECTIONS =====================
+    
+    // Explicitly deny access to any other collections not listed above
     match /{document=**} {
-      allow read, write: if request.auth != null;
-      allow delete: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }
