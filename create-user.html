@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Your User Account</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e4e8;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .auth-method {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .auth-option {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e1e4e8;
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .auth-option:hover {
+            border-color: #667eea;
+        }
+        .auth-option.selected {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #5a67d8;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .message {
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .hidden {
+            display: none;
+        }
+        .info-box {
+            background: #f0f3ff;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #4c51bf;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Create Your Account</h1>
+        <p class="subtitle">Barge2Rail Central Authentication</p>
+        
+        <form id="userForm">
+            <div class="form-group">
+                <label for="name">Full Name *</label>
+                <input type="text" id="name" required placeholder="John Smith">
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" placeholder="john.smith@barge2rail.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="username">Username (for PIN login)</label>
+                <input type="text" id="username" placeholder="jsmith">
+            </div>
+            
+            <label>Authentication Method *</label>
+            <div class="auth-method">
+                <div class="auth-option" data-method="google">
+                    <div>🔷 Google</div>
+                    <small>@barge2rail.com</small>
+                </div>
+                <div class="auth-option" data-method="password">
+                    <div>🔑 Password</div>
+                    <small>Email + Pass</small>
+                </div>
+                <div class="auth-option" data-method="pin">
+                    <div>📍 PIN</div>
+                    <small>Username + PIN</small>
+                </div>
+            </div>
+            
+            <div id="passwordField" class="form-group hidden">
+                <label for="password">Password (min 8 characters)</label>
+                <input type="password" id="password" minlength="8">
+            </div>
+            
+            <div id="pinField" class="form-group hidden">
+                <label for="pin">4-Digit PIN</label>
+                <input type="text" id="pin" pattern="[0-9]{4}" maxlength="4" placeholder="1234">
+            </div>
+            
+            <div class="form-group">
+                <label for="role">Role *</label>
+                <select id="role" required>
+                    <option value="admin">Admin - Full system access</option>
+                    <option value="supervisor">Supervisor - Team management</option>
+                    <option value="operator" selected>Operator - Daily operations</option>
+                    <option value="viewer">Viewer - Read-only access</option>
+                </select>
+            </div>
+            
+            <div class="info-box">
+                ✅ You'll automatically get access to:<br>
+                • CBRT UI (Warehouse Management)<br>
+                • Machine Maintenance App
+            </div>
+            
+            <button type="submit" class="btn">Create Account</button>
+        </form>
+        
+        <div id="message" class="message hidden"></div>
+    </div>
+    
+    <script>
+        let selectedMethod = null;
+        
+        // Handle auth method selection
+        document.querySelectorAll('.auth-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.auth-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedMethod = option.dataset.method;
+                
+                // Show/hide relevant fields
+                document.getElementById('passwordField').classList.add('hidden');
+                document.getElementById('pinField').classList.add('hidden');
+                
+                if (selectedMethod === 'password') {
+                    document.getElementById('passwordField').classList.remove('hidden');
+                    document.getElementById('password').required = true;
+                    document.getElementById('pin').required = false;
+                    document.getElementById('email').required = true;
+                } else if (selectedMethod === 'pin') {
+                    document.getElementById('pinField').classList.remove('hidden');
+                    document.getElementById('pin').required = true;
+                    document.getElementById('password').required = false;
+                    document.getElementById('username').required = true;
+                } else {
+                    document.getElementById('password').required = false;
+                    document.getElementById('pin').required = false;
+                    document.getElementById('email').required = true;
+                }
+            });
+        });
+        
+        // Handle form submission
+        document.getElementById('userForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!selectedMethod) {
+                showMessage('Please select an authentication method', 'error');
+                return;
+            }
+            
+            const userData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value || null,
+                username: document.getElementById('username').value || null,
+                role: document.getElementById('role').value,
+                is_active: true
+            };
+            
+            if (selectedMethod === 'password') {
+                userData.password = document.getElementById('password').value;
+            } else if (selectedMethod === 'pin') {
+                userData.pin = document.getElementById('pin').value;
+            }
+            
+            try {
+                // Create user
+                const response = await fetch('http://localhost:8000/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+                
+                if (response.ok) {
+                    const user = await response.json();
+                    
+                    // Grant access to both apps
+                    const apps = ['cbrt', 'maintenance'];
+                    for (const appCode of apps) {
+                        await fetch(`http://localhost:8000/users/${user.id}/access`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                app_code: appCode,
+                                role: userData.role,
+                                permissions: ['read', 'write', 'delete']
+                            })
+                        });
+                    }
+                    
+                    showMessage(`
+                        ✅ Account created successfully!<br><br>
+                        <strong>Your login details:</strong><br>
+                        ${userData.email ? `Email: ${userData.email}<br>` : ''}
+                        ${userData.username ? `Username: ${userData.username}<br>` : ''}
+                        ${selectedMethod === 'pin' ? `PIN: ${userData.pin}<br>` : ''}
+                        <br>
+                        <strong>You can now login to:</strong><br>
+                        • <a href="http://localhost:5173" target="_blank">CBRT UI</a><br>
+                        • <a href="http://localhost:3000" target="_blank">Machine Maintenance</a>
+                    `, 'success');
+                    
+                    document.getElementById('userForm').style.display = 'none';
+                } else {
+                    const error = await response.text();
+                    showMessage(`Failed to create account: ${error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}<br>Make sure the auth server is running.`, 'error');
+            }
+        });
+        
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.innerHTML = text;
+            messageEl.className = `message ${type}`;
+        }
+    </script>
+</body>
+</html>

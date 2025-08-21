@@ -15,13 +15,13 @@ export default function Releases() {
   const getSupplierName = (supplierId) => {
     if (!suppliers || !supplierId) return 'Unknown';
     const supplier = suppliers.find(s => s.id === supplierId);
-    return supplier?.SupplierName || 'Unknown';
+    return supplier?.SupplierName || supplier?.supplierName || 'Unknown';
   };
 
   const getCustomerName = (customerId) => {
     if (!customers || !customerId) return 'Unknown';
     const customer = customers.find(c => c.id === customerId);
-    return customer?.CustomerName || 'Unknown';
+    return customer?.CustomerName || customer?.customerName || 'Unknown';
   };
 
   const handleReleaseClick = (release) => {
@@ -56,9 +56,10 @@ export default function Releases() {
     );
   }
 
-  // Updated filter to include both 'Available' and 'Entered' status releases
+  // Updated filter to include both 'Available' and 'Entered' status releases (checking both cases)
   const openReleases = releases?.filter(release =>
-    (release.Status === 'Available' || release.Status === 'Entered') && !release.BOLNumber
+    (release.Status === 'Entered' || release.status === 'Entered' || 
+     release.Status === 'Available' || release.status === 'Available') && !release.BOLNumber
   ) || [];
 
   return (
@@ -105,20 +106,20 @@ export default function Releases() {
                         onClick={() => handleReleaseClick(release)}
                         className="text-green-600 hover:text-green-800 font-medium underline"
                       >
-                        {release.ReleaseNumber}
+                        {release.ReleaseNumber || release.releaseNumber || '#'}
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getSupplierName(release.SupplierId)}
+                      {getSupplierName(release.SupplierId || release.supplierId)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {getCustomerName(release.CustomerId)}
+                      {getCustomerName(release.CustomerId || release.customerId)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {release.PickupDate ? formatDate(release.PickupDate) : 'Not scheduled'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {release.TotalItems || release.LineItems?.length || 0} items
+                      {release.TotalItems || (release.LineItems || release.lineItems)?.length || 0} items
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button

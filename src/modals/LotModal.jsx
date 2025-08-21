@@ -4,8 +4,8 @@ import Modal from './Modal';
 
 export default function LotModal({ title, initialData, onClose, onSave }) {
   const fields = [
-    { name: 'LotNumber', label: 'Lot Number', type: 'text' },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
+    { name: 'lotNumber', label: 'Lot Number', type: 'text' },
+    { name: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
   ];
 
   return (

@@ -3,10 +3,21 @@
 import React, { useState, useEffect } from 'react';
 import { useFirestoreCollection } from '../hooks/useFirestore';
 
-export default function Modal({ title, initialData, fields, onClose, onSave, collection }) {
+export default function Modal({ isOpen, title, initialData, fields, onClose, onSave, collection }) {
   const [form, setForm] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
 
   // Load reference data for dropdowns
   const referenceCollections = {};
@@ -71,10 +82,18 @@ export default function Modal({ title, initialData, fields, onClose, onSave, col
     }
   };
 
-  if (!form) return null;
+  if (!isOpen || !form) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        // Close modal when clicking backdrop
+        if (e.target === e.currentTarget) {
+          handleCancel();
+        }
+      }}
+    >
       <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">{title || (initialData ? 'Edit' : 'Add New')}</h2>

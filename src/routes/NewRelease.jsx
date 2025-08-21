@@ -72,6 +72,48 @@ export default function NewRelease() {
 
   const [selectedSupplier, setSelectedSupplier] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState('');
+  
+  // Filter customers based on selected supplier using barcode relationships
+  const filteredCustomers = useMemo(() => {
+    if (!selectedSupplier || !customers || !suppliers || !barcodes) return [];
+    
+    // Find the selected supplier's BOL prefix
+    const supplier = suppliers.find(s => s.id === selectedSupplier);
+    if (!supplier) return [];
+    
+    const supplierBOLPrefix = supplier.bolPrefix || supplier.BOLPrefix;
+    const supplierName = supplier.supplierName || supplier.SupplierName;
+    
+    // Find all unique customer names that have barcodes with this supplier's BOL prefix
+    const customerNamesFromBarcodes = new Set();
+    barcodes.forEach(barcode => {
+      if ((barcode.BOLPrefix === supplierBOLPrefix || barcode.bolPrefix === supplierBOLPrefix) && 
+          barcode.customerName) {
+        customerNamesFromBarcodes.add(barcode.customerName);
+      }
+    });
+    
+    // Return customers that match the names found in barcodes
+    return customers.filter(customer => {
+      const customerName = customer.customerName || customer.CustomerName;
+      return customerNamesFromBarcodes.has(customerName);
+    });
+  }, [selectedSupplier, customers, suppliers, barcodes]);
+  
+  // Auto-select when only one option
+  useEffect(() => {
+    if (suppliers && suppliers.length === 1 && !selectedSupplier) {
+      setSelectedSupplier(suppliers[0].id);
+      log.debug('Auto-selected single supplier', { id: suppliers[0].id });
+    }
+  }, [suppliers]);
+  
+  useEffect(() => {
+    if (filteredCustomers && filteredCustomers.length === 1 && !selectedCustomer) {
+      setSelectedCustomer(filteredCustomers[0].id);
+      log.debug('Auto-selected single customer', { id: filteredCustomers[0].id });
+    }
+  }, [filteredCustomers]);
 
   const [releaseNumber, setReleaseNumber] = useState('');
   const [pickupDate, setPickupDate] = useState('');
@@ -121,17 +163,25 @@ export default function NewRelease() {
       return [];
     }
 
+    const supplierBOLPrefix = supplier.bolPrefix || supplier.BOLPrefix;
+    const customerName = customer.customerName || customer.CustomerName;
+
     const supplierBarcodes = barcodes.filter(
       (barcode) =>
-        barcode.SupplierName === supplier.SupplierName &&
-        barcode.CustomerName === customer.CustomerName &&
-        barcode.Status === 'Available'
+        (barcode.BOLPrefix === supplierBOLPrefix || barcode.bolPrefix === supplierBOLPrefix) &&
+        (barcode.CustomerName === customerName || barcode.customerName === customerName) &&
+        (barcode.Status === 'Available' || barcode.status === 'Active')
     );
 
-    const itemIds = [...new Set(supplierBarcodes.map((b) => b.ItemId))];
-    const result = items.filter((item) => itemIds.includes(item.id));
+    // Get unique item codes from barcodes
+    const itemCodes = [...new Set(supplierBarcodes.map((b) => b.itemCode).filter(Boolean))];
+    
+    // Match items by itemCode
+    const result = items.filter((item) => 
+      itemCodes.includes(item.itemCode || item.ItemCode)
+    );
 
-    log.debug('Available items resolved', { count: result.length, itemIds });
+    log.debug('Available items resolved', { count: result.length, itemCodes });
     return result;
   }, [
     selectedSupplier,
@@ -156,7 +206,8 @@ export default function NewRelease() {
       !barcodes ||
       !sizes ||
       !suppliers ||
-      !customers
+      !customers ||
+      !items
     ) {
       log.debug('Missing data for available sizes');
       return [];
@@ -164,24 +215,34 @@ export default function NewRelease() {
 
     const supplier = suppliers.find((s) => s.id === selectedSupplier);
     const customer = customers.find((c) => c.id === selectedCustomer);
+    const item = items.find((i) => i.id === itemId);
 
-    if (!supplier || !customer) {
-      log.warn('Supplier or customer missing for sizes lookup');
+    if (!supplier || !customer || !item) {
+      log.warn('Supplier, customer, or item missing for sizes lookup');
       return [];
     }
 
+    const supplierBOLPrefix = supplier.bolPrefix || supplier.BOLPrefix;
+    const customerName = customer.customerName || customer.CustomerName;
+    const itemCode = item.itemCode || item.ItemCode;
+
     const itemBarcodes = barcodes.filter(
       (barcode) =>
-        barcode.SupplierName === supplier.SupplierName &&
-        barcode.CustomerName === customer.CustomerName &&
-        barcode.ItemId === itemId &&
-        barcode.Status === 'Available'
+        (barcode.BOLPrefix === supplierBOLPrefix || barcode.bolPrefix === supplierBOLPrefix) &&
+        (barcode.CustomerName === customerName || barcode.customerName === customerName) &&
+        barcode.itemCode === itemCode &&
+        (barcode.Status === 'Available' || barcode.status === 'Active')
     );
 
-    const sizeIds = [...new Set(itemBarcodes.map((b) => b.SizeId))];
-    const result = sizes.filter((size) => sizeIds.includes(size.id));
+    // Get unique size names from barcodes
+    const sizeNames = [...new Set(itemBarcodes.map((b) => b.sizeName).filter(Boolean))];
+    
+    // Match sizes by sizeName
+    const result = sizes.filter((size) => 
+      sizeNames.includes(size.sizeName || size.SizeName)
+    );
 
-    log.debug('Available sizes result', { sizeIds, count: result.length });
+    log.debug('Available sizes result', { sizeNames, count: result.length });
     return result;
   };
 
@@ -195,13 +256,13 @@ export default function NewRelease() {
 
     if (
       !itemId ||
-      !sizeId ||
       !selectedSupplier ||
       !selectedCustomer ||
       !barcodes ||
       !lots ||
       !suppliers ||
-      !customers
+      !customers ||
+      !items
     ) {
       log.debug('Missing data for available lots');
       return [];
@@ -209,25 +270,46 @@ export default function NewRelease() {
 
     const supplier = suppliers.find((s) => s.id === selectedSupplier);
     const customer = customers.find((c) => c.id === selectedCustomer);
+    const item = items.find((i) => i.id === itemId);
 
-    if (!supplier || !customer) {
-      log.warn('Supplier or customer missing for lots lookup');
+    if (!supplier || !customer || !item) {
+      log.warn('Supplier, customer, or item missing for lots lookup');
       return [];
     }
 
-    const matchingBarcodes = barcodes.filter(
+    const supplierBOLPrefix = supplier.bolPrefix || supplier.BOLPrefix;
+    const customerName = customer.customerName || customer.CustomerName;
+    const itemCode = item.itemCode || item.ItemCode;
+
+    // Filter barcodes - if sizeId is provided, also match by size
+    let matchingBarcodes = barcodes.filter(
       (barcode) =>
-        barcode.SupplierName === supplier.SupplierName &&
-        barcode.CustomerName === customer.CustomerName &&
-        barcode.ItemId === itemId &&
-        barcode.SizeId === sizeId &&
-        barcode.Status === 'Available'
+        (barcode.BOLPrefix === supplierBOLPrefix || barcode.bolPrefix === supplierBOLPrefix) &&
+        (barcode.CustomerName === customerName || barcode.customerName === customerName) &&
+        barcode.itemCode === itemCode &&
+        (barcode.Status === 'Available' || barcode.status === 'Active')
     );
 
-    const lotIds = [...new Set(matchingBarcodes.map((b) => b.LotId))];
-    const result = lots.filter((lot) => lotIds.includes(lot.id));
+    // If sizeId is provided, also filter by size
+    if (sizeId && sizes) {
+      const size = sizes.find((s) => s.id === sizeId);
+      if (size) {
+        const sizeName = size.sizeName || size.SizeName;
+        matchingBarcodes = matchingBarcodes.filter(
+          (barcode) => barcode.sizeName === sizeName
+        );
+      }
+    }
 
-    log.debug('Available lots result', { lotIds, count: result.length });
+    // Get unique lot numbers from barcodes
+    const lotNumbers = [...new Set(matchingBarcodes.map((b) => b.lotNumber).filter(Boolean))];
+    
+    // Match lots by lotNumber
+    const result = lots.filter((lot) => 
+      lotNumbers.includes(lot.lotNumber || lot.LotNumber)
+    );
+
+    log.debug('Available lots result', { lotNumbers, count: result.length });
     return result;
   };
 
@@ -240,9 +322,30 @@ export default function NewRelease() {
       if (field === 'ItemId') {
         updatedItems[index].SizeId = '';
         updatedItems[index].LotId = '';
+        
+        // Auto-select size if only one available
+        const availableSizes = getAvailableSizes(value);
+        if (availableSizes.length === 1) {
+          updatedItems[index].SizeId = availableSizes[0].id;
+          log.debug('Auto-selected single size', { sizeId: availableSizes[0].id });
+          
+          // Check for single lot after auto-selecting size
+          const availableLots = getAvailableLots(value, availableSizes[0].id);
+          if (availableLots.length === 1) {
+            updatedItems[index].LotId = availableLots[0].id;
+            log.debug('Auto-selected single lot', { lotId: availableLots[0].id });
+          }
+        }
       }
       if (field === 'SizeId') {
         updatedItems[index].LotId = '';
+        
+        // Auto-select lot if only one available
+        const availableLots = getAvailableLots(updatedItems[index].ItemId, value);
+        if (availableLots.length === 1) {
+          updatedItems[index].LotId = availableLots[0].id;
+          log.debug('Auto-selected single lot', { lotId: availableLots[0].id });
+        }
       }
 
       setLineItems(updatedItems);
@@ -267,15 +370,70 @@ export default function NewRelease() {
 
   // Calculate availability for an item/size/lot combination
   const updateAvailability = async (itemId, sizeId, lotId) => {
-    if (!itemId || !sizeId) return;
+    if (!itemId) return;
+    
+    // For now, let's calculate availability directly from barcodes instead of using the service
     try {
-      const result = await inventoryAvailabilityService.getAvailableQuantity(itemId, sizeId, lotId || null);
-      const key = itemId + "-" + sizeId + "-" + (lotId || "any");
+      if (!selectedSupplier || !selectedCustomer || !barcodes || !suppliers || !customers || !items) {
+        return;
+      }
+
+      const supplier = suppliers.find((s) => s.id === selectedSupplier);
+      const customer = customers.find((c) => c.id === selectedCustomer);
+      const item = items.find((i) => i.id === itemId);
+
+      if (!supplier || !customer || !item) return;
+
+      const supplierBOLPrefix = supplier.bolPrefix || supplier.BOLPrefix;
+      const customerName = customer.customerName || customer.CustomerName;
+      const itemCode = item.itemCode || item.ItemCode;
+
+      // Filter barcodes for this item
+      let matchingBarcodes = barcodes.filter(
+        (barcode) =>
+          (barcode.BOLPrefix === supplierBOLPrefix || barcode.bolPrefix === supplierBOLPrefix) &&
+          (barcode.CustomerName === customerName || barcode.customerName === customerName) &&
+          barcode.itemCode === itemCode &&
+          (barcode.Status === 'Available' || barcode.status === 'Active')
+      );
+
+      // If sizeId is provided, also filter by size
+      if (sizeId && sizes) {
+        const size = sizes.find((s) => s.id === sizeId);
+        if (size) {
+          const sizeName = size.sizeName || size.SizeName;
+          matchingBarcodes = matchingBarcodes.filter(
+            (barcode) => barcode.sizeName === sizeName
+          );
+        }
+      }
+
+      // If lotId is provided, also filter by lot
+      if (lotId && lots) {
+        const lot = lots.find((l) => l.id === lotId);
+        if (lot) {
+          const lotNumber = lot.lotNumber || lot.LotNumber;
+          matchingBarcodes = matchingBarcodes.filter(
+            (barcode) => barcode.lotNumber === lotNumber
+          );
+        }
+      }
+
+      // Calculate total available quantity
+      const totalQuantity = matchingBarcodes.reduce((sum, barcode) => {
+        return sum + (parseInt(barcode.quantity) || 1);
+      }, 0);
+
+      const result = { available: totalQuantity };
+      const key = itemId + "-" + (sizeId || "any") + "-" + (lotId || "any");
+      
       setAvailability(prev => {
         const newMap = new Map(prev);
         newMap.set(key, result);
         return newMap;
       });
+
+      log.debug('Updated availability', { key, totalQuantity, matchingBarcodes: matchingBarcodes.length });
     } catch (error) {
       log.error("Error calculating availability", { error: error.message });
     }
@@ -285,11 +443,14 @@ export default function NewRelease() {
   const formatItemWithAvailability = (item, itemId, sizeId, lotId) => {
     const key = itemId + "-" + (sizeId || "any") + "-" + (lotId || "any");
     const avail = availability.get(key);
+    const itemCode = item.itemCode || item.ItemCode || 'Unknown';
+    const itemName = item.itemName || item.ItemName || 'Unknown';
+    
     if (avail) {
       const status = avail.available > 0 ? "✅" : "⚠️";
-      return item.ItemCode + " - " + item.ItemName + " " + status + " Avail: " + avail.available;
+      return itemCode + " - " + itemName + " " + status + " Avail: " + avail.available;
     }
-    return item.ItemCode + " - " + item.ItemName;
+    return itemCode + " - " + itemName;
   };
   const removeLineItem = (index) => {
     log.info('Removing line item', { index });
@@ -320,11 +481,17 @@ export default function NewRelease() {
       }
 
       if (
-        lineItems.some(
-          (item) => !item.ItemId || !item.SizeId || !item.Quantity
-        )
+        lineItems.some((item) => {
+          if (!item.ItemId || !item.Quantity) return true;
+          
+          // Only require SizeId if there are available sizes for this item
+          const availableSizes = getAvailableSizes(item.ItemId);
+          if (availableSizes.length > 0 && !item.SizeId) return true;
+          
+          return false;
+        })
       ) {
-        throw new Error('Please complete all line items');
+        throw new Error('Please complete all required line item fields');
       }
 
       const totalItems = lineItems.reduce(
@@ -463,15 +630,21 @@ export default function NewRelease() {
                 value={selectedSupplier}
                 onChange={(e) => {
                   setSelectedSupplier(e.target.value);
+                  setSelectedCustomer(''); // Reset customer when supplier changes
                   log.debug('Supplier selected', { value: e.target.value });
                 }}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                 required
               >
-                <option value="">Select Supplier</option>
+                <option value="">
+                  {!suppliers || suppliers.length === 0 
+                    ? 'None available'
+                    : 'Select Supplier'
+                  }
+                </option>
                 {suppliers?.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
-                    {supplier.SupplierName}
+                    {supplier.supplierName || supplier.SupplierName}
                   </option>
                 ))}
               </select>
@@ -492,13 +665,21 @@ export default function NewRelease() {
                   setSelectedCustomer(e.target.value);
                   log.debug('Customer selected', { value: e.target.value });
                 }}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-100"
                 required
+                disabled={!selectedSupplier}
               >
-                <option value="">Select Customer</option>
-                {customers?.map((customer) => (
+                <option value="">
+                  {!selectedSupplier 
+                    ? 'Select a supplier first' 
+                    : filteredCustomers.length === 0 
+                    ? 'None available'
+                    : 'Select Customer'
+                  }
+                </option>
+                {filteredCustomers?.map((customer) => (
                   <option key={customer.id} value={customer.id}>
-                    {customer.CustomerName}
+                    {customer.customerName || customer.CustomerName}
                   </option>
                 ))}
               </select>
@@ -596,7 +777,9 @@ export default function NewRelease() {
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
                       required
                     >
-                      <option value="">Select Item</option>
+                      <option value="">
+                        {getAvailableItems.length === 0 ? 'None available' : 'Select Item'}
+                      </option>
                       {getAvailableItems.map((item) => (
                         <option key={item.id} value={item.id}>
                           {formatItemWithAvailability(item, item.id, lineItem.SizeId, lineItem.LotId)}
@@ -607,25 +790,40 @@ export default function NewRelease() {
 
                   {/* Size */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Size *
-                    </label>
-                    <select
-                      value={lineItem.SizeId}
-                      onChange={(e) =>
-                        handleLineItemChange(index, 'SizeId', e.target.value)
-                      }
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      required
-                      disabled={!lineItem.ItemId}
-                    >
-                      <option value="">Select Size</option>
-                      {getAvailableSizes(lineItem.ItemId).map((size) => (
-                        <option key={size.id} value={size.id}>
-                          {size.SizeName}
-                        </option>
-                      ))}
-                    </select>
+                    {(() => {
+                      const availableSizes = getAvailableSizes(lineItem.ItemId);
+                      const sizeRequired = availableSizes.length > 0;
+                      return (
+                        <>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Size {sizeRequired ? '*' : '(Optional)'}
+                          </label>
+                          <select
+                            value={lineItem.SizeId}
+                            onChange={(e) =>
+                              handleLineItemChange(index, 'SizeId', e.target.value)
+                            }
+                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
+                            required={sizeRequired}
+                            disabled={!lineItem.ItemId}
+                          >
+                            <option value="">
+                              {!lineItem.ItemId 
+                                ? 'Select item first'
+                                : availableSizes.length === 0 
+                                ? 'None available' 
+                                : 'Select Size'
+                              }
+                            </option>
+                            {availableSizes.map((size) => (
+                              <option key={size.id} value={size.id}>
+                                {size.sizeName || size.SizeName}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {/* Lot */}
@@ -639,13 +837,21 @@ export default function NewRelease() {
                         handleLineItemChange(index, 'LotId', e.target.value)
                       }
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500"
-                      disabled={!lineItem.ItemId || !lineItem.SizeId}
+                      disabled={!lineItem.ItemId}
                     >
-                      <option value="">Select Lot</option>
+                      <option value="">
+                        {!lineItem.ItemId
+                          ? 'Select item first'
+                          : (() => {
+                              const availableLots = getAvailableLots(lineItem.ItemId, lineItem.SizeId);
+                              return availableLots.length === 0 ? 'None available' : 'Select Lot';
+                            })()
+                        }
+                      </option>
                       {getAvailableLots(lineItem.ItemId, lineItem.SizeId).map(
                         (lot) => (
                           <option key={lot.id} value={lot.id}>
-                            {lot.LotNumber}
+                            {lot.lotNumber || lot.LotNumber}
                           </option>
                         )
                       )}

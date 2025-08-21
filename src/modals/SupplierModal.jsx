@@ -4,9 +4,9 @@ import Modal from './Modal';
 
 export default function SupplierModal({ title, initialData, onClose, onSave }) {
   const fields = [
-    { name: 'SupplierName', label: 'Supplier Name', type: 'text' },
-    { name: 'BOLPrefix', label: 'BOL Prefix', type: 'text' },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
+    { name: 'supplierName', label: 'Supplier Name', type: 'text' },
+    { name: 'bolPrefix', label: 'BOL Prefix', type: 'text' },
+    { name: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
   ];
 
   return (

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CBRT UI Test</title>
+</head>
+<body>
+    <h1>Testing CBRT UI Auth Flow</h1>
+    <button onclick="testAuth()">Test Auth Status</button>
+    <button onclick="clearAuth()">Clear Auth</button>
+    <div id="result"></div>
+
+    <script>
+        function testAuth() {
+            const token = localStorage.getItem('authToken');
+            const userId = localStorage.getItem('userId');
+            const email = localStorage.getItem('userEmail');
+            
+            document.getElementById('result').innerHTML = `
+                <h3>Current Auth Status:</h3>
+                <p>Token: ${token ? 'Present' : 'None'}</p>
+                <p>User ID: ${userId || 'None'}</p>
+                <p>Email: ${email || 'None'}</p>
+                <p><a href="https://cbrt-ui.test">Go to CBRT UI</a></p>
+            `;
+        }
+        
+        function clearAuth() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userClaims');
+            document.getElementById('result').innerHTML = '<p>Auth cleared!</p>';
+        }
+    </script>
+</body>
+</html>

@@ -10,13 +10,13 @@ export default function ProductModal({
   onSave,
 }) {
   const [form, setForm] = useState({
-    ItemId: initialData?.ItemId || '',
-    SizeId: initialData?.SizeId || '',
-    ItemCodeDisplay: initialData?.ItemCodeDisplay || '',
-    ItemNameDisplay: initialData?.ItemNameDisplay || '',
-    SizeNameDisplay: initialData?.SizeNameDisplay || '',
-    StandardWeight: initialData?.StandardWeight || 1,
-    Status: initialData?.Status || 'Active',
+    itemId: initialData?.itemId || '',
+    sizeId: initialData?.sizeId || '',
+    itemCodeDisplay: initialData?.itemCodeDisplay || '',
+    itemNameDisplay: initialData?.itemNameDisplay || '',
+    sizeNameDisplay: initialData?.sizeNameDisplay || '',
+    standardWeight: initialData?.standardWeight || 1,
+    status: initialData?.status || 'Active',
   });
   const [error, setError] = useState('');
 
@@ -24,20 +24,20 @@ export default function ProductModal({
     const { name, value } = e.target;
     
     // Auto-populate display fields when item or size is selected
-    if (name === 'ItemId') {
+    if (name === 'itemId') {
       const selectedItem = items.find(i => i.id === value);
       setForm(prev => ({
         ...prev,
         [name]: value,
-        ItemCodeDisplay: selectedItem?.ItemCode || '',
-        ItemNameDisplay: selectedItem?.ItemName || '',
+        itemCodeDisplay: selectedItem?.itemCode || '',
+        itemNameDisplay: selectedItem?.itemName || '',
       }));
-    } else if (name === 'SizeId') {
+    } else if (name === 'sizeId') {
       const selectedSize = sizes.find(s => s.id === value);
       setForm(prev => ({
         ...prev,
         [name]: value,
-        SizeNameDisplay: selectedSize?.SizeName || '',
+        sizeNameDisplay: selectedSize?.sizeName || '',
       }));
     } else {
       setForm(prev => ({ ...prev, [name]: value }));
@@ -54,19 +54,19 @@ export default function ProductModal({
     setError('');
 
     // Validation
-    if (!form.ItemId) {
+    if (!form.itemId) {
       setError('Please select an item');
       return;
     }
-    if (!form.SizeId) {
+    if (!form.sizeId) {
       setError('Please select a size');
       return;
     }
-    if (!form.ItemCodeDisplay || !form.ItemNameDisplay || !form.SizeNameDisplay) {
+    if (!form.itemCodeDisplay || !form.itemNameDisplay || !form.sizeNameDisplay) {
       setError('Item Code, Item Name, and Size are required');
       return;
     }
-    if (form.StandardWeight <= 0) {
+    if (form.standardWeight <= 0) {
       setError('Standard Weight must be greater than 0');
       return;
     }
@@ -87,8 +87,8 @@ export default function ProductModal({
           <div>
             <label className="block text-sm font-medium mb-1">Item *</label>
             <select
-              name="ItemId"
-              value={form.ItemId}
+              name="itemId"
+              value={form.itemId}
               onChange={handleChange}
               className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
@@ -96,7 +96,7 @@ export default function ProductModal({
               <option value="">Select Item</option>
               {items.map(item => (
                 <option key={item.id} value={item.id}>
-                  {item.ItemCode} - {item.ItemName}
+                  {item.itemCode} - {item.itemName}
                 </option>
               ))}
             </select>
@@ -105,8 +105,8 @@ export default function ProductModal({
           <div>
             <label className="block text-sm font-medium mb-1">Size *</label>
             <select
-              name="SizeId"
-              value={form.SizeId}
+              name="sizeId"
+              value={form.sizeId}
               onChange={handleChange}
               className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
@@ -114,7 +114,7 @@ export default function ProductModal({
               <option value="">Select Size</option>
               {sizes.map(size => (
                 <option key={size.id} value={size.id}>
-                  {size.SizeName}
+                  {size.sizeName}
                 </option>
               ))}
             </select>
@@ -123,8 +123,8 @@ export default function ProductModal({
           <div>
             <label className="block text-sm font-medium mb-1">Item Code Display</label>
             <input
-              name="ItemCodeDisplay"
-              value={form.ItemCodeDisplay}
+              name="itemCodeDisplay"
+              value={form.itemCodeDisplay}
               onChange={handleChange}
               className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Auto-populated from item selection"
@@ -135,8 +135,8 @@ export default function ProductModal({
           <div>
             <label className="block text-sm font-medium mb-1">Item Name Display</label>
             <input
-              name="ItemNameDisplay"
-              value={form.ItemNameDisplay}
+              name="itemNameDisplay"
+              value={form.itemNameDisplay}
               onChange={handleChange}
               className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Auto-populated from item selection"
@@ -147,8 +147,8 @@ export default function ProductModal({
           <div>
             <label className="block text-sm font-medium mb-1">Size Display</label>
             <input
-              name="SizeNameDisplay"
-              value={form.SizeNameDisplay}
+              name="sizeNameDisplay"
+              value={form.sizeNameDisplay}
               onChange={handleChange}
               className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Auto-populated from size selection"
@@ -159,11 +159,11 @@ export default function ProductModal({
           <div>
             <label className="block text-sm font-medium mb-1">Standard Weight (lbs) *</label>
             <input
-              name="StandardWeight"
+              name="standardWeight"
               type="number"
               min="0"
               step="0.1"
-              value={form.StandardWeight}
+              value={form.standardWeight}
               onChange={handleNumberChange}
               className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               required
@@ -173,8 +173,8 @@ export default function ProductModal({
           <div>
             <label className="block text-sm font-medium mb-1">Status</label>
             <select
-              name="Status"
-              value={form.Status}
+              name="status"
+              value={form.status}
               onChange={handleChange}
               className="w-full border px-3 py-2 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >

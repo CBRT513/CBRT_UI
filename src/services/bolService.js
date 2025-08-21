@@ -9,8 +9,8 @@ export const bolService = {
     try {
       const bolsQuery = query(
         collection(db, "bols"),
-        where("BOLPrefix", "==", supplierPrefix),
-        orderBy("BOLNumber", "desc"),
+        where("bolPrefix", "==", supplierPrefix),
+        orderBy("bolNumber", "desc"),
         limit(1)
       );
       
@@ -19,7 +19,7 @@ export const bolService = {
       
       if (!snapshot.empty) {
         const lastBOL = snapshot.docs[0].data();
-        const lastNumber = parseInt(lastBOL.BOLNumber.replace(supplierPrefix, ""));
+        const lastNumber = parseInt(lastBOL.bolNumber.replace(supplierPrefix, ""));
         nextNumber = lastNumber + 1;
       }
       
@@ -35,9 +35,9 @@ export const bolService = {
     try {
       const docRef = await addDoc(collection(db, "bols"), {
         ...bolData,
-        Status: "Generated",
-        CreatedAt: new Date(),
-        UpdatedAt: new Date()
+        status: "Generated",
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
       
       return docRef.id;
@@ -52,7 +52,7 @@ export const bolService = {
     try {
       await updateDoc(doc(db, "bols", bolId), {
         ...updates,
-        UpdatedAt: new Date()
+        updatedAt: new Date()
       });
     } catch (error) {
       console.error("Error updating BOL:", error);
@@ -64,9 +64,9 @@ export const bolService = {
   async voidBOL(bolId) {
     try {
       await updateDoc(doc(db, "bols", bolId), {
-        Status: "Voided",
-        VoidedAt: new Date(),
-        UpdatedAt: new Date()
+        status: "Voided",
+        voidedAt: new Date(),
+        updatedAt: new Date()
       });
     } catch (error) {
       console.error("Error voiding BOL:", error);

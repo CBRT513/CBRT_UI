@@ -7,6 +7,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './firebase/config';
+import workflowMonitor from './utils/workflowMonitor';
 
 
 // Routes
@@ -22,6 +23,18 @@ import PDFTestPage from './routes/PDFTestPage';
 import WarehouseStaging from './routes/WarehouseStaging';
 import WarehouseApp from './routes/WarehouseApp';
 import WarehouseVerification from './routes/WarehouseVerification';
+
+// New Workflow Routes
+import ReleaseWorkflowDashboard from './routes/ReleaseWorkflowDashboard';
+import WarehouseStagingNew from './routes/WarehouseStagingNew';
+import WarehouseVerificationNew from './routes/WarehouseVerificationNew';
+import ShipmentLoading from './routes/ShipmentLoading';
+import WorkflowAutomatedTest from './tests/WorkflowAutomatedTest';
+import WorkflowCompleteE2ETest from './tests/WorkflowCompleteE2ETest';
+import WorkflowStressTest from './tests/WorkflowStressTest';
+import ContinuousChaosTest from './tests/ContinuousChaosTest';
+import AnalysisHistory from './components/AnalysisHistory';
+import QuickSystemCheck from './components/QuickSystemCheck';
 
 // Managers
 import StaffManager from './managers/StaffManager';
@@ -45,6 +58,7 @@ export default function App() {
 
   const nav = [
     'Home',
+    'Workflow Dashboard',
     'Staff',
     'Customers',
     'Suppliers',
@@ -107,6 +121,18 @@ export default function App() {
             <Route path="/release-details/:id" element={<ReleaseDetails />} />
             <Route path="/pdftest" element={<PDFTestPage />} />
             <Route path="/warehouseapp" element={<WarehouseApp />} />
+            
+            {/* New Workflow Routes */}
+            <Route path="/workflow-dashboard" element={<ReleaseWorkflowDashboard />} />
+            <Route path="/warehouse-staging" element={<WarehouseStagingNew />} />
+            <Route path="/warehouse-verification" element={<WarehouseVerificationNew />} />
+            <Route path="/shipment-loading" element={<ShipmentLoading />} />
+            <Route path="/workflow-test" element={<WorkflowAutomatedTest />} />
+            <Route path="/workflow-e2e-test" element={<WorkflowCompleteE2ETest />} />
+            <Route path="/workflow-stress-test" element={<WorkflowStressTest />} />
+            <Route path="/continuous-chaos-test" element={<ContinuousChaosTest />} />
+            <Route path="/analysis-history" element={<AnalysisHistory />} />
+            <Route path="/quick-system-check" element={<QuickSystemCheck />} />
           </Routes>
         </main>
       </div>

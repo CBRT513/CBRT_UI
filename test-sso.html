@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barge2Rail SSO Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .app-link {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .app-link:hover {
+            background: #0056b3;
+        }
+        .test-user {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 3px solid #007bff;
+        }
+        code {
+            background: #f1f1f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔐 Barge2Rail Central SSO System</h1>
+        <p>Single Sign-On for all Barge2Rail applications</p>
+    </div>
+
+    <div class="card">
+        <h2>✅ System Status</h2>
+        <div id="status" class="status info">Checking auth server...</div>
+    </div>
+
+    <div class="card">
+        <h2>🚀 Applications</h2>
+        <a href="http://localhost:5173" class="app-link" target="_blank">CBRT UI (Warehouse Management)</a>
+        <a href="http://localhost:3000" class="app-link" target="_blank">Machine Maintenance App</a>
+    </div>
+
+    <div class="card">
+        <h2>👤 Test Users</h2>
+        
+        <h3>Barge2Rail Employees (@barge2rail.com)</h3>
+        <div class="test-user">
+            <strong>John Smith</strong> - IT Admin<br>
+            Email: <code>john.smith@barge2rail.com</code><br>
+            Role: Admin (all apps)
+        </div>
+        <div class="test-user">
+            <strong>Jane Doe</strong> - Ops Manager<br>
+            Email: <code>jane.doe@barge2rail.com</code><br>
+            Role: Admin (mixed roles)
+        </div>
+        
+        <h3>Internal Operators (PIN Login)</h3>
+        <div class="test-user">
+            <strong>Operator 1</strong><br>
+            Username: <code>operator1</code><br>
+            PIN: <code>1234</code>
+        </div>
+        <div class="test-user">
+            <strong>Operator 2</strong><br>
+            Username: <code>operator2</code><br>
+            PIN: <code>1234</code>
+        </div>
+        
+        <h3>External Clients (Email/Password)</h3>
+        <div class="test-user">
+            <strong>ACME Corp Client</strong><br>
+            Email: <code>client@acmecorp.com</code><br>
+            Password: <code>ClientPass123!</code>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>📝 Instructions</h2>
+        <ol>
+            <li>Click on either application link above</li>
+            <li>You'll see the unified login screen</li>
+            <li>Choose your login method:
+                <ul>
+                    <li><strong>Google:</strong> For @barge2rail.com employees</li>
+                    <li><strong>Client:</strong> For external partners</li>
+                    <li><strong>Internal:</strong> For operators with PIN</li>
+                </ul>
+            </li>
+            <li>Use one of the test accounts above</li>
+            <li>After login, you can switch between apps without logging in again!</li>
+        </ol>
+    </div>
+
+    <script>
+        // Check auth server status
+        fetch('http://localhost:8000/')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('status').className = 'status success';
+                document.getElementById('status').innerHTML = `
+                    ✅ Auth server is running<br>
+                    Service: ${data.service}<br>
+                    Status: ${data.status}
+                `;
+            })
+            .catch(error => {
+                document.getElementById('status').className = 'status error';
+                document.getElementById('status').innerHTML = `
+                    ❌ Auth server not responding<br>
+                    Make sure to run: <code>cd ~/Projects/barge2rail-auth && docker-compose up -d</code>
+                `;
+            });
+    </script>
+</body>
+</html>

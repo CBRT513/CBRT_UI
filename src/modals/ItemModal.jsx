@@ -4,9 +4,9 @@ import Modal from './Modal';
 
 export default function ItemModal({ title, initialData, onClose, onSave }) {
   const fields = [
-    { name: 'ItemCode', label: 'Item Code', type: 'text' },
-    { name: 'ItemName', label: 'Item Name', type: 'text' },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
+    { name: 'itemCode', label: 'Item Code', type: 'text' },
+    { name: 'itemName', label: 'Item Name', type: 'text' },
+    { name: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
   ];
 
   return (

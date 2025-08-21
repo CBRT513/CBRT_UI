@@ -4,8 +4,8 @@ import Modal from './Modal';
 
 export default function CarrierModal({ title, initialData, onClose, onSave }) {
   const fields = [
-    { name: 'CarrierName', label: 'Carrier Name', type: 'text' },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
+    { name: 'carrierName', label: 'Carrier Name', type: 'text' },
+    { name: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
   ];
 
   return (

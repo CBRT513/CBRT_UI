@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CBRT Workflow Test</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        button { padding: 10px; margin: 5px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .status { padding: 5px 10px; border-radius: 3px; display: inline-block; }
+        .Entered { background: #2196F3; color: white; }
+        .Staged { background: #FFC107; color: black; }
+        .Verified { background: #4CAF50; color: white; }
+        .Loaded { background: #9C27B0; color: white; }
+        .Shipped { background: #607D8B; color: white; }
+    </style>
+</head>
+<body>
+    <h1>CBRT Warehouse Workflow Test</h1>
+    
+    <div class="section">
+        <h2>📋 Workflow Overview</h2>
+        <p>Complete warehouse management flow:</p>
+        <ol>
+            <li><strong>Create Release</strong> - Enter new release order</li>
+            <li><strong>Stage Release</strong> - Warehouse stages items</li>
+            <li><strong>Verify Staging</strong> - QC verification</li>
+            <li><strong>Load on Truck</strong> - Load verified items</li>
+            <li><strong>Generate BOL</strong> - Create Bill of Lading</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>🔗 Quick Links</h2>
+        <button onclick="window.open('https://cbrt-ui.test/enterarelease')">1. Enter New Release</button>
+        <button onclick="window.open('https://cbrt-ui.test/warehousestaging')">2. Warehouse Staging</button>
+        <button onclick="window.open('https://cbrt-ui.test/warehouseverification')">3. Verification</button>
+        <button onclick="window.open('https://cbrt-ui.test/bolgenerator')">4. BOL Generator</button>
+        <button onclick="window.open('https://cbrt-ui.test/releases')">View All Releases</button>
+    </div>
+
+    <div class="section">
+        <h2>📊 Status Flow</h2>
+        <span class="status Entered">Entered</span> →
+        <span class="status Staged">Staged</span> →
+        <span class="status Verified">Verified</span> →
+        <span class="status Loaded">Loaded</span> →
+        <span class="status Shipped">Shipped</span>
+    </div>
+
+    <div class="section">
+        <h2>✅ Testing Steps</h2>
+        <ol>
+            <li>Click "Enter New Release" and create a test release</li>
+            <li>Note the Release Number</li>
+            <li>Go to "Warehouse Staging" and stage that release</li>
+            <li>Go to "Verification" to verify the staging</li>
+            <li>Go to "BOL Generator" to create the shipping document</li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>🚀 Key Features to Test</h2>
+        <ul>
+            <li>✅ Barcode scanning simulation</li>
+            <li>✅ Multiple item support per release</li>
+            <li>✅ Staging location selection (Allied, Red Ramp, Dock 2, Yard)</li>
+            <li>✅ Verification with reject/accept</li>
+            <li>✅ PDF BOL generation</li>
+            <li>✅ Status tracking throughout</li>
+        </ul>
+    </div>
+</body>
+</html>

@@ -4,8 +4,8 @@ import Modal from './Modal';
 
 export default function SizeModal({ title, initialData, onClose, onSave }) {
   const fields = [
-    { name: 'SizeName', label: 'Size Name', type: 'text' },
-    { name: 'Status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
+    { name: 'sizeName', label: 'Size Name', type: 'text' },
+    { name: 'status', label: 'Status', type: 'select', options: ['Active', 'Inactive'] }
   ];
 
   return (

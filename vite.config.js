@@ -1,10 +1,13 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  build: {
-    target: 'es2022'
-  }
+  server: {
+    host: true,
+    // allow access via your local domains through Caddy
+    allowedHosts: ['cbrt-ui.test','sso.test','vader-lab.test'],
+    port: 5176,
+    strictPort: true,
+  },
 })
