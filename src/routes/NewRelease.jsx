@@ -7,6 +7,8 @@ import { db } from '../firebase/config';
 import { PickTicketService } from '../services/pickTicketService';
 import { SMSService } from '../services/smsService';
 import inventoryAvailabilityService from "../services/inventoryAvailabilityService";
+import { getField } from '../utils/fieldShim';
+import { releaseWorkflowService } from '../services/releaseWorkflowService';
 
 /**
  * Simple logger helper. Replace or extend sendRemoteLog to ship logs externally.
@@ -88,6 +90,22 @@ export default function NewRelease() {
   const [availability, setAvailability] = useState(new Map());
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [isSubmitDisabled, setIsSubmitDisabled] = useState(true);
+
+  // Validate form and control submit button
+  useEffect(() => {
+    const isFormValid = 
+      selectedSupplier && 
+      selectedCustomer && 
+      releaseNumber.trim() &&
+      lineItems.every(item => 
+        item.ItemId && 
+        item.SizeId && 
+        item.Quantity > 0
+      );
+    
+    setIsSubmitDisabled(!isFormValid);
+  }, [selectedSupplier, selectedCustomer, releaseNumber, lineItems]);
 
   // BARCODE-BASED: Get available items using barcodes directly
   const getAvailableItems = useMemo(() => {
@@ -123,9 +141,9 @@ export default function NewRelease() {
 
     const supplierBarcodes = barcodes.filter(
       (barcode) =>
-        barcode.SupplierName === supplier.SupplierName &&
-        barcode.CustomerName === customer.CustomerName &&
-        barcode.Status === 'Available'
+        getField(barcode, 'supplierName') === getField(supplier, 'supplierName') &&
+        getField(barcode, 'customerName') === getField(customer, 'customerName') &&
+        getField(barcode, 'status') === 'Available'
     );
 
     const itemIds = [...new Set(supplierBarcodes.map((b) => b.ItemId))];
@@ -172,10 +190,10 @@ export default function NewRelease() {
 
     const itemBarcodes = barcodes.filter(
       (barcode) =>
-        barcode.SupplierName === supplier.SupplierName &&
-        barcode.CustomerName === customer.CustomerName &&
+        getField(barcode, 'supplierName') === getField(supplier, 'supplierName') &&
+        getField(barcode, 'customerName') === getField(customer, 'customerName') &&
         barcode.ItemId === itemId &&
-        barcode.Status === 'Available'
+        getField(barcode, 'status') === 'Available'
     );
 
     const sizeIds = [...new Set(itemBarcodes.map((b) => b.SizeId))];
@@ -217,11 +235,11 @@ export default function NewRelease() {
 
     const matchingBarcodes = barcodes.filter(
       (barcode) =>
-        barcode.SupplierName === supplier.SupplierName &&
-        barcode.CustomerName === customer.CustomerName &&
+        getField(barcode, 'supplierName') === getField(supplier, 'supplierName') &&
+        getField(barcode, 'customerName') === getField(customer, 'customerName') &&
         barcode.ItemId === itemId &&
         barcode.SizeId === sizeId &&
-        barcode.Status === 'Available'
+        getField(barcode, 'status') === 'Available'
     );
 
     const lotIds = [...new Set(matchingBarcodes.map((b) => b.LotId))];
@@ -285,11 +303,29 @@ export default function NewRelease() {
   const formatItemWithAvailability = (item, itemId, sizeId, lotId) => {
     const key = itemId + "-" + (sizeId || "any") + "-" + (lotId || "any");
     const avail = availability.get(key);
+    const itemCode = getField(item, 'itemCode');
+    const itemName = getField(item, 'itemName');
+    
     if (avail) {
       const status = avail.available > 0 ? "✅" : "⚠️";
-      return item.ItemCode + " - " + item.ItemName + " " + status + " Avail: " + avail.available;
+      return `${itemCode} - ${itemName} ${status} Avail: ${avail.available}`;
     }
-    return item.ItemCode + " - " + item.ItemName;
+    return `${itemCode} - ${itemName}`;
+  };
+
+  // Get availability count for display
+  const getAvailabilityDisplay = (itemId, sizeId, lotId) => {
+    const key = itemId + "-" + (sizeId || "any") + "-" + (lotId || "any");
+    const avail = availability.get(key);
+    if (avail) {
+      const status = avail.available > 0 ? "text-green-600" : "text-red-600";
+      return (
+        <span className={`text-xs ml-2 ${status}`}>
+          ({avail.available} available)
+        </span>
+      );
+    }
+    return null;
   };
   const removeLineItem = (index) => {
     log.info('Removing line item', { index });
@@ -334,7 +370,7 @@ export default function NewRelease() {
       const totalWeight = totalItems * 2200;
 
       const releaseData = {
-        ReleaseNumber: releaseNumber.trim(),
+        releaseNumber: releaseNumber.trim(),
         SupplierId: selectedSupplier,
         CustomerId: selectedCustomer,
         PickupDate: pickupDate || null,
@@ -347,8 +383,16 @@ export default function NewRelease() {
       };
 
       log.debug('Prepared releaseData', { releaseData });
-      await addDoc(collection(db, 'releases'), releaseData);
-      log.info('Release document created in Firestore');
+      const releaseRef = await addDoc(collection(db, 'releases'), releaseData);
+      log.info('Release document created in Firestore', { id: releaseRef.id });
+      
+      // Fire UMS hook for release creation
+      const mockUser = { id: 'system', name: 'System', email: 'system@cbrt.com' };
+      await releaseWorkflowService.fireUMSHook('release.created', {
+        id: releaseRef.id,
+        ...releaseData,
+        status: 'Entered'
+      }, mockUser);
 
       // Post-creation: pick ticket + notifications
       try {
@@ -458,6 +502,9 @@ export default function NewRelease() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Supplier *
+                <span className="text-xs text-gray-500 ml-2">
+                  ({suppliers?.length || 0} available)
+                </span>
               </label>
               <select
                 value={selectedSupplier}
@@ -471,7 +518,7 @@ export default function NewRelease() {
                 <option value="">Select Supplier</option>
                 {suppliers?.map((supplier) => (
                   <option key={supplier.id} value={supplier.id}>
-                    {supplier.SupplierName}
+                    {getField(supplier, 'supplierName')}
                   </option>
                 ))}
               </select>
@@ -485,6 +532,9 @@ export default function NewRelease() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Customer *
+                <span className="text-xs text-gray-500 ml-2">
+                  ({customers?.length || 0} available)
+                </span>
               </label>
               <select
                 value={selectedCustomer}
@@ -498,7 +548,7 @@ export default function NewRelease() {
                 <option value="">Select Customer</option>
                 {customers?.map((customer) => (
                   <option key={customer.id} value={customer.id}>
-                    {customer.CustomerName}
+                    {getField(customer, 'customerName')}
                   </option>
                 ))}
               </select>
@@ -609,6 +659,7 @@ export default function NewRelease() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Size *
+                      {lineItem.ItemId && getAvailabilityDisplay(lineItem.ItemId, lineItem.SizeId, lineItem.LotId)}
                     </label>
                     <select
                       value={lineItem.SizeId}
@@ -622,7 +673,7 @@ export default function NewRelease() {
                       <option value="">Select Size</option>
                       {getAvailableSizes(lineItem.ItemId).map((size) => (
                         <option key={size.id} value={size.id}>
-                          {size.SizeName}
+                          {getField(size, 'sizeName')}
                         </option>
                       ))}
                     </select>
@@ -645,7 +696,7 @@ export default function NewRelease() {
                       {getAvailableLots(lineItem.ItemId, lineItem.SizeId).map(
                         (lot) => (
                           <option key={lot.id} value={lot.id}>
-                            {lot.LotNumber}
+                            {getField(lot, 'lotNumber')}
                           </option>
                         )
                       )}
@@ -706,8 +757,9 @@ export default function NewRelease() {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || isSubmitDisabled}
               className="bg-green-600 text-white px-6 py-3 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={isSubmitDisabled ? 'Please complete all required fields' : ''}
             >
               {loading ? 'Creating Release...' : 'Create Release'}
             </button>

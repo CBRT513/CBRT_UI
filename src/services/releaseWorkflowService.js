@@ -302,6 +302,19 @@ class ReleaseWorkflowService {
         });
         
         return true;
+      }).then(async (success) => {
+        if (success) {
+          // Fire UMS hook for staging completion
+          const releaseDoc = await getDoc(doc(db, 'releases', releaseId));
+          if (releaseDoc.exists()) {
+            await this.fireUMSHook('release.staged', {
+              id: releaseId,
+              ...releaseDoc.data(),
+              status: RELEASE_STATUS.STAGED
+            }, user);
+          }
+        }
+        return success;
       });
     } catch (error) {
       console.error('Failed to stage release:', error);
@@ -401,6 +414,19 @@ class ReleaseWorkflowService {
         });
         
         return true;
+      }).then(async (success) => {
+        if (success) {
+          // Fire UMS hook for verification completion
+          const releaseDoc = await getDoc(doc(db, 'releases', releaseId));
+          if (releaseDoc.exists()) {
+            await this.fireUMSHook('release.verified', {
+              id: releaseId,
+              ...releaseDoc.data(),
+              status: RELEASE_STATUS.VERIFIED
+            }, user);
+          }
+        }
+        return success;
       });
     } catch (error) {
       console.error('Failed to verify release:', error);
@@ -531,6 +557,20 @@ class ReleaseWorkflowService {
         });
         
         return true;
+      }).then(async (success) => {
+        if (success) {
+          // Fire UMS hook for loading completion
+          const releaseDoc = await getDoc(doc(db, 'releases', releaseId));
+          if (releaseDoc.exists()) {
+            await this.fireUMSHook('release.loaded', {
+              id: releaseId,
+              ...releaseDoc.data(),
+              status: RELEASE_STATUS.LOADED,
+              truckNumber: truckNumber.trim()
+            }, user);
+          }
+        }
+        return success;
       });
     } catch (error) {
       console.error('Failed to load release:', error);
@@ -538,6 +578,101 @@ class ReleaseWorkflowService {
     }
   }
   
+  // ==================== UMS GRAPH INTEGRATION ====================
+  
+  /**
+   * Fire UMS Graph hook for release status transitions
+   * @param {string} event - Event type (release.created, release.staged, etc.)
+   * @param {Object} releaseData - Release data object
+   * @param {Object} user - User performing the action
+   */
+  async fireUMSHook(event, releaseData, user) {
+    try {
+      const hookData = {
+        event,
+        timestamp: new Date().toISOString(),
+        releaseId: releaseData.id || releaseData.releaseId,
+        releaseNumber: releaseData.releaseNumber || releaseData.ReleaseNumber,
+        status: releaseData.status,
+        userId: user.id,
+        userName: user.name || user.email,
+        metadata: {
+          supplier: releaseData.supplierName || releaseData.SupplierName,
+          customer: releaseData.customerName || releaseData.CustomerName,
+          totalItems: releaseData.TotalItems,
+          totalWeight: releaseData.TotalWeight
+        }
+      };
+
+      // Store UMS event in Firestore for processing
+      await addDoc(collection(db, 'umsEvents'), {
+        ...hookData,
+        processed: false,
+        createdAt: serverTimestamp()
+      });
+
+      console.log(`🔗 UMS Hook fired: ${event}`, hookData);
+      
+      // Special processing for inventory decrement events
+      if (event === 'release.verified') {
+        await this.decrementInventory(releaseData);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Failed to fire UMS hook:', error);
+      // Don't throw - UMS hooks should not block workflow
+      return false;
+    }
+  }
+
+  /**
+   * Decrement inventory when release is verified
+   */
+  async decrementInventory(releaseData) {
+    try {
+      if (!releaseData.LineItems) return;
+
+      const batch = writeBatch(db);
+      
+      for (const lineItem of releaseData.LineItems) {
+        // Find matching barcodes to decrement
+        const barcodesQuery = query(
+          collection(db, 'barcodes'),
+          where('ItemId', '==', lineItem.ItemId),
+          where('SizeId', '==', lineItem.SizeId),
+          where('LotId', '==', lineItem.LotId || null),
+          where('Status', '==', 'Available')
+        );
+        
+        const barcodesSnapshot = await getDocs(barcodesQuery);
+        let remainingToDecrement = lineItem.Quantity;
+        
+        barcodesSnapshot.docs.forEach(barcodeDoc => {
+          if (remainingToDecrement <= 0) return;
+          
+          const barcode = barcodeDoc.data();
+          const currentQuantity = barcode.Quantity || 0;
+          const decrementAmount = Math.min(remainingToDecrement, currentQuantity);
+          const newQuantity = currentQuantity - decrementAmount;
+          
+          batch.update(doc(db, 'barcodes', barcodeDoc.id), {
+            Quantity: newQuantity,
+            UpdatedAt: serverTimestamp()
+          });
+          
+          remainingToDecrement -= decrementAmount;
+        });
+      }
+      
+      await batch.commit();
+      console.log('📦 Inventory decremented for verified release');
+      
+    } catch (error) {
+      console.error('Failed to decrement inventory:', error);
+    }
+  }
+
   // ==================== NOTIFICATION SYSTEM ====================
   
   /**
