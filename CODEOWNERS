@@ -1,0 +1,30 @@
+# CODEOWNERS for CBRT_UI Repository
+# This file defines who is responsible for code reviews for different parts of the repository
+
+# Global owners (fallback for all files)
+* @cerion
+
+# Core application structure - requires review
+/src/ @cerion
+/src/firebase/ @cerion
+/src/services/ @cerion
+/src/managers/ @cerion
+/src/routes/ @cerion
+
+# Configuration files - sensitive, requires review
+/firebase.json @cerion
+/firestore.rules @cerion
+/.firebaserc @cerion
+/vite.config.js @cerion
+/package.json @cerion
+/.env.example @cerion
+
+# CI/CD and workflows
+/.github/ @cerion
+
+# Documentation
+/README.md @cerion
+/HYGIENE_REPORT.md @cerion
+
+# Quarantine directory - no automatic reviews needed
+/_foreign/
