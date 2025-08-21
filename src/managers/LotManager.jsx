@@ -68,8 +68,8 @@ export default function LotManager() {
           <tbody>
             {lots.map(item => (
               <tr key={item.id} className="border-t">
-                <td className="px-4 py-2">{item.LotNumber}</td>
-                <td className="px-4 py-2">{item.Status}</td>
+                <td className="px-4 py-2">{item.lotNumber || item.LotNumber}</td>
+                <td className="px-4 py-2">{item.status || item.Status}</td>
                 <td className="px-4 py-2 space-x-2">
                   <EditIcon onClick={() => handleEdit(item)} disabled={loadingId === item.id || loadingId === 'save'} />
                   <DeleteIcon onClick={() => handleDelete(item.id)} disabled={loadingId === item.id || loadingId === 'save'} />

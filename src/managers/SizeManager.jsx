@@ -1,94 +1,170 @@
-// SizeManager.jsx
-// Manages size entries in Firestore
-// Aligned with CustomerManager structure: uses PageHeader, Edit/Delete icons, consistent table design
-
 import React, { useState } from 'react';
-import { useFirestoreCollection, useFirestoreActions } from '../hooks/useFirestore';
+import { useFirestoreCollection } from '../hooks/useFirestore';
+import { addDoc, updateDoc, deleteDoc, collection, doc } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import { TableSkeleton, ErrorDisplay, EmptyState } from '../components/LoadingStates';
 import SizeModal from '../modals/SizeModal';
-import { TableSkeleton, ErrorDisplay, EmptyState, LoadingSpinner } from '../components/LoadingStates';
-import PageHeader from '../components/PageHeader';
-import { EditIcon, DeleteIcon } from '../components/Icons';
 
 export default function SizeManager() {
-  const { data: sizes, loading, error, retry } = useFirestoreCollection('sizes');
-  const { add, update, delete: deleteSize } = useFirestoreActions('sizes');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState(null);
+  const { data: sizes, loading, error } = useFirestoreCollection('sizes');
+  const [showModal, setShowModal] = useState(false);
+  const [editingSize, setEditingSize] = useState(null);
   const [loadingId, setLoadingId] = useState(null);
 
-  const handleAdd = () => { setEditTarget(null); setModalOpen(true); };
-  const handleEdit = (item) => { setEditTarget(item); setModalOpen(true); };
+  const handleAdd = () => {
+    setEditingSize(null);
+    setShowModal(true);
+  };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Delete this size?')) {
-      setLoadingId(id);
-      await deleteSize(id);
-      setLoadingId(null);
+  const handleEdit = (size) => {
+    setEditingSize(size);
+    setShowModal(true);
+  };
+
+  const handleSave = async (sizeData) => {
+    try {
+      if (editingSize) {
+        await updateDoc(doc(db, 'sizes', editingSize.id), {
+          ...sizeData,
+          updatedAt: new Date()
+        });
+      } else {
+        await addDoc(collection(db, 'sizes'), {
+          ...sizeData,
+          createdAt: new Date()
+        });
+      }
+      setShowModal(false);
+      setEditingSize(null);
+    } catch (error) {
+      console.error('Error saving size:', error);
+      alert('Failed to save size');
     }
   };
 
-  const handleSave = async (data) => {
+  const handleDelete = async (size) => {
+    if (!window.confirm(`Delete size ${size.sizeName || size.SizeName}?`)) return;
+
+    setLoadingId(size.id);
     try {
-      setLoadingId('save');
-      if (editTarget) {
-        await update(editTarget.id, data);
-      } else {
-        await add(data);
-      }
-      setModalOpen(false);
-    } catch (err) {
-      console.error('Failed to save size:', err);
-      alert('There was an error saving the size.');
+      await deleteDoc(doc(db, 'sizes', size.id));
+    } catch (error) {
+      console.error('Error deleting size:', error);
+      alert('Failed to delete size');
     } finally {
       setLoadingId(null);
     }
   };
 
-  if (loading) return <TableSkeleton />;
-  if (error) return <ErrorDisplay error={error} onRetry={retry} />;
-  if (!sizes.length) return <EmptyState message="No sizes found." onAction={handleAdd} actionLabel="Add Size" />;
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Sizes</h1>
+          <TableSkeleton rows={5} columns={3} />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto p-6">
+        <ErrorDisplay message="Failed to load sizes" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4">
-      <PageHeader
-        title="Size Manager"
-        subtitle="Manage all package sizes"
-        buttonText="Add Size"
-        onAdd={handleAdd}
-        disabled={loadingId === 'save'}
-      />
-      <div className="bg-white shadow rounded overflow-x-auto">
-        <table className="min-w-full text-sm" aria-label="Sizes Table">
-          <thead className="bg-gray-100 text-gray-700">
-            <tr>
-              <th className="text-left px-4 py-2">Name</th>
-              <th className="text-left px-4 py-2">Status</th>
-              <th className="text-left px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sizes.map(item => (
-              <tr key={item.id} className="border-t">
-                <td className="px-4 py-2">{item.SizeName}</td>
-                <td className="px-4 py-2">{item.Status}</td>
-                <td className="px-4 py-2 space-x-2">
-                  <EditIcon onClick={() => handleEdit(item)} disabled={loadingId === item.id || loadingId === 'save'} />
-                  <DeleteIcon onClick={() => handleDelete(item.id)} disabled={loadingId === item.id || loadingId === 'save'} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="max-w-6xl mx-auto p-6">
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Sizes</h1>
+          <button
+            onClick={handleAdd}
+            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            + Add Size
+          </button>
+        </div>
+
+        {!sizes || sizes.length === 0 ? (
+          <EmptyState
+            title="No sizes found"
+            description="Add your first size to get started"
+            actionLabel="Add Size"
+            onAction={handleAdd}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Size Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Sort Order
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sizes.map((size, index) => (
+                  <tr key={size.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {size.sizeName || size.SizeName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {size.sortOrder || size.SortOrder || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${(size.status || size.Status) === 'Active'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                        }`}>
+                        {size.status || size.Status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => handleEdit(size)}
+                        className="text-green-600 hover:text-green-900 mr-3"
+                        title="Edit size"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => handleDelete(size)}
+                        disabled={loadingId === size.id}
+                        className="text-red-600 hover:text-red-900"
+                        title="Delete size"
+                      >
+                        {loadingId === size.id ? '⏳' : '🗑️'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-      {modalOpen && (
-        <SizeModal
-          title={editTarget ? 'Edit Size' : 'Add Size'}
-          initialData={editTarget}
-          onClose={() => setModalOpen(false)}
-          onSave={handleSave}
-        />
-      )}
-      {loadingId === 'save' && <LoadingSpinner />}
+
+      <SizeModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditingSize(null);
+        }}
+        onSave={handleSave}
+        initialData={editingSize}
+      />
     </div>
   );
 }

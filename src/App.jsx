@@ -8,6 +8,8 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './firebase/config';
 import workflowMonitor from './utils/workflowMonitor';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 
 // Routes
@@ -49,12 +51,16 @@ import BargeManager from './managers/BargeManager';
 import LotManager from './managers/LotManager';
 import BarcodeManager from './managers/BarcodeManager';
 
+// UMS Explorer (feature-flagged)
+const UmsExplorer = React.lazy(() => import('./routes/UmsExplorer'));
 
 /* ---------- 2. APP ---------- */
 export default function App() {
   useEffect(() => {
     signInAnonymously(auth).catch(console.error);
   }, []);
+
+  const showUms = import.meta.env.VITE_FEATURE_UMS === 'true';
 
   const nav = [
     'Home',
@@ -76,7 +82,8 @@ export default function App() {
     "BOL Generator",
     "BOL Manager",
     "PDF Test",
-    "Warehouse App"
+    "Warehouse App",
+    ...(showUms ? ['UMS Explorer'] : [])
   ];
 
   return (
@@ -133,9 +140,19 @@ export default function App() {
             <Route path="/continuous-chaos-test" element={<ContinuousChaosTest />} />
             <Route path="/analysis-history" element={<AnalysisHistory />} />
             <Route path="/quick-system-check" element={<QuickSystemCheck />} />
+            
+            {/* UMS Explorer (feature-flagged) */}
+            {showUms && (
+              <Route path="/umsexplorer" element={
+                <React.Suspense fallback={<div>Loading UMS Explorer...</div>}>
+                  <UmsExplorer />
+                </React.Suspense>
+              } />
+            )}
           </Routes>
         </main>
       </div>
+      <ToastContainer position="top-right" autoClose={3000} />
     </Router>
   );
 }

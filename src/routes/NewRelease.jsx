@@ -501,7 +501,7 @@ export default function NewRelease() {
       const totalWeight = totalItems * 2200;
 
       const releaseData = {
-        ReleaseNumber: releaseNumber.trim(),
+        releaseNumber: releaseNumber.trim(),
         SupplierId: selectedSupplier,
         CustomerId: selectedCustomer,
         PickupDate: pickupDate || null,

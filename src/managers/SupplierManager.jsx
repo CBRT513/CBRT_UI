@@ -112,28 +112,28 @@ const SupplierManager = () => {
 
     try {
       const supplierData = {
-        SupplierName: formData.supplierName,
-        BOLPrefix: formData.bolPrefix,
-        ContactName: formData.contactName,
-        Phone: formData.phone,
-        Email: formData.email,
-        Address: formData.address,
-        City: formData.city,
-        State: formData.state,
-        ZipCode: formData.zipCode,
-        Status: formData.status
+        supplierName: formData.supplierName,
+        bolPrefix: formData.bolPrefix,
+        contactName: formData.contactName,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        status: formData.status
       };
 
       if (editingSupplier) {
         await updateDoc(doc(db, 'suppliers', editingSupplier.id), {
           ...supplierData,
-          UpdatedAt: new Date()
+          updatedAt: new Date()
         });
         console.log('Supplier updated successfully');
       } else {
         await addDoc(collection(db, 'suppliers'), {
           ...supplierData,
-          CreatedAt: new Date()
+          createdAt: new Date()
         });
         console.log('Supplier added successfully');
       }

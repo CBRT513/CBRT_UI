@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Customer Display</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+        h1 { color: #1a73e8; }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 5px; 
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th { background: #f2f2f2; }
+        .field-check { margin: 5px 0; }
+        .field-ok { color: green; }
+        .field-missing { color: red; }
+        button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #1557b0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Customer Display Test</h1>
+    
+    <div id="status" class="status info">Initializing Firebase...</div>
+    
+    <button onclick="testFirestore()">Test Firestore Connection</button>
+    <button onclick="fetchCustomers()">Fetch Customer Data</button>
+    <button onclick="testUI()">Open Customer Manager</button>
+    
+    <div id="results"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-app.js';
+        import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.1.0/firebase-firestore.js';
+        
+        const firebaseConfig = {
+            apiKey: 'AIzaSyAfFS_p_a_tZNTzoFZN7u7k4pA8FYdVkLk',
+            authDomain: 'cbrt-app-ui-dev.firebaseapp.com',
+            projectId: 'cbrt-app-ui-dev',
+            storageBucket: 'cbrt-app-ui-dev.firebasestorage.app',
+            messagingSenderId: '1087116999170',
+            appId: '1:1087116999170:web:e99afb7f4d076f8d75051b'
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        window.db = db;
+        
+        document.getElementById('status').className = 'status success';
+        document.getElementById('status').textContent = '✅ Firebase initialized successfully';
+        
+        window.testFirestore = async function() {
+            const status = document.getElementById('status');
+            const results = document.getElementById('results');
+            
+            try {
+                status.className = 'status info';
+                status.textContent = 'Testing Firestore connection...';
+                
+                const collections = ['customers', 'items', 'suppliers', 'carriers'];
+                let html = '<h2>Firestore Collections Status</h2><table><tr><th>Collection</th><th>Document Count</th><th>Status</th></tr>';
+                
+                for (const collName of collections) {
+                    try {
+                        const querySnapshot = await getDocs(collection(db, collName));
+                        const count = querySnapshot.size;
+                        html += `<tr>
+                            <td>${collName}</td>
+                            <td>${count}</td>
+                            <td class="${count > 0 ? 'field-ok' : 'field-missing'}">
+                                ${count > 0 ? '✅ Has data' : '⚠️ Empty'}
+                            </td>
+                        </tr>`;
+                    } catch (err) {
+                        html += `<tr>
+                            <td>${collName}</td>
+                            <td>-</td>
+                            <td class="field-missing">❌ Error: ${err.message}</td>
+                        </tr>`;
+                    }
+                }
+                
+                html += '</table>';
+                results.innerHTML = html;
+                status.className = 'status success';
+                status.textContent = '✅ Firestore connection successful';
+                
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ Error: ' + error.message;
+                results.innerHTML = '<pre>' + error.stack + '</pre>';
+            }
+        };
+        
+        window.fetchCustomers = async function() {
+            const status = document.getElementById('status');
+            const results = document.getElementById('results');
+            
+            try {
+                status.className = 'status info';
+                status.textContent = 'Fetching customer data...';
+                
+                const querySnapshot = await getDocs(collection(db, 'customers'));
+                const customers = [];
+                
+                querySnapshot.forEach((doc) => {
+                    customers.push({ id: doc.id, ...doc.data() });
+                });
+                
+                let html = '<h2>Customer Data (' + customers.length + ' records)</h2>';
+                
+                if (customers.length === 0) {
+                    html += '<div class="status warning">No customers found in database</div>';
+                } else {
+                    html += '<table><tr><th>ID</th><th>Customer Name</th><th>Contact Name</th><th>Status</th><th>Field Analysis</th></tr>';
+                    
+                    for (const customer of customers) {
+                        // Check both field naming conventions
+                        const customerName = customer.customerName || customer.CustomerName || '❌ Missing';
+                        const contactName = customer.contactName || customer.ContactName || '-';
+                        const status = customer.status || customer.Status || '-';
+                        
+                        // Analyze fields
+                        const fields = {
+                            'customerName': !!customer.customerName,
+                            'CustomerName': !!customer.CustomerName,
+                            'contactName': !!customer.contactName,
+                            'ContactName': !!customer.ContactName,
+                            'status': !!customer.status,
+                            'Status': !!customer.Status,
+                            'phone': !!customer.phone,
+                            'Phone': !!customer.Phone,
+                            'address': !!customer.address,
+                            'Address': !!customer.Address,
+                            'city': !!customer.city,
+                            'City': !!customer.City,
+                            'state': !!customer.state,
+                            'State': !!customer.State
+                        };
+                        
+                        let fieldAnalysis = '<small>';
+                        for (const [field, exists] of Object.entries(fields)) {
+                            if (exists) {
+                                fieldAnalysis += `<span class="field-ok">${field} ✓</span> `;
+                            }
+                        }
+                        fieldAnalysis += '</small>';
+                        
+                        html += `<tr>
+                            <td>${customer.id.substring(0, 8)}...</td>
+                            <td>${customerName}</td>
+                            <td>${contactName}</td>
+                            <td>${status}</td>
+                            <td>${fieldAnalysis}</td>
+                        </tr>`;
+                    }
+                    
+                    html += '</table>';
+                    
+                    // Field naming analysis
+                    html += '<h3>Field Naming Convention Analysis</h3>';
+                    const hasLowercase = customers.some(c => c.customerName);
+                    const hasCapitalized = customers.some(c => c.CustomerName);
+                    
+                    if (hasLowercase && !hasCapitalized) {
+                        html += '<div class="status success">✅ Using lowercase field names (customerName, contactName, etc.)</div>';
+                    } else if (!hasLowercase && hasCapitalized) {
+                        html += '<div class="status warning">⚠️ Using capitalized field names (CustomerName, ContactName, etc.)</div>';
+                    } else if (hasLowercase && hasCapitalized) {
+                        html += '<div class="status warning">⚠️ Mixed field naming conventions detected</div>';
+                    }
+                    
+                    // Show raw data for first customer
+                    if (customers.length > 0) {
+                        html += '<h3>Sample Raw Data (First Customer)</h3>';
+                        html += '<pre>' + JSON.stringify(customers[0], null, 2) + '</pre>';
+                    }
+                }
+                
+                results.innerHTML = html;
+                status.className = 'status success';
+                status.textContent = '✅ Customer data fetched successfully';
+                
+            } catch (error) {
+                status.className = 'status error';
+                status.textContent = '❌ Error fetching customers: ' + error.message;
+                results.innerHTML = '<pre>' + error.stack + '</pre>';
+            }
+        };
+        
+        window.testUI = function() {
+            window.open('http://localhost:5176/customers', '_blank');
+        };
+    </script>
+</body>
+</html>

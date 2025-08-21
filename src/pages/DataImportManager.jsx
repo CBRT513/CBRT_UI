@@ -176,17 +176,24 @@ const DataImportManager = () => {
           }
 
           // 2. Process Barge (only if bargeName exists and not empty) - using NORMALIZED values
+          // Get supplier info based on BOLPrefix from the CSV
+          const bargeSupplierInfo = supplierMap.get(row.BOLPrefix);
+          
           if (normalizedBargeName && !processedEntities.barges.has(normalizedBargeName)) {
             const bargeDoc = await addDoc(collection(db, 'barges'), {
               bargeName: normalizedBargeName,  // Store normalized version
               originalBargeName: row.bargeName || '',  // Keep original for reference
+              supplierName: bargeSupplierInfo?.name || row.BOLPrefix || '',  // Add supplier name
+              supplierId: bargeSupplierInfo?.id || '',  // Add supplier ID if found
+              bolPrefix: row.BOLPrefix || '',  // Store the BOL prefix for reference
               status: 'Active',
+              arrivalDate: '',  // Optional - can be updated later
               createdAt: new Date(),
               updatedAt: new Date()
             });
             processedEntities.barges.add(normalizedBargeName);
             counters.barges++;
-            console.log(`✅ Created barge: ${normalizedBargeName} (original: ${row.bargeName})`);
+            console.log(`✅ Created barge: ${normalizedBargeName} with supplier: ${bargeSupplierInfo?.name || row.BOLPrefix || 'Unknown'}`);
           } else if (normalizedBargeName && processedEntities.barges.has(normalizedBargeName)) {
             console.log(`⚠️ Skipping duplicate barge: ${normalizedBargeName}`);
           }
@@ -248,8 +255,7 @@ const DataImportManager = () => {
             continue;
           }
 
-          // Get supplier and customer info
-          const supplierInfo = supplierMap.get(row.BOLPrefix);
+          // Get customer info (supplier info already fetched above as bargeSupplierInfo)
           const customerInfo = customerMap.get(row.customerName);
 
           const barcodeDoc = await addDoc(collection(db, 'barcodes'), {
@@ -270,8 +276,8 @@ const DataImportManager = () => {
             originalBarcodeIdentifier: row.barcodeIdentifier || '',
             // Other fields
             customerName: (row.customerName || '').trim(),
-            supplierId: supplierInfo?.id || '',
-            supplierName: supplierInfo?.name || row.BOLPrefix || '',
+            supplierId: bargeSupplierInfo?.id || '',
+            supplierName: bargeSupplierInfo?.name || row.BOLPrefix || '',
             customerId: customerInfo?.id || '',
             BOLPrefix: row.BOLPrefix || '',
             standardWeight: parseFloat(row.standardWeight) || 0,

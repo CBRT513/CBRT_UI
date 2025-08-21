@@ -26,12 +26,12 @@ export default function BarcodeManager() {
       if (editingBarcode) {
         await updateDoc(doc(db, 'barcodes', editingBarcode.id), {
           ...barcodeData,
-          UpdatedAt: new Date()
+          updatedAt: new Date()
         });
       } else {
         await addDoc(collection(db, 'barcodes'), {
           ...barcodeData,
-          CreatedAt: new Date()
+          createdAt: new Date()
         });
       }
       setShowModal(false);
@@ -137,34 +137,34 @@ export default function BarcodeManager() {
                 {barcodes.map((barcode, index) => (
                   <tr key={barcode.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-green-600">
-                      {barcode.Barcode}
+                      {barcode.barcode || barcode.Barcode}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {barcode.ItemCode} - {barcode.ItemName}
+                      {barcode.itemCode || barcode.ItemCode} - {barcode.itemName || barcode.ItemName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {barcode.SizeName}
+                      {barcode.sizeName || barcode.SizeName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {barcode.LotNumber}
+                      {barcode.lotNumber || barcode.LotNumber}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {barcode.CustomerName}
+                      {barcode.customerName || barcode.CustomerName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {barcode.Quantity} bags
+                      {barcode.quantity || barcode.Quantity} bags
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        barcode.Status === 'Available' 
+                        (barcode.status || barcode.Status) === 'Available' 
                           ? 'bg-green-100 text-green-800' 
-                          : barcode.Status === 'Scanned'
+                          : (barcode.status || barcode.Status) === 'Scanned'
                           ? 'bg-blue-100 text-blue-800'
-                          : barcode.Status === 'Shipped'
+                          : (barcode.status || barcode.Status) === 'Shipped'
                           ? 'bg-gray-100 text-gray-800'
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {barcode.Status}
+                        {barcode.status || barcode.Status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

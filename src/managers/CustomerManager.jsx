@@ -22,21 +22,28 @@ export default function CustomerManager() {
   };
 
   const handleSave = async (customerData) => {
-  if (editingCustomer) {
-    await updateDoc(doc(db, 'customers', editingCustomer.id), {
-      ...customerData,
-      UpdatedAt: new Date()
-    });
-  } else {
-    await addDoc(collection(db, 'customers'), {
-      ...customerData,
-      CreatedAt: new Date()
-    });
-  }
-};
+    try {
+      if (editingCustomer) {
+        await updateDoc(doc(db, 'customers', editingCustomer.id), {
+          ...customerData,
+          updatedAt: new Date()
+        });
+      } else {
+        await addDoc(collection(db, 'customers'), {
+          ...customerData,
+          createdAt: new Date()
+        });
+      }
+      setShowModal(false);
+      setEditingCustomer(null);
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      alert('Failed to save customer');
+    }
+  };
 
   const handleDelete = async (customer) => {
-    if (!window.confirm(`Delete customer ${customer.CustomerName}?`)) return;
+    if (!window.confirm(`Delete customer ${customer.customerName}?`)) return;
 
     setLoadingId(customer.id);
     try {
@@ -123,29 +130,29 @@ export default function CustomerManager() {
                 {customers.map((customer, index) => (
                   <tr key={customer.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {customer.CustomerName}
+                      {customer.customerName || customer.CustomerName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {customer.ContactName || '-'}
+                      {customer.contactName || customer.ContactName || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {customer.Phone || '-'}
+                      {customer.phone || customer.Phone || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {customer.Address || '-'}
+                      {customer.address || customer.Address || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {customer.City || '-'}
+                      {customer.city || customer.City || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {customer.State || '-'}
+                      {customer.state || customer.State || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${customer.Status === 'Active'
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${(customer.status || customer.Status) === 'Active'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-red-100 text-red-800'
                         }`}>
-                        {customer.Status}
+                        {customer.status || customer.Status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

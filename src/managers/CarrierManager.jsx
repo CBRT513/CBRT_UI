@@ -48,15 +48,15 @@ const CarrierManager = () => {
 
   const handleEditCarrier = (carrier) => {
     setFormData({
-      carrierName: carrier.CarrierName || '',
-      contactName: carrier.ContactName || '',
-      phone: carrier.Phone || '',
-      email: carrier.Email || '',
-      address: carrier.Address || '',
-      city: carrier.City || '',
-      state: carrier.State || '',
-      zipCode: carrier.ZipCode || '',
-      status: carrier.Status || 'Active'
+      carrierName: carrier.carrierName || carrier.CarrierName || '',
+      contactName: carrier.contactName || carrier.ContactName || '',
+      phone: carrier.phone || carrier.Phone || '',
+      email: carrier.email || carrier.Email || '',
+      address: carrier.address || carrier.Address || '',
+      city: carrier.city || carrier.City || '',
+      state: carrier.state || carrier.State || '',
+      zipCode: carrier.zipCode || carrier.ZipCode || '',
+      status: carrier.status || carrier.Status || 'Active'
     });
     setEditingCarrier(carrier);
     setShowModal(true);
@@ -82,7 +82,7 @@ const CarrierManager = () => {
     if (!carriers) return false;
     
     const duplicate = carriers.find(carrier => 
-      carrier.CarrierName?.toLowerCase() === formData.carrierName.toLowerCase() &&
+      (carrier.carrierName || carrier.CarrierName || '').toLowerCase() === formData.carrierName.toLowerCase() &&
       (!editingCarrier || carrier.id !== editingCarrier.id)
     );
     
@@ -105,15 +105,15 @@ const CarrierManager = () => {
 
     try {
       const dbData = {
-        CarrierName: formData.carrierName,
-        ContactName: formData.contactName,
-        Phone: formData.phone,
-        Email: formData.email,
-        Address: formData.address,
-        City: formData.city,
-        State: formData.state,
-        ZipCode: formData.zipCode,
-        Status: formData.status
+        carrierName: formData.carrierName,
+        contactName: formData.contactName,
+        phone: formData.phone,
+        email: formData.email,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        status: formData.status
       };
 
       if (editingCarrier) {
@@ -197,27 +197,27 @@ const CarrierManager = () => {
             {carriers?.map((carrier) => (
               <tr key={carrier.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {carrier.CarrierName}
+                  {carrier.carrierName || carrier.CarrierName}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {carrier.ContactName}
+                  {carrier.contactName || carrier.ContactName}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {carrier.Phone}
+                  {carrier.phone || carrier.Phone}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {carrier.Email}
+                  {carrier.email || carrier.Email}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {carrier.City}, {carrier.State}
+                  {carrier.city || carrier.City}, {carrier.state || carrier.State}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    carrier.Status === 'Active' 
+                    (carrier.status || carrier.Status) === 'Active' 
                       ? 'bg-green-100 text-green-800' 
                       : 'bg-red-100 text-red-800'
                   }`}>
-                    {carrier.Status}
+                    {carrier.status || carrier.Status}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

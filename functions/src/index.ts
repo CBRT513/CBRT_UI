@@ -1,0 +1,1 @@
+export { umsProxy } from './umsProxy';

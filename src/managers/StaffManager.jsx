@@ -28,12 +28,12 @@ export default function StaffManager() {
       if (editingStaff) {
         await updateDoc(doc(db, 'staff', editingStaff.id), {
           ...staffData,
-          UpdatedAt: new Date()
+          updatedAt: new Date()
         });
       } else {
         await addDoc(collection(db, 'staff'), {
           ...staffData,
-          CreatedAt: new Date()
+          createdAt: new Date()
         });
       }
       setShowModal(false);
