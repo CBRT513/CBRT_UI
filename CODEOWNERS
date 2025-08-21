@@ -1,0 +1,37 @@
+# CODEOWNERS file for CBRT UI
+# These owners will be requested for review when someone opens a pull request
+
+# Global owners (for all files)
+* @CBRT513
+
+# Firebase configuration requires special review
+.firebaserc @CBRT513
+firebase.json @CBRT513
+firestore.rules @CBRT513
+firestore.indexes.json @CBRT513
+.github/workflows/firebase-deploy.yml @CBRT513
+
+# Environment configuration
+.env* @CBRT513
+vite.config.* @CBRT513
+
+# Security-sensitive services
+src/services/auth*.js @CBRT513
+src/services/staging.service.js @CBRT513
+src/services/verify.service.js @CBRT513
+src/services/load.service.js @CBRT513
+
+# CI/CD configuration
+.github/ @CBRT513
+
+# Scripts that modify data (high sensitivity)
+/scripts/ @CBRT513
+/scripts/wipe-*.js @CBRT513
+/scripts/legacy/ @CBRT513
+/firestore.rules @CBRT513
+/firestore.indexes.json @CBRT513
+
+# CI/CD and deployment configs
+/.github/workflows/ @CBRT513
+/.firebaserc @CBRT513
+/firebase.json @CBRT513

@@ -1,0 +1,197 @@
+name: Firebase Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'release/**'
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: '18'
+  
+jobs:
+  # CI Check to prevent multiple Firebase initializations and seeding
+  safety-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for multiple Firebase initializations
+        run: |
+          count=$(grep -r "initializeApp(" src/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" | wc -l)
+          if [ "$count" -gt 1 ]; then
+            echo "❌ Multiple Firebase initializeApp() calls found!"
+            grep -r "initializeApp(" src/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx"
+            exit 1
+          fi
+          echo "✅ Single Firebase initialization found"
+      
+      - name: Verify no seeding in CI
+        run: |
+          echo "Checking for seed script usage..."
+          if grep -q "npm run seed" .github/workflows/*.yml 2>/dev/null; then
+            echo "❌ ERROR: Seed scripts detected in CI workflows"
+            echo "Seeding is disabled by policy"
+            exit 1
+          fi
+          if grep -q "node.*seed" .github/workflows/*.yml 2>/dev/null; then
+            echo "❌ ERROR: Direct seed script execution detected in CI"
+            echo "Seeding is disabled by policy"
+            exit 1
+          fi
+          echo "✅ No seeding detected in CI"
+
+  # Build and Test
+  build:
+    runs-on: ubuntu-latest
+    needs: safety-check
+    strategy:
+      matrix:
+        environment: [development, staging]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Set environment variables for ${{ matrix.environment }}
+        run: |
+          if [ "${{ matrix.environment }}" = "staging" ]; then
+            echo "Building for STAGING environment"
+            echo "VITE_ENV=staging" >> $GITHUB_ENV
+          else
+            echo "Building for DEV environment"
+            echo "VITE_ENV=development" >> $GITHUB_ENV
+          fi
+      
+      - name: Build application
+        run: npm run build -- --mode ${{ matrix.environment }}
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets[format('VITE_FIREBASE_API_KEY_{0}', matrix.environment == 'staging' && 'STAGING' || 'DEV')] }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ matrix.environment == 'staging' && 'cbrt-ui-staging.firebaseapp.com' || 'cbrt-app-ui-dev.firebaseapp.com' }}
+          VITE_FIREBASE_PROJECT_ID: ${{ matrix.environment == 'staging' && 'cbrt-ui-staging' || 'cbrt-app-ui-dev' }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ matrix.environment == 'staging' && 'cbrt-ui-staging.appspot.com' || 'cbrt-app-ui-dev.appspot.com' }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets[format('VITE_FIREBASE_MESSAGING_SENDER_ID_{0}', matrix.environment == 'staging' && 'STAGING' || 'DEV')] }}
+          VITE_FIREBASE_APP_ID: ${{ secrets[format('VITE_FIREBASE_APP_ID_{0}', matrix.environment == 'staging' && 'STAGING' || 'DEV')] }}
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist-${{ matrix.environment }}
+          path: dist/
+
+  # Deploy to Firebase Hosting Preview (PRs only)
+  deploy-preview:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-development
+          path: dist/
+      
+      - name: Deploy to Firebase Hosting Preview
+        id: firebase_preview
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SA_DEV }}'
+          projectId: cbrt-app-ui-dev
+          expires: 7d
+          channelId: pr-${{ github.event.pull_request.number }}
+      
+      - name: Comment preview URL on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.firebase_preview.outputs.details_url }}';
+            const expires = '${{ steps.firebase_preview.outputs.expire_time }}';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Firebase Preview Deployed!**\n\n🔗 Preview URL: ${url}\n⏰ Expires: ${expires}\n\n**Test Checklist:**\n- [ ] F7: Ops Queues (Pick/Verify/BOL tabs)\n- [ ] F8: Stage → Verify → Load workflow\n- [ ] Notifications appear as toasts\n- [ ] No console errors`
+            });
+
+  # Deploy to DEV (main/develop branches)
+  deploy-dev:
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    needs: build
+    environment: development
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-development
+          path: dist/
+      
+      - name: Deploy to Firebase Hosting (DEV)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SA_DEV }}'
+          projectId: cbrt-app-ui-dev
+          channelId: live
+      
+      - name: Deploy Firestore Rules
+        run: |
+          npm install -g firebase-tools
+          firebase use dev
+          firebase deploy --only firestore:rules,firestore:indexes --project cbrt-app-ui-dev --token "${{ secrets.FIREBASE_TOKEN_DEV }}"
+
+  # Deploy to STAGING (release branches)
+  deploy-staging:
+    if: startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    needs: build
+    environment: staging
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: dist-staging
+          path: dist/
+      
+      - name: Deploy to Firebase Hosting (STAGING)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SA_STAGING }}'
+          projectId: cbrt-ui-staging
+          channelId: live
+      
+      - name: Deploy Firestore Rules
+        run: |
+          npm install -g firebase-tools
+          firebase use staging
+          firebase deploy --only firestore:rules,firestore:indexes --project cbrt-ui-staging --token "${{ secrets.FIREBASE_TOKEN_STAGING }}"
+      
+      - name: Post deployment notification
+        run: |
+          echo "✅ Deployed to STAGING: https://cbrt-ui-staging.web.app"
+          echo "🔐 Auth restricted to @cbrt.com domain"
