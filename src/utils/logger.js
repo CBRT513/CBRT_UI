@@ -1,87 +1,151 @@
-// File: /Users/cerion/CBRT_UI/src/utils/logger.js
-// Centralized logging utility with error handling
+// Centralized logging wrapper for CBRT UI
+// Supports levels: debug, info, warn, error
+// Optional Sentry integration behind VITE_SENTRY_DSN
 
-const timestamp = () => new Date().toISOString();
-
-const sendRemoteLog = async (level, message, extra = {}) => {
-  // TODO: Hook into external logging service (e.g., Firestore logs collection)
-  // Example: 
-  // try {
-  //   await addDoc(collection(db, 'logs'), {
-  //     level,
-  //     message,
-  //     extra,
-  //     timestamp: timestamp(),
-  //     userAgent: navigator.userAgent,
-  //     url: window.location.href
-  //   });
-  // } catch (err) {
-  //   console.error('Failed to send remote log:', err);
-  // }
-  return;
+const LOG_LEVELS = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3
 };
 
-export const logger = {
-  debug: (msg, extra = {}) => {
-    console.debug(`[DEBUG ${timestamp()}] ${msg}`, extra);
-    sendRemoteLog('debug', msg, extra);
-  },
-  
-  info: (msg, extra = {}) => {
-    console.info(`[INFO  ${timestamp()}] ${msg}`, extra);
-    sendRemoteLog('info', msg, extra);
-  },
-  
-  warn: (msg, extra = {}) => {
-    console.warn(`[WARN  ${timestamp()}] ${msg}`, extra);
-    sendRemoteLog('warn', msg, extra);
-  },
-  
-  error: (msg, error = null, extra = {}) => {
-    const errorData = {
-      ...extra,
-      error: error ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      } : null
-    };
-    console.error(`[ERROR ${timestamp()}] ${msg}`, errorData);
-    sendRemoteLog('error', msg, errorData);
-  },
-  
-  critical: (msg, extra = {}) => {
-    console.error(`[CRITICAL ${timestamp()}] ${msg}`, extra);
-    sendRemoteLog('critical', msg, extra);
-  },
-  
-  // Method for wrapping async functions with error handling
-  wrapAsync: (fn, context = 'Unknown') => {
-    return async (...args) => {
-      try {
-        logger.debug(`Starting ${context}`, { args: args.length });
-        const result = await fn(...args);
-        logger.debug(`Completed ${context} successfully`);
-        return result;
-      } catch (error) {
-        logger.error(`Failed in ${context}`, error, { args: args.length });
-        throw error;
-      }
-    };
-  },
-  
-  // Method for wrapping sync functions with error handling
-  wrapSync: (fn, context = 'Unknown') => {
-    return (...args) => {
-      try {
-        logger.debug(`Starting ${context}`, { args: args.length });
-        const result = fn(...args);
-        logger.debug(`Completed ${context} successfully`);
-        return result;
-      } catch (error) {
-        logger.error(`Failed in ${context}`, error, { args: args.length });
-        throw error;
+const CURRENT_LEVEL = import.meta.env.VITE_LOG_LEVEL || 'info';
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+
+class Logger {
+  constructor() {
+    this.level = LOG_LEVELS[CURRENT_LEVEL] || LOG_LEVELS.info;
+    this.initSentry();
+  }
+
+  initSentry() {
+    // Sentry integration disabled for now
+    // To enable: npm install @sentry/browser and set VITE_SENTRY_DSN
+    this.sentry = null;
+    
+    if (SENTRY_DSN) {
+      console.info('📊 Sentry DSN configured but package not installed');
+      console.info('To enable error tracking: npm install @sentry/browser');
+    }
+  }
+
+  formatMessage(level, message, metadata = {}) {
+    const timestamp = new Date().toISOString();
+    const userContext = this.getUserContext();
+    
+    return {
+      timestamp,
+      level: level.toUpperCase(),
+      message,
+      metadata: {
+        ...metadata,
+        ...userContext,
+        url: window.location?.href,
+        userAgent: navigator?.userAgent
       }
     };
   }
-};
+
+  getUserContext() {
+    try {
+      // Try to get user context from various sources
+      const user = window.__CBRT_USER__ || {};
+      return {
+        userId: user.id || 'anonymous',
+        userRole: user.role || 'unknown',
+        userEmail: user.email || 'unknown'
+      };
+    } catch (err) {
+      return {
+        userId: 'unknown',
+        userRole: 'unknown', 
+        userEmail: 'unknown'
+      };
+    }
+  }
+
+  shouldLog(level) {
+    return LOG_LEVELS[level] >= this.level;
+  }
+
+  debug(message, metadata = {}) {
+    if (!this.shouldLog('debug')) return;
+    
+    const formatted = this.formatMessage('debug', message, metadata);
+    console.debug('🐛 [DEBUG]', formatted.message, formatted.metadata);
+  }
+
+  info(message, metadata = {}) {
+    if (!this.shouldLog('info')) return;
+    
+    const formatted = this.formatMessage('info', message, metadata);
+    console.info('ℹ️ [INFO]', formatted.message, formatted.metadata);
+  }
+
+  warn(message, metadata = {}) {
+    if (!this.shouldLog('warn')) return;
+    
+    const formatted = this.formatMessage('warn', message, metadata);
+    console.warn('⚠️ [WARN]', formatted.message, formatted.metadata);
+    
+    if (this.sentry) {
+      this.sentry.captureMessage(message, 'warning');
+    }
+  }
+
+  error(message, error = null, metadata = {}) {
+    if (!this.shouldLog('error')) return;
+    
+    const formatted = this.formatMessage('error', message, {
+      ...metadata,
+      error: error ? {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      } : null
+    });
+    
+    console.error('🚨 [ERROR]', formatted.message, formatted.metadata);
+    
+    if (this.sentry) {
+      if (error) {
+        this.sentry.captureException(error);
+      } else {
+        this.sentry.captureMessage(message, 'error');
+      }
+    }
+  }
+
+  // Method to set user context for all subsequent logs
+  setUserContext(user) {
+    window.__CBRT_USER__ = user;
+    
+    if (this.sentry) {
+      this.sentry.setUser({
+        id: user.id,
+        email: user.email,
+        role: user.role
+      });
+    }
+  }
+
+  // Performance timing utility
+  time(label) {
+    const start = performance.now();
+    return {
+      end: () => {
+        const duration = performance.now() - start;
+        this.info(`Performance: ${label}`, { duration: `${duration.toFixed(2)}ms` });
+        return duration;
+      }
+    };
+  }
+}
+
+// Export singleton instance
+export const logger = new Logger();
+
+// Export individual methods for convenience
+export const { debug, info, warn, error, setUserContext, time } = logger;
+
+export default logger;

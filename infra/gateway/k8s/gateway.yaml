@@ -1,0 +1,54 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: cbrt-gateway
+  namespace: cbrt-gateway
+  labels:
+    app: cbrt
+    component: gateway
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    tls:
+      mode: SIMPLE
+      credentialName: cbrt-tls-secret
+    hosts:
+    - cbrt.company.com
+    - "*.cbrt.company.com"
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - cbrt.company.com
+    - "*.cbrt.company.com"
+    redirect:
+      httpsRedirect: true
+---
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: cbrt-mesh-gateway
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: mesh-internal
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  - port:
+      number: 8443
+      name: https-mesh
+      protocol: HTTPS
+    tls:
+      mode: MUTUAL
+      credentialName: cbrt-mesh-tls-secret
+    hosts:
+    - mesh.cbrt.internal
+    - "*.mesh.cbrt.internal"

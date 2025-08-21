@@ -1,0 +1,160 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: cbrt-frontend-access-policy
+  namespace: cbrt-gateway
+  labels:
+    app: cbrt
+    component: frontend-policy
+spec:
+  selector:
+    matchLabels:
+      app: cbrt-frontend
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["spiffe://cbrt.company.com/gateway/istio"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+        paths: ["/", "/api/*", "/static/*", "/assets/*"]
+    when:
+    - key: source.ip
+      notValues: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: cbrt-api-access-policy
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: api-policy
+spec:
+  selector:
+    matchLabels:
+      app: cbrt-api
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["spiffe://cbrt.company.com/frontend/cbrt-ui"]
+    - source:
+        principals: ["spiffe://cbrt.company.com/warehouse/operations"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT", "DELETE"]
+        paths: ["/api/v1/*", "/health", "/metrics"]
+    when:
+    - key: request.headers[authorization]
+      values: ["Bearer *"]
+  - from:
+    - source:
+        principals: ["spiffe://cbrt.company.com/observability/metrics"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/metrics", "/health"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: cbrt-warehouse-access-policy
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: warehouse-policy
+spec:
+  selector:
+    matchLabels:
+      app: cbrt-warehouse
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["spiffe://cbrt.company.com/api/cbrt-backend"]
+    to:
+    - operation:
+        methods: ["GET", "POST", "PUT"]
+        paths: ["/warehouse/v1/*", "/health", "/ready"]
+    when:
+    - key: request.headers[x-user-role]
+      values: ["admin", "office", "loader"]
+    - key: request.time.hour
+      values: ["6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: cbrt-observability-access-policy
+  namespace: observability
+  labels:
+    app: cbrt
+    component: observability-policy
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["spiffe://cbrt.company.com/observability/metrics"]
+    to:
+    - operation:
+        methods: ["GET", "POST"]
+  - from:
+    - source:
+        principals: ["spiffe://cbrt.company.com/gateway/istio"]
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/metrics", "/graph", "/targets", "/dashboard/*"]
+    when:
+    - key: request.headers[x-admin-access]
+      values: ["true"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: cbrt-deny-external-egress
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: egress-policy
+spec:
+  action: DENY
+  rules:
+  - to:
+    - operation:
+        hosts: ["*"]
+    when:
+    - key: destination.port
+      notValues: ["443", "80", "8080", "8443", "9090", "3000", "16686", "3100"]
+    - key: destination.service.name
+      notValues: ["kubernetes", "*.svc.cluster.local"]
+---
+apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: cbrt-allowed-external-services
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: egress-allowlist
+spec:
+  hosts:
+  - firebaseapp.com
+  - "*.firebaseapp.com"
+  - "*.googleapis.com"
+  - "*.google.com"
+  - api.twilio.com
+  - github.com
+  - "*.github.com"
+  ports:
+  - number: 443
+    name: https
+    protocol: HTTPS
+  - number: 80
+    name: http
+    protocol: HTTP
+  location: MESH_EXTERNAL
+  resolution: DNS

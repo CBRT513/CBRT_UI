@@ -1,0 +1,273 @@
+# CBRT Fabric Access Control Lists
+# Defines allowlists for network access, API endpoints, and user permissions
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cbrt-allowlists
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: access-control
+data:
+  allowlists.yaml: |
+    # Network Access Control Lists
+    network_acls:
+      # Frontend network access
+      frontend_access:
+        source_networks:
+          - "10.0.0.0/8"          # Internal corporate network
+          - "172.16.0.0/12"       # Private network range
+          - "192.168.0.0/16"      # Local network range
+        denied_networks:
+          - "169.254.0.0/16"      # Link-local addresses
+          - "127.0.0.0/8"         # Loopback (except from localhost)
+          - "224.0.0.0/4"         # Multicast
+        allowed_ports:
+          - 80
+          - 443
+          - 3000
+        protocols:
+          - "TCP"
+          
+      # API service network access
+      api_access:
+        source_services:
+          - "spiffe://cbrt.company.com/frontend/cbrt-ui"
+          - "spiffe://cbrt.company.com/warehouse/operations"
+          - "spiffe://cbrt.company.com/gateway/istio"
+        source_networks:
+          - "172.20.0.0/16"       # Docker compose network
+          - "10.244.0.0/16"       # Kubernetes pod network
+        allowed_ports:
+          - 8080
+          - 8443
+        protocols:
+          - "TCP"
+          - "HTTP/1.1"
+          - "HTTP/2"
+          
+      # Warehouse service network access
+      warehouse_access:
+        source_services:
+          - "spiffe://cbrt.company.com/api/cbrt-backend"
+        time_restrictions:
+          allowed_hours:
+            monday: "06:00-18:00"
+            tuesday: "06:00-18:00"
+            wednesday: "06:00-18:00"
+            thursday: "06:00-18:00"
+            friday: "06:00-18:00"
+            saturday: "08:00-16:00"
+            sunday: "denied"
+        timezone: "America/Chicago"
+        allowed_ports:
+          - 8080
+        protocols:
+          - "TCP"
+          - "HTTP/1.1"
+    
+    # API Endpoint Access Control
+    api_endpoint_acls:
+      # Public endpoints (no authentication required)
+      public_endpoints:
+        - path: "/health"
+          methods: ["GET"]
+          rate_limit: 100
+        - path: "/ready"
+          methods: ["GET"]
+          rate_limit: 100
+        - path: "/version"
+          methods: ["GET"]
+          rate_limit: 10
+        - path: "/api/auth/login"
+          methods: ["POST"]
+          rate_limit: 5
+          additional_validation:
+            - "captcha_required"
+            - "account_lockout_check"
+            
+      # Authenticated endpoints (require valid JWT)
+      authenticated_endpoints:
+        - path: "/api/v1/releases"
+          methods: ["GET"]
+          required_permissions: ["read:releases"]
+          rate_limit: 50
+        - path: "/api/v1/barcodes"
+          methods: ["GET"]
+          required_permissions: ["read:barcodes"]
+          rate_limit: 100
+        - path: "/api/auth/user"
+          methods: ["GET"]
+          required_permissions: ["read:profile"]
+          rate_limit: 20
+          
+      # Role-based endpoints
+      admin_endpoints:
+        - path: "/api/v1/admin/*"
+          methods: ["GET", "POST", "PUT", "DELETE"]
+          required_roles: ["admin"]
+          required_permissions: ["admin:*"]
+          rate_limit: 20
+          audit_required: true
+        - path: "/api/v1/staff"
+          methods: ["GET", "POST", "PUT", "DELETE"]
+          required_roles: ["admin"]
+          required_permissions: ["manage:staff"]
+          rate_limit: 10
+          audit_required: true
+          
+      office_endpoints:
+        - path: "/api/v1/releases"
+          methods: ["POST", "PUT"]
+          required_roles: ["admin", "office"]
+          required_permissions: ["crud:releases"]
+          rate_limit: 30
+        - path: "/api/v1/customers"
+          methods: ["GET", "POST", "PUT"]
+          required_roles: ["admin", "office"]
+          required_permissions: ["crud:customers"]
+          rate_limit: 20
+        - path: "/api/v1/suppliers"
+          methods: ["GET", "POST", "PUT"]
+          required_roles: ["admin", "office"]
+          required_permissions: ["crud:suppliers"]
+          rate_limit: 20
+          
+      loader_endpoints:
+        - path: "/api/v1/releases/*/advance"
+          methods: ["PUT"]
+          required_roles: ["admin", "office", "loader"]
+          required_permissions: ["advance:staged"]
+          rate_limit: 10
+          time_restrictions:
+            allowed_hours: "06:00-18:00"
+        - path: "/api/v1/releases/recent"
+          methods: ["GET"]
+          required_roles: ["admin", "office", "loader"]
+          required_permissions: ["read:recent_releases"]
+          rate_limit: 30
+          data_filters:
+            - "pickup_date_within_48h"
+            
+      viewer_endpoints:
+        - path: "/api/v1/releases"
+          methods: ["GET"]
+          required_roles: ["admin", "office", "loader", "viewer"]
+          required_permissions: ["read:releases"]
+          rate_limit: 50
+          data_filters:
+            - "exclude_sensitive_data"
+        - path: "/api/v1/barcodes"
+          methods: ["GET"]
+          required_roles: ["admin", "office", "loader", "viewer"]
+          required_permissions: ["read:barcodes"]
+          rate_limit: 100
+          data_filters:
+            - "exclude_edit_metadata"
+    
+    # User Permission Groups
+    permission_groups:
+      # Admin permissions
+      admin_permissions:
+        - "admin:*"
+        - "crud:*"
+        - "read:*"
+        - "manage:staff"
+        - "edit:barcodes"
+        - "view:umsEvents"
+        - "system:monitor"
+        - "system:configure"
+        
+      # Office permissions
+      office_permissions:
+        - "crud:releases"
+        - "crud:customers"
+        - "crud:suppliers"
+        - "crud:items"
+        - "crud:sizes"
+        - "verify:releases"
+        - "read:releases"
+        - "read:barcodes"
+        - "view:umsEvents"
+        
+      # Loader permissions  
+      loader_permissions:
+        - "advance:staged"
+        - "read:recent_releases"
+        - "read:barcodes"
+        - "update:release_status"
+        
+      # Viewer permissions
+      viewer_permissions:
+        - "read:releases"
+        - "read:barcodes"
+        - "read:basic_data"
+    
+    # External Service Allowlists
+    external_service_allowlists:
+      # Firebase services
+      firebase_services:
+        - "firebaseapp.com"
+        - "*.firebaseapp.com"
+        - "firebase.googleapis.com"
+        - "firestore.googleapis.com"
+        - "identitytoolkit.googleapis.com"
+        - "securetoken.googleapis.com"
+        ports: [443]
+        protocols: ["HTTPS"]
+        
+      # Google APIs
+      google_apis:
+        - "*.googleapis.com"
+        - "accounts.google.com"
+        - "oauth2.googleapis.com"
+        ports: [443]
+        protocols: ["HTTPS"]
+        
+      # SMS/Communication services
+      communication_services:
+        - "api.twilio.com"
+        - "*.twilio.com"
+        ports: [443]
+        protocols: ["HTTPS"]
+        rate_limits:
+          requests_per_minute: 60
+          
+      # Development/CI services (only in dev environments)
+      development_services:
+        - "github.com"
+        - "*.github.com"
+        - "api.github.com"
+        - "raw.githubusercontent.com"
+        ports: [443, 80]
+        protocols: ["HTTPS", "HTTP"]
+        environment_restriction: "development"
+        
+    # Content Security Policy
+    content_security_policy:
+      default_src: "'self'"
+      script_src:
+        - "'self'"
+        - "'unsafe-inline'"
+        - "https://apis.google.com"
+        - "https://accounts.google.com"
+      style_src:
+        - "'self'"
+        - "'unsafe-inline'"
+        - "https://fonts.googleapis.com"
+      img_src:
+        - "'self'"
+        - "data:"
+        - "https:"
+      connect_src:
+        - "'self'"
+        - "https://firebaseapp.com"
+        - "wss://firebaseapp.com"
+        - "https://*.googleapis.com"
+      font_src:
+        - "'self'"
+        - "https://fonts.gstatic.com"
+      frame_ancestors: "'none'"
+      form_action: "'self'"
+      upgrade_insecure_requests: true

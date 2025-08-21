@@ -1,0 +1,204 @@
+# CBRT Fabric Identity Mapping
+# Defines the mapping between Kubernetes service accounts and SPIFFE identities
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cbrt-identity-mapping
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: identity-mapping
+data:
+  mapping.yaml: |
+    # Identity Trust Domain
+    trust_domain: "cbrt.company.com"
+    
+    # Service Identity Mappings
+    identities:
+      # Frontend Service Identity
+      cbrt-frontend:
+        spiffe_id: "spiffe://cbrt.company.com/frontend/cbrt-ui"
+        kubernetes:
+          namespace: "cbrt-gateway"
+          service_account: "cbrt-frontend-sa"
+        workload_selector:
+          app: "cbrt-frontend"
+        attributes:
+          component: "frontend"
+          access_level: "public"
+          data_classification: "public"
+        allowed_operations:
+          - "GET /"
+          - "GET /static/*"
+          - "GET /assets/*"
+          - "POST /api/auth/login"
+          - "GET /api/auth/user"
+        rate_limits:
+          requests_per_second: 100
+          burst_size: 200
+        
+      # API Service Identity  
+      cbrt-api:
+        spiffe_id: "spiffe://cbrt.company.com/api/cbrt-backend"
+        kubernetes:
+          namespace: "cbrt-mesh"
+          service_account: "cbrt-api-sa"
+        workload_selector:
+          app: "cbrt-api"
+        attributes:
+          component: "api"
+          access_level: "authenticated"
+          data_classification: "confidential"
+        allowed_operations:
+          - "GET /api/v1/*"
+          - "POST /api/v1/*"
+          - "PUT /api/v1/*"
+          - "DELETE /api/v1/admin/*"
+          - "GET /health"
+          - "GET /metrics"
+        rate_limits:
+          requests_per_second: 200
+          burst_size: 500
+        
+      # Warehouse Service Identity
+      cbrt-warehouse:
+        spiffe_id: "spiffe://cbrt.company.com/warehouse/operations"
+        kubernetes:
+          namespace: "cbrt-mesh"
+          service_account: "cbrt-warehouse-sa"
+        workload_selector:
+          app: "cbrt-warehouse"
+        attributes:
+          component: "warehouse"
+          access_level: "operational"
+          data_classification: "internal"
+        allowed_operations:
+          - "GET /warehouse/v1/*"
+          - "POST /warehouse/v1/releases"
+          - "PUT /warehouse/v1/releases/*/status"
+          - "GET /warehouse/v1/barcodes"
+        rate_limits:
+          requests_per_second: 50
+          burst_size: 100
+        time_restrictions:
+          allowed_hours: "06:00-18:00"
+          timezone: "America/Chicago"
+        
+      # Observability Service Identity
+      cbrt-metrics:
+        spiffe_id: "spiffe://cbrt.company.com/observability/metrics"
+        kubernetes:
+          namespace: "observability"
+          service_account: "cbrt-metrics-sa"
+        workload_selector:
+          component: "observability"
+        attributes:
+          component: "observability"
+          access_level: "monitoring"
+          data_classification: "operational"
+        allowed_operations:
+          - "GET /metrics"
+          - "POST /api/v1/traces"
+          - "POST /api/v1/logs"
+          - "GET /api/v1/query*"
+        rate_limits:
+          requests_per_second: 1000
+          burst_size: 2000
+        
+      # Gateway/Proxy Service Identity
+      cbrt-gateway:
+        spiffe_id: "spiffe://cbrt.company.com/gateway/istio"
+        kubernetes:
+          namespace: "cbrt-gateway"
+          service_account: "cbrt-gateway-sa"
+        workload_selector:
+          app: "istio-proxy"
+        attributes:
+          component: "gateway"
+          access_level: "infrastructure"
+          data_classification: "system"
+        allowed_operations:
+          - "*"
+        rate_limits:
+          requests_per_second: 2000
+          burst_size: 5000
+    
+    # Cross-service Communication Matrix
+    communication_matrix:
+      # Frontend can communicate with API
+      "spiffe://cbrt.company.com/frontend/cbrt-ui":
+        allowed_destinations:
+          - "spiffe://cbrt.company.com/api/cbrt-backend"
+          - "spiffe://cbrt.company.com/observability/metrics"
+        protocols: ["HTTP/1.1", "HTTP/2"]
+        encryption: "required"
+        
+      # API can communicate with Warehouse and external services
+      "spiffe://cbrt.company.com/api/cbrt-backend":
+        allowed_destinations:
+          - "spiffe://cbrt.company.com/warehouse/operations"
+          - "spiffe://cbrt.company.com/observability/metrics"
+        protocols: ["HTTP/1.1", "HTTP/2", "gRPC"]
+        encryption: "required"
+        external_services:
+          - "firebaseapp.com:443"
+          - "*.googleapis.com:443"
+          - "api.twilio.com:443"
+        
+      # Warehouse communicates with API and metrics
+      "spiffe://cbrt.company.com/warehouse/operations":
+        allowed_destinations:
+          - "spiffe://cbrt.company.com/api/cbrt-backend"
+          - "spiffe://cbrt.company.com/observability/metrics"
+        protocols: ["HTTP/1.1", "HTTP/2"]
+        encryption: "required"
+        
+      # Observability can collect from all services
+      "spiffe://cbrt.company.com/observability/metrics":
+        allowed_destinations:
+          - "*"
+        protocols: ["HTTP/1.1", "HTTP/2", "gRPC"]
+        encryption: "required"
+        
+      # Gateway routes to all internal services
+      "spiffe://cbrt.company.com/gateway/istio":
+        allowed_destinations:
+          - "*"
+        protocols: ["HTTP/1.1", "HTTP/2", "gRPC"]
+        encryption: "required"
+    
+    # Certificate Configuration
+    certificate_config:
+      # Root CA configuration
+      root_ca:
+        issuer: "CBRT Internal Root CA"
+        key_type: "EC"
+        key_size: 256
+        signature_algorithm: "ECDSA-SHA256"
+        validity_period: "10y"
+        
+      # Intermediate CA for workload certificates
+      intermediate_ca:
+        issuer: "CBRT Workload Intermediate CA"
+        key_type: "EC"
+        key_size: 256
+        signature_algorithm: "ECDSA-SHA256"
+        validity_period: "1y"
+        
+      # Workload certificate template
+      workload_template:
+        key_type: "EC"
+        key_size: 256
+        signature_algorithm: "ECDSA-SHA256"
+        validity_period: "24h"
+        rotation_threshold: "8h"
+        subject_alt_names:
+          - "DNS:{{.service_name}}.{{.namespace}}.svc.cluster.local"
+          - "URI:{{.spiffe_id}}"
+        key_usage:
+          - "digital_signature"
+          - "key_encipherment"
+        extended_key_usage:
+          - "client_auth"
+          - "server_auth"

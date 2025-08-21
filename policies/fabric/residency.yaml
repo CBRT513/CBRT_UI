@@ -1,0 +1,350 @@
+# CBRT Fabric Data Residency and Compliance Policies
+# Defines data location restrictions, compliance requirements, and retention policies
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cbrt-residency-policies
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: data-residency
+data:
+  residency.yaml: |
+    # Data Residency Configuration
+    data_residency:
+      # Primary data region
+      primary_region: "us-central1"
+      
+      # Allowed regions for data processing
+      allowed_regions:
+        - "us-central1"         # Iowa
+        - "us-east1"           # South Carolina
+        - "us-west2"           # Los Angeles
+        
+      # Prohibited regions
+      prohibited_regions:
+        - "europe-*"           # All European regions
+        - "asia-*"             # All Asian regions
+        - "australia-*"        # All Australian regions
+        
+      # Data classification and residency requirements
+      data_classifications:
+        public:
+          residency_required: false
+          allowed_regions: "*"
+          encryption_required: false
+          
+        internal:
+          residency_required: true
+          allowed_regions: ["us-central1", "us-east1", "us-west2"]
+          encryption_required: true
+          encryption_level: "aes256"
+          
+        confidential:
+          residency_required: true
+          allowed_regions: ["us-central1"]
+          encryption_required: true
+          encryption_level: "aes256"
+          access_logging: true
+          
+        restricted:
+          residency_required: true
+          allowed_regions: ["us-central1"]
+          encryption_required: true
+          encryption_level: "aes256"
+          access_logging: true
+          approval_required: true
+          retention_period: "7y"
+    
+    # Service-specific residency policies
+    service_residency_policies:
+      # Frontend service
+      cbrt-frontend:
+        data_classification: "public"
+        allowed_regions: "*"
+        static_assets:
+          cdn_allowed: true
+          cdn_regions: ["us-central1", "us-east1", "us-west2"]
+        user_sessions:
+          classification: "confidential"
+          storage_region: "us-central1"
+          encryption: "required"
+          
+      # API service
+      cbrt-api:
+        data_classification: "confidential"
+        allowed_regions: ["us-central1"]
+        database_connections:
+          region_restriction: "us-central1"
+          encryption_in_transit: "required"
+          encryption_at_rest: "required"
+        audit_logs:
+          classification: "restricted"
+          retention_period: "7y"
+          immutable: true
+          
+      # Warehouse service
+      cbrt-warehouse:
+        data_classification: "internal"
+        allowed_regions: ["us-central1", "us-east1"]
+        operational_data:
+          classification: "confidential"
+          backup_regions: ["us-central1", "us-east1"]
+        bol_generation:
+          classification: "confidential"
+          processing_region: "us-central1"
+          
+      # Observability service
+      cbrt-metrics:
+        data_classification: "internal"
+        allowed_regions: ["us-central1", "us-east1"]
+        metrics_data:
+          classification: "internal"
+          retention_period: "13m"
+          aggregation_allowed: true
+        trace_data:
+          classification: "internal"
+          retention_period: "7d"
+          sampling_rate: 0.1
+        log_data:
+          classification: "confidential"
+          retention_period: "90d"
+          pii_filtering: "required"
+    
+    # Compliance Framework Requirements
+    compliance_frameworks:
+      # SOC 2 Type II
+      soc2:
+        enabled: true
+        requirements:
+          data_residency: "us_only"
+          encryption_at_rest: "required"
+          encryption_in_transit: "required"
+          access_logging: "comprehensive"
+          change_management: "controlled"
+          backup_procedures: "documented"
+          incident_response: "defined"
+        audit_frequency: "annual"
+        next_audit: "2024-12-01"
+        
+      # PCI DSS (if payment data is processed)
+      pci_dss:
+        enabled: false  # Not currently processing payment data
+        scope: "none"
+        
+      # GDPR (for potential EU customers)
+      gdpr:
+        enabled: true
+        scope: "limited"  # Only for EU customer data if any
+        requirements:
+          data_minimization: "required"
+          consent_management: "explicit"
+          data_portability: "supported"
+          right_to_erasure: "automated"
+          privacy_by_design: "implemented"
+        data_protection_officer: "privacy@company.com"
+        
+      # CCPA (California Consumer Privacy Act)
+      ccpa:
+        enabled: true
+        scope: "california_residents"
+        requirements:
+          disclosure_requirements: "met"
+          opt_out_mechanisms: "provided"
+          data_deletion: "automated"
+          third_party_sharing: "disclosed"
+        
+      # HIPAA (if health data is involved)
+      hipaa:
+        enabled: false  # Not processing health information
+        scope: "none"
+    
+    # Data Retention Policies
+    data_retention:
+      # User data retention
+      user_data:
+        authentication_logs:
+          retention_period: "1y"
+          classification: "confidential"
+          deletion_method: "secure_wipe"
+        user_profiles:
+          retention_period: "7y"  # Business requirement
+          classification: "confidential"
+          deletion_method: "secure_wipe"
+        session_data:
+          retention_period: "30d"
+          classification: "internal"
+          deletion_method: "standard"
+          
+      # Business data retention
+      business_data:
+        releases:
+          retention_period: "7y"  # Legal requirement
+          classification: "confidential"
+          deletion_method: "secure_wipe"
+          archive_after: "2y"
+        customers:
+          retention_period: "10y"  # Business requirement
+          classification: "confidential"
+          deletion_method: "secure_wipe"
+        suppliers:
+          retention_period: "7y"
+          classification: "internal"
+          deletion_method: "secure_wipe"
+        barcodes:
+          retention_period: "5y"
+          classification: "internal"
+          deletion_method: "standard"
+          
+      # System data retention
+      system_data:
+        audit_logs:
+          retention_period: "7y"
+          classification: "restricted"
+          deletion_method: "secure_wipe"
+          immutable: true
+        security_logs:
+          retention_period: "3y"
+          classification: "confidential"
+          deletion_method: "secure_wipe"
+        performance_metrics:
+          retention_period: "13m"
+          classification: "internal"
+          deletion_method: "standard"
+          aggregation: "monthly"
+        error_logs:
+          retention_period: "1y"
+          classification: "internal"
+          deletion_method: "standard"
+          pii_filtering: "required"
+    
+    # Cross-Border Data Transfer Restrictions
+    data_transfer_restrictions:
+      # Inbound transfers
+      inbound_transfers:
+        allowed_sources:
+          - "united_states"
+          - "canada"  # With adequate safeguards
+        prohibited_sources:
+          - "china"
+          - "russia"
+          - "north_korea"
+          - "iran"
+        approval_required: true
+        encryption_required: true
+        
+      # Outbound transfers
+      outbound_transfers:
+        allowed_destinations:
+          - "united_states"  # Domestic only
+        prohibited_destinations:
+          - "*"  # All international transfers prohibited
+        exceptions:
+          - purpose: "legal_compliance"
+            destinations: ["canada"]
+            approval_level: "legal_counsel"
+          - purpose: "emergency_response"
+            destinations: ["united_states", "canada"]
+            approval_level: "incident_commander"
+        
+      # Transit encryption
+      transit_encryption:
+        minimum_tls_version: "1.2"
+        preferred_tls_version: "1.3"
+        cipher_suites:
+          - "ECDHE-ECDSA-AES256-GCM-SHA384"
+          - "ECDHE-RSA-AES256-GCM-SHA384"
+          - "ECDHE-ECDSA-CHACHA20-POLY1305"
+        certificate_validation: "strict"
+        certificate_pinning: "enabled"
+    
+    # Infrastructure Residency Requirements
+    infrastructure_residency:
+      # Compute resources
+      compute:
+        allowed_zones:
+          - "us-central1-a"
+          - "us-central1-b"
+          - "us-central1-c"
+        prohibited_zones:
+          - "europe-*"
+          - "asia-*"
+        auto_scaling:
+          cross_region: false
+          emergency_failover: "us-east1"
+          
+      # Storage resources
+      storage:
+        primary_location: "us-central1"
+        replication:
+          enabled: true
+          regions: ["us-central1", "us-east1"]
+          cross_region_encryption: "required"
+        backup_locations:
+          - "us-central1"
+          - "us-east1"
+        prohibited_locations:
+          - "europe-*"
+          - "asia-*"
+          
+      # Network resources
+      network:
+        traffic_routing:
+          region_preference: "us-central1"
+          fallback_regions: ["us-east1", "us-west2"]
+          international_routing: "prohibited"
+        cdn_configuration:
+          allowed_pops:
+            - "united_states"
+            - "canada"
+          prohibited_pops:
+            - "europe"
+            - "asia"
+            - "oceania"
+    
+    # Monitoring and Enforcement
+    monitoring:
+      # Data location monitoring
+      data_location_checks:
+        frequency: "hourly"
+        alerting: "immediate"
+        automated_remediation: true
+        
+      # Compliance monitoring
+      compliance_checks:
+        frequency: "daily"
+        frameworks: ["soc2", "gdpr", "ccpa"]
+        reporting: "weekly"
+        
+      # Access pattern monitoring
+      access_monitoring:
+        geographic_anomalies: "enabled"
+        unusual_data_access: "enabled"
+        cross_border_attempts: "blocked"
+        
+    # Incident Response for Residency Violations
+    incident_response:
+      # Automatic actions
+      automatic_actions:
+        data_location_violation:
+          - "block_access"
+          - "alert_security_team"
+          - "quarantine_data"
+        unauthorized_transfer:
+          - "terminate_connection"
+          - "alert_legal_team"
+          - "preserve_evidence"
+          
+      # Escalation procedures
+      escalation:
+        level_1: "security_team"
+        level_2: "privacy_officer"
+        level_3: "legal_counsel"
+        level_4: "executive_team"
+        
+      # Notification requirements
+      notifications:
+        internal: "immediate"
+        regulatory: "72h"  # GDPR requirement
+        customer: "as_required"

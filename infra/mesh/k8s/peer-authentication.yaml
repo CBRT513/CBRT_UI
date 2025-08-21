@@ -1,0 +1,75 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: cbrt-mesh-strict-mtls
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: security
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: cbrt-frontend-mtls
+  namespace: cbrt-gateway
+  labels:
+    app: cbrt
+    component: frontend-security
+spec:
+  selector:
+    matchLabels:
+      app: cbrt-frontend
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    3000:
+      mode: STRICT
+    8080:
+      mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: cbrt-api-mtls
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: api-security
+spec:
+  selector:
+    matchLabels:
+      app: cbrt-api
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    8080:
+      mode: STRICT
+    8443:
+      mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: cbrt-observability-mtls
+  namespace: observability
+  labels:
+    app: cbrt
+    component: observability-security
+spec:
+  selector:
+    matchLabels:
+      component: observability
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    9090:  # Prometheus
+      mode: STRICT
+    3000:  # Grafana
+      mode: STRICT
+    16686: # Jaeger
+      mode: STRICT
+    3100:  # Loki
+      mode: STRICT

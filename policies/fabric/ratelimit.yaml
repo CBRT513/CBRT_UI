@@ -1,0 +1,441 @@
+# CBRT Fabric Rate Limiting Policies
+# Defines token bucket rate limits, quotas, and throttling policies
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cbrt-ratelimit-policies
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: rate-limiting
+data:
+  ratelimit.yaml: |
+    # Global Rate Limiting Configuration
+    global_config:
+      # Default rate limiting strategy
+      default_strategy: "token_bucket"
+      
+      # Global rate limit enforcement
+      enforcement:
+        enabled: true
+        fail_mode: "closed"  # Block when rate limiter fails
+        circuit_breaker: true
+        
+      # Rate limit headers
+      response_headers:
+        include_remaining: true
+        include_reset_time: true
+        include_limit: true
+        header_prefix: "X-RateLimit-"
+        
+      # Metrics and monitoring
+      metrics:
+        enabled: true
+        export_interval: "30s"
+        include_percentiles: [0.5, 0.95, 0.99]
+    
+    # Service-Level Rate Limits
+    service_limits:
+      # Frontend Service Rate Limits
+      cbrt-frontend:
+        spiffe_id: "spiffe://cbrt.company.com/frontend/cbrt-ui"
+        
+        # Per-service rate limits
+        service_limits:
+          requests_per_second: 100
+          concurrent_connections: 50
+          burst_allowance: 200
+          window_size: "1s"
+          
+        # Per-endpoint rate limits
+        endpoint_limits:
+          # Authentication endpoints
+          - path: "/api/auth/login"
+            methods: ["POST"]
+            rate_limit:
+              requests_per_minute: 5
+              burst_allowance: 10
+              window_size: "1m"
+            key_by: "source_ip"
+            failure_mode: "deny"
+            
+          - path: "/api/auth/logout"
+            methods: ["POST"]
+            rate_limit:
+              requests_per_minute: 10
+              burst_allowance: 15
+              window_size: "1m"
+            key_by: "user_id"
+            
+          # Static assets
+          - path: "/static/*"
+            methods: ["GET"]
+            rate_limit:
+              requests_per_second: 200
+              burst_allowance: 500
+              window_size: "1s"
+            key_by: "source_ip"
+            caching_enabled: true
+            
+          # Health checks
+          - path: "/health"
+            methods: ["GET"]
+            rate_limit:
+              requests_per_second: 10
+              burst_allowance: 20
+              window_size: "1s"
+            key_by: "source_ip"
+            priority: "high"
+            
+        # Per-user rate limits
+        user_limits:
+          authenticated_users:
+            requests_per_minute: 60
+            burst_allowance: 100
+            window_size: "1m"
+            key_by: "user_id"
+            
+          anonymous_users:
+            requests_per_minute: 10
+            burst_allowance: 20
+            window_size: "1m"
+            key_by: "source_ip"
+            
+        # IP-based rate limits
+        ip_limits:
+          default:
+            requests_per_second: 50
+            burst_allowance: 100
+            window_size: "1s"
+            
+          # Stricter limits for sensitive endpoints
+          sensitive_endpoints:
+            requests_per_minute: 10
+            burst_allowance: 15
+            window_size: "1m"
+            
+      # API Service Rate Limits
+      cbrt-api:
+        spiffe_id: "spiffe://cbrt.company.com/api/cbrt-backend"
+        
+        # Per-service rate limits
+        service_limits:
+          requests_per_second: 200
+          concurrent_connections: 100
+          burst_allowance: 500
+          window_size: "1s"
+          
+        # Per-endpoint rate limits
+        endpoint_limits:
+          # CRUD operations
+          - path: "/api/v1/releases"
+            methods: ["GET"]
+            rate_limit:
+              requests_per_second: 50
+              burst_allowance: 100
+              window_size: "1s"
+            key_by: "user_id"
+            
+          - path: "/api/v1/releases"
+            methods: ["POST", "PUT"]
+            rate_limit:
+              requests_per_minute: 30
+              burst_allowance: 50
+              window_size: "1m"
+            key_by: "user_id"
+            validation_required: true
+            
+          - path: "/api/v1/releases/*"
+            methods: ["DELETE"]
+            rate_limit:
+              requests_per_hour: 10
+              burst_allowance: 15
+              window_size: "1h"
+            key_by: "user_id"
+            approval_required: true
+            
+          # Barcode operations
+          - path: "/api/v1/barcodes"
+            methods: ["GET"]
+            rate_limit:
+              requests_per_second: 100
+              burst_allowance: 200
+              window_size: "1s"
+            key_by: "user_id"
+            caching_preferred: true
+            
+          # Admin operations
+          - path: "/api/v1/admin/*"
+            methods: ["*"]
+            rate_limit:
+              requests_per_minute: 20
+              burst_allowance: 30
+              window_size: "1m"
+            key_by: "user_id"
+            role_required: "admin"
+            audit_required: true
+            
+          # External API calls
+          - path: "/api/v1/sms/*"
+            methods: ["POST"]
+            rate_limit:
+              requests_per_hour: 100
+              burst_allowance: 120
+              window_size: "1h"
+            key_by: "user_id"
+            cost_monitoring: true
+            business_hours_only: true
+            
+        # Role-based rate limits
+        role_limits:
+          admin:
+            requests_per_second: 100
+            burst_allowance: 200
+            window_size: "1s"
+            
+          office:
+            requests_per_second: 50
+            burst_allowance: 100
+            window_size: "1s"
+            
+          loader:
+            requests_per_second: 25
+            burst_allowance: 50
+            window_size: "1s"
+            time_restricted: true
+            allowed_hours: "06:00-18:00"
+            
+          viewer:
+            requests_per_second: 20
+            burst_allowance: 40
+            window_size: "1s"
+            read_only: true
+            
+      # Warehouse Service Rate Limits
+      cbrt-warehouse:
+        spiffe_id: "spiffe://cbrt.company.com/warehouse/operations"
+        
+        # Per-service rate limits
+        service_limits:
+          requests_per_second: 50
+          concurrent_connections: 25
+          burst_allowance: 100
+          window_size: "1s"
+          
+        # Operational rate limits
+        operational_limits:
+          - path: "/warehouse/v1/releases/*/advance"
+            methods: ["PUT"]
+            rate_limit:
+              requests_per_minute: 10
+              burst_allowance: 15
+              window_size: "1m"
+            key_by: "user_id"
+            business_hours_only: true
+            
+          - path: "/warehouse/v1/barcodes/scan"
+            methods: ["POST"]
+            rate_limit:
+              requests_per_second: 5
+              burst_allowance: 10
+              window_size: "1s"
+            key_by: "device_id"
+            
+        # Time-based restrictions
+        time_restrictions:
+          operational_hours:
+            monday: "06:00-18:00"
+            tuesday: "06:00-18:00"
+            wednesday: "06:00-18:00"
+            thursday: "06:00-18:00"
+            friday: "06:00-18:00"
+            saturday: "08:00-16:00"
+            sunday: "emergency_only"
+          timezone: "America/Chicago"
+          override_approval: "operations_manager"
+          
+      # Observability Service Rate Limits
+      cbrt-metrics:
+        spiffe_id: "spiffe://cbrt.company.com/observability/metrics"
+        
+        # Per-service rate limits
+        service_limits:
+          requests_per_second: 1000
+          concurrent_connections: 200
+          burst_allowance: 2000
+          window_size: "1s"
+          
+        # Metrics collection limits
+        collection_limits:
+          - path: "/metrics"
+            methods: ["GET"]
+            rate_limit:
+              requests_per_second: 100
+              burst_allowance: 200
+              window_size: "1s"
+            key_by: "scraper_id"
+            
+          - path: "/api/v1/traces"
+            methods: ["POST"]
+            rate_limit:
+              requests_per_second: 500
+              burst_allowance: 1000
+              window_size: "1s"
+            key_by: "service_name"
+            
+          - path: "/api/v1/logs"
+            methods: ["POST"]
+            rate_limit:
+              requests_per_second: 200
+              burst_allowance: 500
+              window_size: "1s"
+            key_by: "log_source"
+            
+    # Advanced Rate Limiting Features
+    advanced_features:
+      # Circuit breaker configuration
+      circuit_breaker:
+        enabled: true
+        failure_threshold: 10
+        recovery_timeout: "30s"
+        half_open_max_calls: 5
+        
+      # Adaptive rate limiting
+      adaptive_limits:
+        enabled: true
+        algorithm: "aimd"  # Additive Increase Multiplicative Decrease
+        increase_factor: 1.1
+        decrease_factor: 0.5
+        measurement_window: "5m"
+        adjustment_interval: "1m"
+        
+      # Geographic rate limiting
+      geographic_limits:
+        enabled: true
+        regions:
+          us_central:
+            multiplier: 1.0
+          us_east:
+            multiplier: 0.8
+          us_west:
+            multiplier: 0.8
+          international:
+            multiplier: 0.1  # Very restrictive
+            
+      # Priority-based rate limiting
+      priority_limits:
+        enabled: true
+        queues:
+          high_priority:
+            weight: 70
+            max_queue_size: 1000
+          normal_priority:
+            weight: 25
+            max_queue_size: 500
+          low_priority:
+            weight: 5
+            max_queue_size: 100
+    
+    # Rate Limit Bypass and Emergency Access
+    bypass_rules:
+      # Emergency access
+      emergency_access:
+        enabled: true
+        bypass_patterns:
+          - path: "/health"
+            always_allow: true
+          - path: "/ready"
+            always_allow: true
+          - path: "/api/v1/emergency/*"
+            approval_required: true
+            approvers: ["incident_commander", "ops_manager"]
+            
+      # Trusted sources
+      trusted_sources:
+        - source: "monitoring_systems"
+          identifiers: ["spiffe://cbrt.company.com/observability/metrics"]
+          bypass_limits: true
+          
+        - source: "health_checks"
+          paths: ["/health", "/ready", "/metrics"]
+          bypass_limits: true
+          
+        - source: "internal_services"
+          networks: ["172.20.0.0/16", "10.244.0.0/16"]
+          rate_multiplier: 10.0
+          
+      # Break glass procedures
+      break_glass:
+        enabled: true
+        activation_methods: ["admin_override", "emergency_declaration"]
+        duration: "1h"
+        audit_required: true
+        automatic_restoration: true
+    
+    # Monitoring and Alerting
+    monitoring:
+      # Rate limit metrics
+      metrics:
+        - name: "rate_limit_requests_total"
+          description: "Total requests processed by rate limiter"
+          labels: ["service", "endpoint", "action"]
+          
+        - name: "rate_limit_requests_blocked_total"
+          description: "Total requests blocked by rate limiter"
+          labels: ["service", "endpoint", "reason"]
+          
+        - name: "rate_limit_bucket_capacity"
+          description: "Current token bucket capacity"
+          labels: ["service", "endpoint", "user_id"]
+          
+        - name: "rate_limit_response_time"
+          description: "Rate limiter processing time"
+          labels: ["service", "endpoint"]
+          
+      # Alerting rules
+      alerts:
+        - name: "HighRateLimitBlocking"
+          condition: "rate_limit_requests_blocked_total > 100"
+          duration: "5m"
+          severity: "warning"
+          
+        - name: "RateLimiterDown"
+          condition: "up{job=\"rate-limiter\"} == 0"
+          duration: "1m"
+          severity: "critical"
+          
+        - name: "UnusualTrafficPattern"
+          condition: "rate(rate_limit_requests_total[5m]) > 2 * rate(rate_limit_requests_total[1h])"
+          duration: "10m"
+          severity: "warning"
+    
+    # Configuration Management
+    configuration:
+      # Dynamic updates
+      dynamic_updates:
+        enabled: true
+        reload_interval: "30s"
+        validation_required: true
+        rollback_on_error: true
+        
+      # A/B testing
+      ab_testing:
+        enabled: true
+        traffic_split:
+          control: 90
+          experiment: 10
+        experiment_duration: "7d"
+        
+      # Gradual rollouts
+      gradual_rollout:
+        enabled: true
+        stages:
+          - percentage: 5
+            duration: "1h"
+          - percentage: 25
+            duration: "4h"
+          - percentage: 50
+            duration: "12h"
+          - percentage: 100
+            duration: "indefinite"
