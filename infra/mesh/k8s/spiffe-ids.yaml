@@ -1,0 +1,84 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: cbrt-spiffe-identity
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: identity
+spec:
+  selector:
+    matchLabels:
+      app: cbrt
+  mtls:
+    mode: STRICT
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spiffe-identity-mapping
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: identity-mapping
+data:
+  identity-map.yaml: |
+    # SPIFFE Identity Mapping for CBRT Services
+    spiffe_ids:
+      # Frontend Services
+      cbrt-frontend:
+        spiffe_id: "spiffe://cbrt.company.com/frontend/cbrt-ui"
+        kubernetes_sa: "cbrt-frontend-sa"
+        allowed_workloads:
+          - "cbrt-frontend-*"
+        permissions:
+          - "access:public-api"
+          - "connect:firebase"
+          - "emit:user-events"
+      
+      # API Services  
+      cbrt-api:
+        spiffe_id: "spiffe://cbrt.company.com/api/cbrt-backend"
+        kubernetes_sa: "cbrt-api-sa"
+        allowed_workloads:
+          - "cbrt-api-*"
+        permissions:
+          - "access:database"
+          - "emit:business-events"
+          - "connect:external-apis"
+      
+      # Warehouse Services
+      cbrt-warehouse:
+        spiffe_id: "spiffe://cbrt.company.com/warehouse/operations"
+        kubernetes_sa: "cbrt-warehouse-sa"
+        allowed_workloads:
+          - "cbrt-warehouse-*"
+        permissions:
+          - "access:bol-generation"
+          - "access:release-workflow"
+          - "emit:warehouse-events"
+      
+      # Observability
+      cbrt-metrics:
+        spiffe_id: "spiffe://cbrt.company.com/observability/metrics"
+        kubernetes_sa: "cbrt-metrics-sa"
+        allowed_workloads:
+          - "prometheus-*"
+          - "grafana-*"
+          - "jaeger-*"
+        permissions:
+          - "collect:metrics"
+          - "collect:traces"
+          - "collect:logs"
+      
+      # Gateway/Proxy
+      cbrt-gateway:
+        spiffe_id: "spiffe://cbrt.company.com/gateway/istio"
+        kubernetes_sa: "cbrt-gateway-sa"
+        allowed_workloads:
+          - "istio-proxy"
+          - "envoy-*"
+        permissions:
+          - "route:traffic"
+          - "terminate:tls"
+          - "enforce:policies"

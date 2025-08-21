@@ -1,0 +1,355 @@
+# CBRT Fabric Egress Control Policies
+# Defines outbound network access controls and external service allowlists
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cbrt-egress-policies
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: egress-control
+data:
+  egress.yaml: |
+    # Default Egress Policy - Deny All
+    default_policy: "deny_all"
+    
+    # Global Egress Rules
+    global_rules:
+      # Block known malicious networks
+      blocked_networks:
+        - "0.0.0.0/8"          # Invalid addresses
+        - "10.0.0.0/8"         # Private networks (unless specifically allowed)
+        - "127.0.0.0/8"        # Loopback
+        - "169.254.0.0/16"     # Link-local
+        - "172.16.0.0/12"      # Private networks (unless specifically allowed)
+        - "192.168.0.0/16"     # Private networks (unless specifically allowed)
+        - "224.0.0.0/4"        # Multicast
+        - "240.0.0.0/4"        # Reserved
+        
+      # Block known bad domains
+      blocked_domains:
+        - "*.bit"              # Often used for malicious purposes
+        - "*.onion"            # Tor hidden services
+        - "tempuri.org"        # Test/placeholder domain
+        - "example.com"        # Test domain
+        - "example.net"        # Test domain
+        - "example.org"        # Test domain
+        
+      # Global rate limits
+      global_rate_limits:
+        requests_per_second: 1000
+        concurrent_connections: 500
+        burst_allowance: 2000
+        
+      # Protocol restrictions
+      allowed_protocols:
+        - "HTTPS"              # Preferred
+        - "HTTP"               # Limited use
+        - "DNS"                # Required for resolution
+        - "NTP"                # Time synchronization
+      
+      blocked_protocols:
+        - "FTP"                # Insecure file transfer
+        - "TELNET"             # Insecure terminal access
+        - "SMTP"               # Direct email (use service APIs)
+        - "POP3"               # Direct email
+        - "IMAP"               # Direct email
+        - "SSH"                # Direct shell access
+        - "SNMP"               # Network management
+    
+    # Service-Specific Egress Policies
+    service_egress_policies:
+      # Frontend Service Egress
+      cbrt-frontend:
+        spiffe_id: "spiffe://cbrt.company.com/frontend/cbrt-ui"
+        allowed_destinations:
+          # Firebase services for authentication and database
+          firebase:
+            domains:
+              - "firebaseapp.com"
+              - "*.firebaseapp.com"
+              - "firebase.googleapis.com"
+              - "firestore.googleapis.com"
+              - "identitytoolkit.googleapis.com"
+              - "securetoken.googleapis.com"
+            ports: [443]
+            protocols: ["HTTPS"]
+            rate_limits:
+              requests_per_second: 100
+              concurrent_connections: 20
+            
+          # Google APIs for OAuth and services
+          google_apis:
+            domains:
+              - "accounts.google.com"
+              - "oauth2.googleapis.com"
+              - "*.googleapis.com"
+            ports: [443]
+            protocols: ["HTTPS"]
+            rate_limits:
+              requests_per_second: 50
+              concurrent_connections: 10
+              
+          # CDN and static resources
+          cdn_services:
+            domains:
+              - "fonts.googleapis.com"
+              - "fonts.gstatic.com"
+              - "ajax.googleapis.com"
+            ports: [443, 80]
+            protocols: ["HTTPS", "HTTP"]
+            rate_limits:
+              requests_per_second: 200
+              concurrent_connections: 30
+              
+        # Time-based restrictions
+        time_restrictions:
+          maintenance_window:
+            start: "02:00"
+            end: "04:00"
+            timezone: "America/Chicago"
+            action: "block_non_essential"
+            
+        # Monitoring and alerting
+        monitoring:
+          log_all_requests: true
+          alert_on_blocked: true
+          suspicious_patterns:
+            - "unusual_domain_access"
+            - "high_request_rate"
+            - "off_hours_access"
+      
+      # API Service Egress
+      cbrt-api:
+        spiffe_id: "spiffe://cbrt.company.com/api/cbrt-backend"
+        allowed_destinations:
+          # Firebase services
+          firebase:
+            domains:
+              - "firebaseapp.com"
+              - "*.firebaseapp.com"
+              - "firebase.googleapis.com"
+              - "firestore.googleapis.com"
+              - "firebase-adminsdk.com"
+            ports: [443]
+            protocols: ["HTTPS"]
+            rate_limits:
+              requests_per_second: 200
+              concurrent_connections: 50
+            authentication_required: true
+            
+          # SMS services
+          sms_services:
+            domains:
+              - "api.twilio.com"
+              - "*.twilio.com"
+            ports: [443]
+            protocols: ["HTTPS"]
+            rate_limits:
+              requests_per_second: 10  # Limited SMS usage
+              concurrent_connections: 5
+            authentication_required: true
+            cost_monitoring: true
+            
+          # External APIs (if needed)
+          external_apis:
+            domains:
+              - "api.github.com"       # For CI/CD integration
+              - "registry.npmjs.org"   # For package updates (dev only)
+            ports: [443]
+            protocols: ["HTTPS"]
+            rate_limits:
+              requests_per_second: 20
+              concurrent_connections: 5
+            environment_restriction: "development"
+            
+        # Business hours restrictions
+        business_hours_restrictions:
+          sms_services:
+            allowed_hours:
+              monday: "06:00-18:00"
+              tuesday: "06:00-18:00"
+              wednesday: "06:00-18:00"
+              thursday: "06:00-18:00"
+              friday: "06:00-18:00"
+              saturday: "08:00-16:00"
+              sunday: "denied"
+            timezone: "America/Chicago"
+            exception_approval: "operations_manager"
+            
+        # Cost controls
+        cost_controls:
+          sms_services:
+            monthly_limit: 1000  # SMS messages
+            alert_threshold: 800
+            automatic_cutoff: true
+            
+        monitoring:
+          log_all_requests: true
+          alert_on_blocked: true
+          cost_tracking: true
+          api_key_monitoring: true
+      
+      # Warehouse Service Egress
+      cbrt-warehouse:
+        spiffe_id: "spiffe://cbrt.company.com/warehouse/operations"
+        allowed_destinations:
+          # Limited to internal APIs only
+          internal_apis:
+            domains:
+              - "cbrt-api-service"
+              - "cbrt-api-service.cbrt-mesh.svc.cluster.local"
+            ports: [8080, 8443]
+            protocols: ["HTTPS", "HTTP"]
+            rate_limits:
+              requests_per_second: 50
+              concurrent_connections: 10
+              
+        # No external access allowed
+        external_access: "denied"
+        
+        # Strict operational hours
+        operational_hours:
+          allowed_hours:
+            monday: "06:00-18:00"
+            tuesday: "06:00-18:00"
+            wednesday: "06:00-18:00"
+            thursday: "06:00-18:00"
+            friday: "06:00-18:00"
+            saturday: "08:00-16:00"
+            sunday: "emergency_only"
+          timezone: "America/Chicago"
+          
+        monitoring:
+          log_all_requests: true
+          alert_on_any_external: true
+          operational_hours_enforcement: true
+      
+      # Observability Service Egress
+      cbrt-metrics:
+        spiffe_id: "spiffe://cbrt.company.com/observability/metrics"
+        allowed_destinations:
+          # Internal service monitoring
+          internal_services:
+            domains:
+              - "*.cbrt-mesh.svc.cluster.local"
+              - "*.cbrt-gateway.svc.cluster.local"
+              - "*.observability.svc.cluster.local"
+            ports: [8080, 8443, 9090, 3000, 16686, 3100]
+            protocols: ["HTTPS", "HTTP"]
+            rate_limits:
+              requests_per_second: 1000
+              concurrent_connections: 100
+              
+          # External monitoring services (if configured)
+          external_monitoring:
+            domains:
+              - "api.newrelic.com"      # If using New Relic
+              - "api.datadog.com"       # If using Datadog
+              - "ingest.sentry.io"      # If using Sentry
+            ports: [443]
+            protocols: ["HTTPS"]
+            rate_limits:
+              requests_per_second: 100
+              concurrent_connections: 20
+            configuration_required: true
+            
+        monitoring:
+          log_sampling_rate: 0.1  # High volume, sample logs
+          alert_on_blocked: true
+          metrics_export_monitoring: true
+    
+    # Emergency Access Procedures
+    emergency_access:
+      # Break glass procedures
+      break_glass:
+        enabled: true
+        approval_required: true
+        approvers:
+          - "security_team_lead"
+          - "operations_manager"
+          - "cto"
+        duration: "4h"  # Maximum emergency access duration
+        audit_required: true
+        
+      # Emergency contacts and services
+      emergency_services:
+        domains:
+          - "status.firebase.com"     # Service status pages
+          - "status.twilio.com"
+          - "status.github.com"
+          - "api.pagerduty.com"       # Incident management
+        ports: [443]
+        protocols: ["HTTPS"]
+        always_allowed: true
+        
+      # Critical security services
+      security_services:
+        domains:
+          - "crl.microsoft.com"       # Certificate revocation
+          - "ocsp.digicert.com"       # Certificate validation
+          - "*.crl.amazon.com"
+        ports: [443, 80]
+        protocols: ["HTTPS", "HTTP"]
+        always_allowed: true
+    
+    # Compliance and Audit Requirements
+    compliance:
+      # Audit logging
+      audit_logging:
+        log_all_requests: true
+        log_blocked_requests: true
+        log_policy_changes: true
+        retention_period: "7y"
+        immutable_logs: true
+        
+      # Regulatory requirements
+      regulatory_compliance:
+        data_residency:
+          allowed_countries: ["united_states"]
+          prohibited_countries: ["*"]
+          exceptions: []
+          
+        export_controls:
+          technology_transfer: "prohibited"
+          dual_use_technology: "restricted"
+          encryption_export: "compliant"
+          
+      # Regular reviews
+      policy_reviews:
+        frequency: "monthly"
+        reviewers: ["security_team", "compliance_officer"]
+        approval_required: true
+        change_management: "controlled"
+    
+    # Incident Response for Egress Violations
+    incident_response:
+      # Automatic actions
+      automatic_actions:
+        policy_violation:
+          - "block_connection"
+          - "log_incident"
+          - "alert_security_team"
+        suspicious_activity:
+          - "rate_limit_source"
+          - "enhanced_monitoring"
+          - "alert_soc"
+        data_exfiltration_attempt:
+          - "immediate_block"
+          - "isolate_service"
+          - "alert_incident_response"
+          
+      # Escalation procedures
+      escalation_matrix:
+        level_1: "security_operations"
+        level_2: "security_team_lead"
+        level_3: "ciso"
+        level_4: "executive_team"
+        
+      # Response timeframes
+      response_timeframes:
+        critical: "15m"
+        high: "1h"
+        medium: "4h"
+        low: "24h"

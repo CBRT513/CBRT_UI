@@ -1,0 +1,107 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: cbrt-frontend
+  namespace: cbrt-gateway
+  labels:
+    app: cbrt
+    component: frontend
+spec:
+  hosts:
+  - cbrt.company.com
+  gateways:
+  - cbrt-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /api/v1/
+    route:
+    - destination:
+        host: cbrt-api-service
+        port:
+          number: 8080
+      weight: 95
+    - destination:
+        host: cbrt-api-service-canary
+        port:
+          number: 8080
+      weight: 5
+    timeout: 30s
+    retries:
+      attempts: 3
+      perTryTimeout: 10s
+      retryOn: gateway-error,connect-failure,refused-stream
+    fault:
+      delay:
+        percentage:
+          value: 0.1
+        fixedDelay: 100ms
+  - match:
+    - uri:
+        prefix: /websocket
+    route:
+    - destination:
+        host: cbrt-websocket-service
+        port:
+          number: 8081
+    timeout: 300s
+  - match:
+    - uri:
+        prefix: /
+    route:
+    - destination:
+        host: cbrt-frontend-service
+        port:
+          number: 3000
+    headers:
+      response:
+        add:
+          Strict-Transport-Security: "max-age=31536000; includeSubDomains"
+          X-Content-Type-Options: "nosniff"
+          X-Frame-Options: "DENY"
+          X-XSS-Protection: "1; mode=block"
+          Content-Security-Policy: "default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://firebaseapp.com wss:"
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: cbrt-mesh-internal
+  namespace: cbrt-mesh
+  labels:
+    app: cbrt
+    component: mesh-internal
+spec:
+  hosts:
+  - mesh.cbrt.internal
+  gateways:
+  - cbrt-mesh-gateway
+  http:
+  - match:
+    - uri:
+        prefix: /metrics
+    route:
+    - destination:
+        host: prometheus.observability.svc.cluster.local
+        port:
+          number: 9090
+    headers:
+      request:
+        add:
+          X-Trace-Id: "%REQ(X-Request-Id)%"
+          X-SPIFFE-ID: "%DOWNSTREAM_PEER_URI_SAN%"
+  - match:
+    - uri:
+        prefix: /traces
+    route:
+    - destination:
+        host: jaeger.observability.svc.cluster.local
+        port:
+          number: 16686
+  - match:
+    - uri:
+        prefix: /logs
+    route:
+    - destination:
+        host: loki.observability.svc.cluster.local
+        port:
+          number: 3100
