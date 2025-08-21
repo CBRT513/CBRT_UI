@@ -13,6 +13,7 @@ import {
 import { db } from '../firebase/config';
 import { auth } from '../firebase/config';
 import { notificationsService } from './notifications.service';
+import { api } from '../lib/api';
 
 class StagingService {
   /**
@@ -74,6 +75,15 @@ class StagingService {
    * Mark release as staged
    */
   async markStaged({ releaseId, location, stagedQuantities }) {
+    // Check SSO flag and route to API if enabled
+    if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
+      return api(`/cbrt/releases/${releaseId}/stage`, {
+        method: 'POST',
+        body: JSON.stringify({ location, stagedQuantities })
+      });
+    }
+    
+    // Legacy Firestore path
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {

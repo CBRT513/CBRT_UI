@@ -10,12 +10,21 @@ import {
 import { db } from '../firebase/config';
 import { auth } from '../firebase/config';
 import { notificationsService } from './notifications.service';
+import { api } from '../lib/api';
 
 class VerifyService {
   /**
    * Approve staging - move to Verified status
    */
   async approveStaging({ releaseId }) {
+    // Check SSO flag and route to API if enabled
+    if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
+      return api(`/cbrt/releases/${releaseId}/verify`, {
+        method: 'POST'
+      });
+    }
+    
+    // Legacy Firestore path
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
@@ -94,6 +103,15 @@ class VerifyService {
    * Reject staging - return to Entered status
    */
   async rejectStaging({ releaseId, reason }) {
+    // Check SSO flag and route to API if enabled
+    if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
+      return api(`/cbrt/releases/${releaseId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason })
+      });
+    }
+    
+    // Legacy Firestore path
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {

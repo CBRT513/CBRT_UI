@@ -13,12 +13,22 @@ import {
 import { db } from '../firebase/config';
 import { auth } from '../firebase/config';
 import { notificationsService } from './notifications.service';
+import { api } from '../lib/api';
 
 class LoadService {
   /**
    * Mark release as loaded and decrement inventory
    */
   async markLoaded({ releaseId, truckNumber }) {
+    // Check SSO flag and route to API if enabled
+    if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
+      return api(`/cbrt/releases/${releaseId}/load`, {
+        method: 'POST',
+        body: JSON.stringify({ truckNumber })
+      });
+    }
+    
+    // Legacy Firestore path
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {

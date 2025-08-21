@@ -8,8 +8,16 @@ import {
   orderBy
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { api } from '../lib/api';
 
 export const listReleasesByStatus = async (status) => {
+  // Check SSO flag and route to API if enabled
+  if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
+    const result = await api(`/cbrt/releases?status=${status}`);
+    return result.items || [];
+  }
+  
+  // Legacy Firestore path
   try {
     const releasesRef = collection(db, 'releases');
     const q = query(
@@ -52,6 +60,12 @@ export const listReleasesByStatus = async (status) => {
 };
 
 export const getReleaseById = async (releaseId) => {
+  // Check SSO flag and route to API if enabled
+  if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
+    return api(`/cbrt/releases/${releaseId}`);
+  }
+  
+  // Legacy Firestore path
   try {
     const releaseRef = doc(db, 'releases', releaseId);
     const releaseSnap = await getDoc(releaseRef);
