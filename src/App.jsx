@@ -22,6 +22,11 @@ import PDFTestPage from './routes/PDFTestPage';
 import WarehouseStaging from './routes/WarehouseStaging';
 import WarehouseApp from './routes/WarehouseApp';
 import WarehouseVerification from './routes/WarehouseVerification';
+import CustomerPortal from './routes/CustomerPortal';
+import OpsQueues from './routes/OpsQueues';
+import StageRelease from './routes/StageRelease';
+import VerifyRelease from './routes/VerifyRelease';
+import LoadRelease from './routes/LoadRelease';
 
 // Managers
 import StaffManager from './managers/StaffManager';
@@ -62,8 +67,13 @@ export default function App() {
     "BOL Generator",
     "BOL Manager",
     "PDF Test",
-    "Warehouse App"
+    "Warehouse App",
+    "Portal"
   ];
+  
+  if (import.meta.env.VITE_ENABLE_SUPERSACK) {
+    nav.push('Ops Queues');
+  }
 
   return (
     <Router>
@@ -71,15 +81,20 @@ export default function App() {
         <header className="bg-white shadow sticky top-0 z-10">
           <nav className="container mx-auto flex flex-wrap gap-4 p-4 items-center">
             <h1 className="text-xl font-bold text-green-800">CBRT App</h1>
-            {nav.map((l) => (
-              <Link
-                key={l}
-                to={l === 'Home' ? '/' : '/' + l.replace(/\s/g, '').toLowerCase()}
-                className="text-sm hover:underline"
-              >
-                {l}
-              </Link>
-            ))}
+            {nav.map((l) => {
+              const path = l === 'Home' ? '/' : 
+                          l === 'Ops Queues' ? '/ops/queues' :
+                          '/' + l.replace(/\s/g, '').toLowerCase();
+              return (
+                <Link
+                  key={l}
+                  to={path}
+                  className="text-sm hover:underline"
+                >
+                  {l}
+                </Link>
+              );
+            })}
           </nav>
         </header>
 
@@ -107,6 +122,12 @@ export default function App() {
             <Route path="/release-details/:id" element={<ReleaseDetails />} />
             <Route path="/pdftest" element={<PDFTestPage />} />
             <Route path="/warehouseapp" element={<WarehouseApp />} />
+            <Route path="/portal" element={<CustomerPortal />} />
+            <Route path="/ops/queues" element={<OpsQueues />} />
+            <Route path="/releases/:id" element={<ReleaseDetails />} />
+            <Route path="/stage/:id" element={<StageRelease />} />
+            <Route path="/verify/:id" element={<VerifyRelease />} />
+            <Route path="/load/:id" element={<LoadRelease />} />
           </Routes>
         </main>
       </div>

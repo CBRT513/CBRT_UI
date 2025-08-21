@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "cbrt-ui-staging"
+    "dev": "cbrt-app-ui-dev",
+    "staging": "cbrt-ui-staging"
   }
 }
