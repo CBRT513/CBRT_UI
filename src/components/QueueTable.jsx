@@ -2,9 +2,17 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import StateBadge from './StateBadge';
 import AgingChip from './AgingChip';
+import { useAuth } from '../SSOAuthContext';
 
 const QueueTable = ({ rows, onOpenRelease, columnsOverride, queueType }) => {
   const navigate = useNavigate();
+  const { role } = useAuth();
+  const ssoEnabled = String(import.meta.env.VITE_ENABLE_SSO) === 'true';
+  
+  // Role hierarchy for action visibility
+  const canStage = !ssoEnabled || ['loader', 'supervisor', 'admin'].includes(role);
+  const canVerify = !ssoEnabled || ['supervisor', 'admin'].includes(role);
+  const canLoad = !ssoEnabled || ['loader', 'supervisor', 'admin'].includes(role);
   const defaultColumns = [
     { key: 'number', label: 'Release #', render: (row) => row.number || row.id },
     { key: 'customerName', label: 'Customer', render: (row) => row.customerName || 'N/A' },
@@ -26,32 +34,32 @@ const QueueTable = ({ rows, onOpenRelease, columnsOverride, queueType }) => {
         const getActionButton = () => {
           switch (queueType) {
             case 'pick':
-              return (
+              return canStage ? (
                 <button
                   onClick={() => navigate(`/stage/${row.id}`)}
                   className="bg-yellow-600 text-white px-3 py-1 rounded text-sm hover:bg-yellow-700"
                 >
                   Stage
                 </button>
-              );
+              ) : null;
             case 'verify':
-              return (
+              return canVerify ? (
                 <button
                   onClick={() => navigate(`/verify/${row.id}`)}
                   className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
                 >
                   Verify
                 </button>
-              );
+              ) : null;
             case 'bol':
-              return (
+              return canLoad ? (
                 <button
                   onClick={() => navigate(`/load/${row.id}`)}
                   className="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700"
                 >
                   Load
                 </button>
-              );
+              ) : null;
             default:
               return null;
           }

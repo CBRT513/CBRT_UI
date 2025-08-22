@@ -19,9 +19,16 @@ class VerifyService {
   async approveStaging({ releaseId }) {
     // Check SSO flag and route to API if enabled
     if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
-      return api(`/cbrt/releases/${releaseId}/verify`, {
-        method: 'POST'
-      });
+      try {
+        return await api(`/cbrt/releases/${releaseId}/verify`, {
+          method: 'POST'
+        });
+      } catch (error) {
+        if (error.message.includes('403')) {
+          throw new Error('You do not have permission to verify releases (requires supervisor role)');
+        }
+        throw error;
+      }
     }
     
     // Legacy Firestore path
@@ -105,10 +112,17 @@ class VerifyService {
   async rejectStaging({ releaseId, reason }) {
     // Check SSO flag and route to API if enabled
     if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
-      return api(`/cbrt/releases/${releaseId}/reject`, {
-        method: 'POST',
-        body: JSON.stringify({ reason })
-      });
+      try {
+        return await api(`/cbrt/releases/${releaseId}/reject`, {
+          method: 'POST',
+          body: JSON.stringify({ reason })
+        });
+      } catch (error) {
+        if (error.message.includes('403')) {
+          throw new Error('You do not have permission to reject releases (requires supervisor role)');
+        }
+        throw error;
+      }
     }
     
     // Legacy Firestore path

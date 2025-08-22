@@ -77,10 +77,18 @@ class StagingService {
   async markStaged({ releaseId, location, stagedQuantities }) {
     // Check SSO flag and route to API if enabled
     if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
-      return api(`/cbrt/releases/${releaseId}/stage`, {
-        method: 'POST',
-        body: JSON.stringify({ location, stagedQuantities })
-      });
+      try {
+        return await api(`/cbrt/releases/${releaseId}/stage`, {
+          method: 'POST',
+          body: JSON.stringify({ location, stagedQuantities })
+        });
+      } catch (error) {
+        // Re-throw with more context
+        if (error.message.includes('403')) {
+          throw new Error('You do not have permission to stage releases (requires loader role)');
+        }
+        throw error;
+      }
     }
     
     // Legacy Firestore path

@@ -111,7 +111,15 @@ export default function DebugAuth() {
             </div>
             <div>
               <span className="font-medium">Role:</span>{" "}
-              <span className="text-gray-700">{role || "unknown (broker /me not implemented)"}</span>
+              <span className={`font-semibold ${
+                role === 'admin' ? 'text-purple-600' :
+                role === 'supervisor' ? 'text-blue-600' :
+                role === 'loader' ? 'text-green-600' :
+                role === 'viewer' ? 'text-gray-600' :
+                'text-gray-400'
+              }`}>
+                {role || "not loaded"}
+              </span>
             </div>
           </div>
         </div>

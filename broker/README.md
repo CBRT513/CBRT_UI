@@ -2,6 +2,31 @@
 
 Minimal broker implementation for SSO testing with Firebase Auth and RBAC.
 
+## Quick Test Commands
+
+```bash
+# 1. Health check (no auth)
+curl https://api.barge2rail.com/api/health
+
+# 2. Get current user info (requires auth)
+curl https://api.barge2rail.com/cbrt/me \
+  -H "Authorization: Bearer <TOKEN>"
+
+# 3. List releases (viewer+)
+curl https://api.barge2rail.com/cbrt/releases \
+  -H "Authorization: Bearer <TOKEN>"
+
+# 4. Stage release (loader+) - 403 for viewer
+curl -X POST https://api.barge2rail.com/cbrt/releases/123/stage \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"location": "A1"}'
+
+# 5. Verify release (supervisor+) - 403 for viewer/loader
+curl -X POST https://api.barge2rail.com/cbrt/releases/123/verify \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
 ## Setup
 
 ```bash

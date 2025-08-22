@@ -22,10 +22,17 @@ class LoadService {
   async markLoaded({ releaseId, truckNumber }) {
     // Check SSO flag and route to API if enabled
     if (String(import.meta.env.VITE_ENABLE_SSO) === "true") {
-      return api(`/cbrt/releases/${releaseId}/load`, {
-        method: 'POST',
-        body: JSON.stringify({ truckNumber })
-      });
+      try {
+        return await api(`/cbrt/releases/${releaseId}/load`, {
+          method: 'POST',
+          body: JSON.stringify({ truckNumber })
+        });
+      } catch (error) {
+        if (error.message.includes('403')) {
+          throw new Error('You do not have permission to load releases (requires loader role)');
+        }
+        throw error;
+      }
     }
     
     // Legacy Firestore path
