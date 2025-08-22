@@ -12,6 +12,7 @@ import { auth } from './firebase/config';
 import SSOAuthProvider from './SSOAuthContext';
 import { ViewerGuard, LoaderGuard, SupervisorGuard, AdminGuard } from './RoleGuard';
 import HealthCheck from './pages/HealthCheck';
+import DebugAuth from './pages/DebugAuth';
 
 // Routes
 import Home from './routes/Home';
@@ -82,6 +83,11 @@ export default function App() {
   if (import.meta.env.VITE_ENABLE_SUPERSACK) {
     nav.push('Ops Queues');
   }
+  
+  // Add Debug link for SSO mode
+  if (String(import.meta.env.VITE_ENABLE_SSO) === 'true') {
+    nav.push('Debug');
+  }
 
   return (
     <SSOAuthProvider>
@@ -94,6 +100,7 @@ export default function App() {
               const path = l === 'Home' ? '/' : 
                           l === 'Ops Queues' ? '/ops/queues' :
                           l === 'Health' ? '/health' :
+                          l === 'Debug' ? '/debug' :
                           '/' + l.replace(/\s/g, '').toLowerCase();
               return (
                 <Link
@@ -112,6 +119,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/health" element={<HealthCheck />} />
+            <Route path="/debug" element={<AdminGuard><DebugAuth /></AdminGuard>} />
             <Route path="/staff" element={<StaffManager />} />
             <Route path="/customers" element={<CustomerManager />} />
             <Route path="/suppliers" element={<SupplierManager />} />
